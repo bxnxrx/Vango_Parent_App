@@ -1,4 +1,4 @@
-# 🚐 VanGo: Parent Mobile Application
+# VanGo: Parent Mobile Application
 
 ![VanGo Banner](assets/images/vango_banner.png)
 > **The dedicated mobile interface for parents to ensure safe, transparent, and reliable school transportation for their children.**
