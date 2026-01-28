@@ -12,24 +12,24 @@
 ## 🔗 Related Repositories
 This project is part of the **VanGo Ecosystem**. Please ensure the backend is running for full functionality.
 
-* 🖥️ **Backend API:** [Link to vango-backend](https://github.com/YOUR_ORG/vango-backend)
-* 🚌 **Driver App:** [Link to vango-driver-app](https://github.com/YOUR_ORG/vango-driver-app)
+* **Backend API:** [Link to vango-backend](https://github.com/YOUR_ORG/vango-backend)
+* **Driver App:** [Link to vango-driver-app](https://github.com/YOUR_ORG/vango-driver-app)
 
 ---
 
-## 📱 Project Overview
+## Project Overview
 The **VanGo Parent App** solves the anxiety parents face regarding school transport. It provides real-time visibility into their child's journey, replaces manual phone calls with automated notifications, and simplifies attendance management.
 
 ### Key Features
-* **📍 Real-Time Tracking:** View the live location of the school van on Google Maps with ETA updates.
-* **🔔 Smart Notifications:** Receive instant alerts for:
+* ** Real-Time Tracking:** View the live location of the school van on Google Maps with ETA updates.
+* ** Smart Notifications:** Receive instant alerts for:
     * Van approaching pickup/drop-off.
     * Child boarded/dropped off.
     * Unexpected delays or emergencies.
-* **📅 Attendance Management:** Mark your child as "Coming" or "Not Coming" for the day to update the driver's route automatically.
-* **💳 Digital Payments:** View monthly fees and payment history (Integration with Payment Gateway).
-* **💬 Driver Communication:** Secure, in-app messaging to contact the driver without distractions.
-* **👤 Child Profiles:** Manage multiple children and their specific pickup locations.
+* ** Attendance Management:** Mark your child as "Coming" or "Not Coming" for the day to update the driver's route automatically.
+* ** Digital Payments:** View monthly fees and payment history (Integration with Payment Gateway).
+* ** Driver Communication:** Secure, in-app messaging to contact the driver without distractions.
+* ** Child Profiles:** Manage multiple children and their specific pickup locations.
 
 ---
 
@@ -52,7 +52,7 @@ This application is built using **Flutter** and integrates with several key serv
 
 ---
 
-## 📂 Folder Structure
+##  Folder Structure
 The project follows a feature-first architecture for scalability.
 
 ```text
