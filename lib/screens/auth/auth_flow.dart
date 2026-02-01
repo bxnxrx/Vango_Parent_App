@@ -68,10 +68,10 @@ class _AuthFlowState extends State<AuthFlow> {
       return RegisterScreen(
         key: const ValueKey('register'),
         onBack: _moveToLogin,
-        onSubmit: (childName) {
-          _moveToOtp('+94 77 123 4567');
+        onSubmit: (result) {
+          _moveToOtp(result.phone);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Welcome $childName! Confirm OTP to finish.')),
+            SnackBar(content: Text('Welcome ${result.childName}! Confirm OTP to finish.')),
           );
         },
       );

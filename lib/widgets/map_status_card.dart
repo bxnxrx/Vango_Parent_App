@@ -12,12 +12,12 @@ class MapStatusCard extends StatelessWidget {
   final VoidCallback onMarkNotComing;
 
   const MapStatusCard({
-    Key? key,
+    super.key,
     required this.status,
     required this.onViewRide,
     required this.onShare,
     required this.onMarkNotComing,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

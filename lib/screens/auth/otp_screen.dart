@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
@@ -18,12 +19,14 @@ class OtpScreen extends StatefulWidget {
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  static const int _digits = 4;
+  static const int _digits = 6;
   static const int _countdownSeconds = 60;
 
   final List<TextEditingController> _controllers = List.generate(_digits, (_) => TextEditingController());
   Timer? _countdown;
   int _secondsLeft = _countdownSeconds;
+  bool _verifying = false;
+  bool _resending = false;
 
   @override
   void initState() {
@@ -40,52 +43,61 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
-  // Reset the timer that prevents spamming the resend button.
   void _startCountdown() {
     _countdown?.cancel();
-    setState(() {
-      _secondsLeft = _countdownSeconds;
-    });
+    setState(() => _secondsLeft = _countdownSeconds);
     _countdown = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
       if (_secondsLeft == 0) {
         timer.cancel();
-        return;
+      } else {
+        setState(() => _secondsLeft -= 1);
       }
-      setState(() {
-        _secondsLeft -= 1;
-      });
     });
   }
 
-  // Allow the user to request a fresh OTP.
-  void _resendCode() {
-    _startCountdown();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('OTP code resent')));
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _verify() async {
+    final code = _controllers.map((controller) => controller.text.trim()).join();
+    if (code.length != _digits) {
+      _showMessage('Enter the $_digits-digit code.');
+      return;
+    }
+
+    setState(() => _verifying = true);
+    try {
+      await AuthService.instance.verifyPhoneOtp(phone: widget.phoneNumber, token: code);
+      if (!mounted) return;
+      widget.onVerified();
+    } catch (error) {
+      _showMessage('Verification failed: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _verifying = false);
+      }
+    }
+  }
+
+  Future<void> _resendCode() async {
+    setState(() => _resending = true);
+    try {
+      await AuthService.instance.requestPhoneOtp(widget.phoneNumber);
+      _startCountdown();
+      if (!mounted) return;
+      _showMessage('OTP resent');
+    } catch (error) {
+      _showMessage('Unable to resend: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _resending = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Build a row of one-character inputs for the OTP code.
-    final List<Widget> otpFields = [];
-    for (final controller in _controllers) {
-      otpFields.add(
-        SizedBox(
-          width: 60,
-          child: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            maxLength: 1,
-            decoration: const InputDecoration(counterText: ''),
-          ),
-        ),
-      );
-    }
-
     final String secondsLabel = _secondsLeft.toString().padLeft(2, '0');
 
     return SingleChildScrollView(
@@ -97,11 +109,27 @@ class _OtpScreenState extends State<OtpScreen> {
           const SizedBox(height: 8),
           Text('Check your phone', style: AppTypography.display.copyWith(fontSize: 28)),
           const SizedBox(height: 8),
-          Text('We sent a 4-digit code to ${widget.phoneNumber}', style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
+          Text('We sent a code to ${widget.phoneNumber}', style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: otpFields,
+            children: List.generate(_digits, (index) {
+              return SizedBox(
+                width: 50,
+                child: TextField(
+                  controller: _controllers[index],
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  maxLength: 1,
+                  onChanged: (value) {
+                    if (value.length == 1 && index < _digits - 1) {
+                      FocusScope.of(context).nextFocus();
+                    }
+                  },
+                  decoration: const InputDecoration(counterText: ''),
+                ),
+              );
+            }),
           ),
           const SizedBox(height: 16),
           Text('00:$secondsLabel remaining', style: AppTypography.label.copyWith(color: AppColors.textSecondary)),
@@ -109,11 +137,20 @@ class _OtpScreenState extends State<OtpScreen> {
           Row(
             children: [
               Text("Didn't receive code?", style: AppTypography.body),
-              TextButton(onPressed: _secondsLeft == 0 ? _resendCode : null, child: const Text('Resend')),
+              TextButton(
+                onPressed: _secondsLeft == 0 && !_resending ? _resendCode : null,
+                child: _resending
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Resend'),
+              ),
             ],
           ),
           const SizedBox(height: 24),
-          GradientButton(label: 'Continue', expanded: true, onPressed: widget.onVerified),
+          GradientButton(
+            label: _verifying ? 'Verifying...' : 'Continue',
+            expanded: true,
+            onPressed: _verifying ? null : _verify,
+          ),
         ],
       ),
     );

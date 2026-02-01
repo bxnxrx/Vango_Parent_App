@@ -6,7 +6,7 @@ class EmergencyButton extends StatelessWidget {
   final VoidCallback onTap;
 
   // Removed super.key
-  const EmergencyButton({required this.onTap});
+  const EmergencyButton({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

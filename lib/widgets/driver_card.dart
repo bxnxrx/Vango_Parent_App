@@ -10,11 +10,11 @@ class DriverCard extends StatelessWidget {
   final VoidCallback onView;
 
   const DriverCard({
-    Key? key,
+    super.key,
     required this.driver,
     required this.onRequestSeat,
     required this.onView,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

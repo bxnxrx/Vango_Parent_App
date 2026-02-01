@@ -7,8 +7,7 @@ class MessageThreadTile extends StatelessWidget {
   final MessageThread thread;
   final VoidCallback onTap;
 
-  const MessageThreadTile({Key? key, required this.thread, required this.onTap})
-    : super(key: key);
+  const MessageThreadTile({super.key, required this.thread, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

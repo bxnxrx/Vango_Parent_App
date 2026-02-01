@@ -11,13 +11,13 @@ class GradientButton extends StatelessWidget {
 
   // Standard constructor without excessive const
   const GradientButton({
-    Key? key,
+    super.key,
     required this.label,
     this.onPressed,
     this.icon,
     this.expanded = false,
     this.secondary = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

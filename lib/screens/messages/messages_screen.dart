@@ -6,7 +6,7 @@ import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/message_thread_tile.dart';
 
 class MessagesScreen extends StatelessWidget {
-  const MessagesScreen({Key? key}) : super(key: key);
+  const MessagesScreen({super.key});
 
   void _openChat(BuildContext context, MessageThread thread) {
     Navigator.of(
@@ -62,7 +62,7 @@ class MessagesScreen extends StatelessWidget {
 class ChatScreen extends StatelessWidget {
   final MessageThread thread;
 
-  const ChatScreen({Key? key, required this.thread}) : super(key: key);
+  const ChatScreen({super.key, required this.thread});
 
   @override
   Widget build(BuildContext context) {

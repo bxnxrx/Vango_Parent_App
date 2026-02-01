@@ -9,11 +9,11 @@ class ChildCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const ChildCard({
-    Key? key,
+    super.key,
     required this.child,
     required this.onToggle,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -1,11 +1,21 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:vango_parent_app/screens/app_shell.dart';
 import 'package:vango_parent_app/screens/auth/auth_flow.dart';
 import 'package:vango_parent_app/screens/onboarding/onboarding_screen.dart';
+import 'package:vango_parent_app/services/app_config.dart';
+import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  AppConfig.ensure();
+  await Supabase.initialize(
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseAnonKey,
+  );
+  await AuthService.instance.initialize();
   runApp(const VanGoApp());
 }
 
