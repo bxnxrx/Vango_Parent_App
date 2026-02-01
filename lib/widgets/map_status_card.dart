@@ -40,7 +40,7 @@ class MapStatusCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Chamath is ${status.etaMinutes} mins away',
+                      '${status.driverName ?? 'Your driver'} is ${status.etaMinutes} mins away',
                       style: AppTypography.headline,
                     ),
                     Text(

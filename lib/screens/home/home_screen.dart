@@ -23,7 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<ChildProfile> _children = <ChildProfile>[];
   List<NotificationItem> _notifications = <NotificationItem>[];
-  RideStatus _rideStatus = const RideStatus.placeholder();
+  final RideStatus _rideStatus = const RideStatus.placeholder();
   bool _loading = true;
   String? _error;
 

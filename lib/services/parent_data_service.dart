@@ -2,6 +2,7 @@ import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/models/driver_profile.dart';
 import 'package:vango_parent_app/models/message_thread.dart';
 import 'package:vango_parent_app/models/notification_item.dart';
+import 'package:vango_parent_app/models/payment_record.dart';
 import 'package:vango_parent_app/services/backend_client.dart';
 
 class ParentDataService {
@@ -10,6 +11,7 @@ class ParentDataService {
   static final ParentDataService instance = ParentDataService._();
 
   final BackendClient _backend = BackendClient.instance;
+  static const String _defaultPickupTime = '06:45 AM';
 
   Future<List<ChildProfile>> fetchChildren() async {
     final response = await _backend.get('/api/parents/children');
@@ -20,14 +22,15 @@ class ParentDataService {
     required String childName,
     required String school,
     required String pickupLocation,
-    required String pickupTime,
+    String? pickupTime,
   }) async {
-    final response = await _backend.post('/api/parents/children', {
-      'childName': childName,
-      'school': school,
-      'pickupLocation': pickupLocation,
-      'pickupTime': pickupTime,
-    }) as Map<String, dynamic>;
+    final payload = _buildChildPayload(
+      childName: childName,
+      school: school,
+      pickupLocation: pickupLocation,
+      pickupTime: pickupTime,
+    );
+    final response = _expectMap(await _backend.post('/api/parents/children', payload));
     return ChildProfile.fromJson(response);
   }
 
@@ -74,10 +77,37 @@ class ParentDataService {
     return Message.fromJson(response);
   }
 
+  Future<List<PaymentRecord>> fetchPayments() async {
+    final response = await _backend.get('/api/parents/payments');
+    return _mapList(response, PaymentRecord.fromJson);
+  }
+
   List<T> _mapList<T>(dynamic payload, T Function(Map<String, dynamic>) mapper) {
     if (payload is List) {
       return payload.map((item) => mapper(item as Map<String, dynamic>)).toList();
     }
     return <T>[];
+  }
+
+  Map<String, dynamic> _buildChildPayload({
+    required String childName,
+    required String school,
+    required String pickupLocation,
+    String? pickupTime,
+  }) {
+    final normalizedTime = (pickupTime ?? '').trim().isEmpty ? _defaultPickupTime : pickupTime!.trim();
+    return {
+      'childName': childName.trim(),
+      'school': school.trim(),
+      'pickupLocation': pickupLocation.trim(),
+      'pickupTime': normalizedTime,
+    };
+  }
+
+  Map<String, dynamic> _expectMap(dynamic payload) {
+    if (payload is Map<String, dynamic>) {
+      return payload;
+    }
+    throw StateError('Unexpected backend payload: ${payload.runtimeType}');
   }
 }

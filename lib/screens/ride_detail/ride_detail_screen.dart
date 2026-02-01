@@ -52,7 +52,7 @@ class RideDetailScreen extends StatelessWidget {
                       ),
                       title: Text(step.label),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),

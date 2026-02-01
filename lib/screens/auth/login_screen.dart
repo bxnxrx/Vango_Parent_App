@@ -13,10 +13,9 @@ class LoginScreen extends StatefulWidget {
     required this.onCreateAccount,
   });
 
-  final void Function(String phone) onContinue;
-  final void Function(String phone) onUseOtp;
+  final ValueChanged<String> onContinue;
+  final ValueChanged<String> onUseOtp;
   final VoidCallback onCreateAccount;
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -115,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
           TextField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: _fieldDecoration('Email', prefix: const Icon(Icons.alternate_email_outlined)),
+            decoration: _fieldDecoration('Email', prefix: const Icon(Icons.alternate_email)),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -127,33 +126,32 @@ class _LoginScreenState extends State<LoginScreen> {
           TextField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
-            decoration: _fieldDecoration('Phone number', prefix: const Icon(Icons.phone_iphone)),
+            decoration: _fieldDecoration('Phone number', prefix: const Icon(Icons.phone_android)),
           ),
           const SizedBox(height: 24),
           GradientButton(
-            label: 'Continue',
+            label: _submitting ? 'Signing in...' : 'Continue',
             expanded: true,
             onPressed: _submitting ? null : _handleLogin,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: _sendingOtpOnly ? null : _handleOtpOnly,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.accent,
+              minimumSize: const Size.fromHeight(52),
+              shape: const StadiumBorder(),
+            ),
             icon: _sendingOtpOnly
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.sms_outlined),
-            label: const Text('Send me an OTP'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.accent,
-              side: const BorderSide(color: AppColors.accent),
-              minimumSize: const Size.fromHeight(48),
-              shape: const StadiumBorder(),
-            ),
+            label: Text(_sendingOtpOnly ? 'Sending code...' : 'Use phone OTP only'),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text("New to VanGo?", style: AppTypography.body),
+              Text('New to VanGo?', style: AppTypography.body),
               TextButton(onPressed: widget.onCreateAccount, child: const Text('Create account')),
             ],
           ),

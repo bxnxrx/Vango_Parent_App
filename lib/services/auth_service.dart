@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_config.dart';
 import 'backend_client.dart';
+import 'parent_data_service.dart';
 
 class AuthService {
   AuthService._();
@@ -39,18 +40,15 @@ class AuthService {
     required String childName,
     required String school,
     required String pickupLocation,
+    String? pickupTime,
   }) async {
-    final response = await BackendClient.instance.post('/api/parents/children', {
-      'childName': childName,
-      'school': school,
-      'pickupLocation': pickupLocation,
-    });
-
-    final id = response['id'] as String?;
-    if (id == null) {
-      throw Exception('Child ID missing from backend response');
-    }
-    return id;
+    final profile = await ParentDataService.instance.createChild(
+      childName: childName,
+      school: school,
+      pickupLocation: pickupLocation,
+      pickupTime: pickupTime,
+    );
+    return profile.id;
   }
 
   Future<void> linkDriver({required String code, required String childId}) async {

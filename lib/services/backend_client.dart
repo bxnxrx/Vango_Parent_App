@@ -14,8 +14,8 @@ class BackendClient {
   final http.Client _client = http.Client();
 
   Future<Map<String, String>> _headers() async {
-    final session = await Supabase.instance.client.auth.getSession();
-    final token = session.session?.accessToken;
+    final session = Supabase.instance.client.auth.currentSession;
+    final token = session?.accessToken;
     if (token == null) {
       throw Exception('No Supabase session available');
     }

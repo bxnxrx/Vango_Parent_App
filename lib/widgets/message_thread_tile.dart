@@ -111,7 +111,7 @@ class MessageThreadTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                thread.time,
+                thread.timeLabel,
                 style: AppTypography.label.copyWith(
                   fontSize: 11,
                   color: thread.unread

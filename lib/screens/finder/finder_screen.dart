@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 
-import 'package:vango_parent_app/data/mock_data.dart';
 import 'package:vango_parent_app/models/driver_profile.dart';
+import 'package:vango_parent_app/services/parent_data_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
@@ -14,10 +14,14 @@ class FinderScreen extends StatefulWidget {
 }
 
 class _FinderScreenState extends State<FinderScreen> {
+  final ParentDataService _dataService = ParentDataService.instance;
+  List<DriverProfile> _services = const <DriverProfile>[];
   String _pickup = 'Home - Bambalapitiya';
   String _drop = 'Royal Primary School';
   String _selectedFilter = 'All';
   String _sortBy = 'rating';
+  bool _loading = true;
+  String? _error;
 
   // Options that drive the chips and quick picks.
   static const List<String> _filters = ['All', 'Van', 'Car', 'Mini Bus'];
@@ -27,6 +31,41 @@ class _FinderScreenState extends State<FinderScreen> {
     'Gateway College - Nugegoda',
     'Musaeus College - Colombo 7',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServices();
+  }
+
+  Future<void> _loadServices() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final results = await _dataService.fetchFinderServices(
+        vehicleType: _selectedFilter == 'All' ? null : _selectedFilter,
+        sortBy: _sortBy,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _services = results;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = error.toString();
+        _loading = false;
+      });
+    }
+  }
 
   // Allow parents to quickly reverse the two endpoints.
   void _swapLocations() {
@@ -44,6 +83,7 @@ class _FinderScreenState extends State<FinderScreen> {
     setState(() {
       _selectedFilter = value;
     });
+    _loadServices();
   }
 
   void _updateSortBy(String? value) {
@@ -56,12 +96,13 @@ class _FinderScreenState extends State<FinderScreen> {
     setState(() {
       _sortBy = value;
     });
+    _loadServices();
   }
 
   // Build the visible list after applying the current filter and sort.
   List<DriverProfile> _getVisibleServices() {
     final List<DriverProfile> filtered = <DriverProfile>[];
-    for (final DriverProfile driver in MockData.finderDrivers) {
+    for (final DriverProfile driver in _services) {
       if (_selectedFilter == 'All') {
         filtered.add(driver);
       } else if (driver.vehicleType == _selectedFilter) {
@@ -197,6 +238,36 @@ class _FinderScreenState extends State<FinderScreen> {
   @override
   Widget build(BuildContext context) {
     final List<DriverProfile> services = _getVisibleServices();
+
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off, size: 48, color: AppColors.textSecondary),
+                const SizedBox(height: 12),
+                Text('Unable to load services', style: AppTypography.title),
+                const SizedBox(height: 8),
+                Text(
+                  _error!,
+                  style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                GradientButton(label: 'Try again', onPressed: _loadServices),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: CustomScrollView(

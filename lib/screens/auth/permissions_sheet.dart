@@ -41,7 +41,7 @@ class _PermissionsSheetState extends State<PermissionsSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTypography.subtitle),
+                Text(title, style: AppTypography.title.copyWith(fontSize: 16)),
                 const SizedBox(height: 4),
                 Text(description, style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
               ],
