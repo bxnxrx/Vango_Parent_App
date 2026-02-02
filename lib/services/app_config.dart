@@ -1,11 +1,18 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConfig {
-  static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-  static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
-  static const backendBaseUrl = String.fromEnvironment('BACKEND_BASE_URL');
+  static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
+  static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  static String get backendBaseUrl => dotenv.env['BACKEND_BASE_URL'] ?? '';
 
   static void ensure() {
-    if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty || backendBaseUrl.isEmpty) {
-      throw Exception('SUPABASE_URL, SUPABASE_ANON_KEY, and BACKEND_BASE_URL must be provided via --dart-define.');
+    if (supabaseUrl.isEmpty ||
+        supabaseAnonKey.isEmpty ||
+        backendBaseUrl.isEmpty) {
+      throw Exception(
+        'Missing environment variables in .env file. '
+        'Ensure SUPABASE_URL, SUPABASE_ANON_KEY, and BACKEND_BASE_URL are set.',
+      );
     }
   }
 }
