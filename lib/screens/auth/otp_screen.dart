@@ -11,7 +11,7 @@ class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key, required this.phoneNumber, required this.onVerified, required this.onBack});
 
   final String phoneNumber;
-  final VoidCallback onVerified;
+  final Future<void> Function() onVerified;
   final VoidCallback onBack;
 
   @override
@@ -70,7 +70,7 @@ class _OtpScreenState extends State<OtpScreen> {
     try {
       await AuthService.instance.verifyPhoneOtp(phone: widget.phoneNumber, token: code);
       if (!mounted) return;
-      widget.onVerified();
+      await widget.onVerified();
     } catch (error) {
       _showMessage('Verification failed: $error');
     } finally {

@@ -18,8 +18,14 @@ Future<void> main() async {
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,
   );
-  await AuthService.instance.initialize();
-  runApp(const VanGoApp());
+  try {
+    await AuthService.instance.initialize();
+    runApp(const VanGoApp());
+  } catch (error, stackTrace) {
+    debugPrint('Parent app offline: $error');
+    debugPrintStack(stackTrace: stackTrace);
+    runApp(ParentOfflineApp(error: error));
+  }
 }
 
 // Keeps track of the user's current step inside the app.
@@ -85,6 +91,60 @@ class _VanGoAppState extends State<VanGoApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       home: home,
+    );
+  }
+}
+
+class ParentOfflineApp extends StatelessWidget {
+  const ParentOfflineApp({super.key, required this.error});
+
+  final Object error;
+
+  Future<void> _retry(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    try {
+      await AuthService.instance.initialize();
+      runApp(const VanGoApp());
+    } catch (retryError) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Still offline: ${retryError.toString()}')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'VanGo Parent (Offline)',
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off, size: 64, color: Color(0xFF2E3559)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Backend unavailable',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  error.toString(),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => _retry(context),
+                  child: const Text('Retry connection'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

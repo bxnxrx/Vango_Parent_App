@@ -6,10 +6,17 @@ import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
 
 class ParentRegistrationResult {
-  const ParentRegistrationResult({required this.phone, required this.childName});
+  const ParentRegistrationResult({
+    required this.phone,
+    required this.childName,
+    required this.childId,
+    this.driverCode,
+  });
 
   final String phone;
   final String childName;
+  final String childId;
+  final String? driverCode;
 }
 
 class RegisterScreen extends StatefulWidget {
@@ -136,7 +143,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabeledField(label: 'Driver invite code (optional)', controller: _driverCodeController, icon: Icons.qr_code_2),
+        _buildLabeledField(label: 'Driver invite code', controller: _driverCodeController, icon: Icons.qr_code_2),
+        const SizedBox(height: 8),
+        Text(
+          'Ask your driver for the 8-character code. You\'ll confirm it after OTP verification.',
+          style: AppTypography.label.copyWith(color: AppColors.textSecondary),
+        ),
         const SizedBox(height: 16),
         _buildLabeledField(label: 'How did you hear about us?', controller: _referralController, icon: Icons.chat_outlined),
       ],
@@ -172,10 +184,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _submit() async {
     final phone = _phoneController.text.trim();
     final childName = _childNameController.text.trim().isEmpty ? 'Your child' : _childNameController.text.trim();
+    final driverCode = _driverCodeController.text.trim();
 
     setState(() => _submitting = true);
     try {
-      await AuthService.instance.signInOrSignUp(_emailController.text.trim(), _passwordController.text.trim());
+      final authResult = await AuthService.instance.signInOrSignUp(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      if (authResult.requiresEmailVerification) {
+        _showMessage('Please verify your email from the link we sent, then sign in again.');
+        return;
+      }
+
+      await AuthService.instance.markEmailVerified();
       await AuthService.instance.saveParentProfile(fullName: _fullNameController.text.trim(), phone: phone);
       final childId = await AuthService.instance.createChild(
         childName: _childNameController.text.trim(),
@@ -183,16 +206,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         pickupLocation: _pickupController.text.trim(),
       );
 
-      final driverCode = _driverCodeController.text.trim();
-      if (driverCode.isNotEmpty) {
-        await AuthService.instance.linkDriver(code: driverCode, childId: childId);
-      }
+      await AuthService.instance.markProfileCompleted();
 
       await AuthService.instance.cachePhone(phone);
       await AuthService.instance.requestPhoneOtp(phone);
 
       if (!mounted) return;
-      widget.onSubmit(ParentRegistrationResult(phone: phone, childName: childName));
+      widget.onSubmit(ParentRegistrationResult(
+        phone: phone,
+        childName: childName,
+        childId: childId,
+        driverCode: driverCode.isEmpty ? null : driverCode,
+      ));
     } catch (error) {
       _showMessage('Unable to submit details: $error');
     } finally {
@@ -223,6 +248,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (_step == 2) {
+      if (_driverCodeController.text.trim().isEmpty) {
+        _showMessage('Enter your driver code to continue.');
+        return;
+      }
       _submit();
       return;
     }

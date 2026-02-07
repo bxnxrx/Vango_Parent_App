@@ -82,6 +82,12 @@ class ParentDataService {
     return _mapList(response, PaymentRecord.fromJson);
   }
 
+  Future<bool> hasLinkedDriver() async {
+    final response = await _backend.get('/api/parents/link-status');
+    final linked = response is Map<String, dynamic> ? response['linked'] : null;
+    return linked is bool ? linked : false;
+  }
+
   List<T> _mapList<T>(dynamic payload, T Function(Map<String, dynamic>) mapper) {
     if (payload is List) {
       return payload.map((item) => mapper(item as Map<String, dynamic>)).toList();

@@ -51,6 +51,7 @@ class ChildProfile {
     required this.attendance,
     required this.paymentStatus,
     required this.avatarColor,
+    this.linkedDriverId,
   });
 
   final String id;
@@ -61,6 +62,7 @@ class ChildProfile {
   final AttendanceState attendance;
   final PaymentStatus paymentStatus;
   final Color avatarColor;
+  final String? linkedDriverId;
 
   factory ChildProfile.fromJson(Map<String, dynamic> json) {
     final name = (json['child_name'] as String? ?? '').trim();
@@ -73,12 +75,14 @@ class ChildProfile {
       attendance: AttendanceStateApi.fromString(json['attendance_state'] as String? ?? 'coming'),
       paymentStatus: PaymentStatusApi.fromString(json['payment_status'] as String? ?? 'paid'),
       avatarColor: _colorFromName(name),
+      linkedDriverId: json['linked_driver_id'] as String?,
     );
   }
 
   ChildProfile copyWith({
     AttendanceState? attendance,
     PaymentStatus? paymentStatus,
+    String? linkedDriverId,
   }) {
     return ChildProfile(
       id: id,
@@ -89,6 +93,7 @@ class ChildProfile {
       attendance: attendance ?? this.attendance,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       avatarColor: avatarColor,
+      linkedDriverId: linkedDriverId ?? this.linkedDriverId,
     );
   }
 

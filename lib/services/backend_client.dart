@@ -69,4 +69,13 @@ class BackendClient {
   Future<dynamic> patch(String path, Map<String, dynamic> body) {
     return _send(method: 'PATCH', path: path, body: body);
   }
+
+  Future<void> ensureBackendHealthy() async {
+    AppConfig.ensure();
+    final uri = Uri.parse('${AppConfig.backendBaseUrl}/api/health');
+    final response = await _client.get(uri);
+    if (response.statusCode != 200) {
+      throw Exception('Backend health check failed (${response.statusCode})');
+    }
+  }
 }

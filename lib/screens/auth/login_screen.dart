@@ -52,7 +52,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _submitting = true);
     try {
-      await AuthService.instance.signInOrSignUp(email, password);
+      final authResult = await AuthService.instance.signInOrSignUp(email, password);
+      if (authResult.requiresEmailVerification) {
+        _showMessage('Check your inbox to verify your email before continuing.');
+        return;
+      }
+
+      await AuthService.instance.markEmailVerified();
       await AuthService.instance.cachePhone(phone);
       await AuthService.instance.requestPhoneOtp(phone);
       if (!mounted) return;
