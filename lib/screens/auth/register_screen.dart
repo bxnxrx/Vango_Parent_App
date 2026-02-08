@@ -1,6 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 
+import 'package:vango_parent_app/screens/auth/email_otp_screen.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
+import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
@@ -20,17 +22,25 @@ class ParentRegistrationResult {
 }
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key, required this.onBack, required this.onSubmit});
+  const RegisterScreen({
+    super.key,
+    required this.onBack,
+    required this.onSubmit,
+    required this.onCancel,
+    required this.onUsePhoneSignup,
+  });
 
   final VoidCallback onBack;
   final ValueChanged<ParentRegistrationResult> onSubmit;
+  final VoidCallback onCancel;
+  final VoidCallback onUsePhoneSignup;
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  static const _stepTitles = ['Personal', 'Child', 'Driver link'];
+  static const _stepTitles = ['Account', 'Details', 'Driver link'];
 
   int _step = 0;
   bool _submitting = false;
@@ -115,13 +125,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabeledField(label: 'Full name', controller: _fullNameController, icon: Icons.person_outline),
+        _buildLabeledField(
+          label: 'Email address',
+          controller: _emailController,
+          icon: Icons.alternate_email,
+          keyboardType: TextInputType.emailAddress,
+        ),
         const SizedBox(height: 16),
-        _buildLabeledField(label: 'Email address', controller: _emailController, icon: Icons.alternate_email, keyboardType: TextInputType.emailAddress),
+        _buildLabeledField(
+          label: 'Create password',
+          controller: _passwordController,
+          icon: Icons.lock_outline,
+          obscure: true,
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.grey.shade300)),
+            const SizedBox(width: 8),
+            Text('Or continue with', style: AppTypography.label.copyWith(color: AppColors.textSecondary)),
+            const SizedBox(width: 8),
+            Expanded(child: Divider(color: Colors.grey.shade300)),
+          ],
+        ),
         const SizedBox(height: 16),
-        _buildLabeledField(label: 'Password', controller: _passwordController, icon: Icons.lock_outline, obscure: true),
-        const SizedBox(height: 16),
-        _buildLabeledField(label: 'Phone number', controller: _phoneController, icon: Icons.phone_android, keyboardType: TextInputType.phone),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: _submitting ? null : _handleGoogleSignup,
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFB3E5FC), width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.network(
+                  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png',
+                  height: 24,
+                  errorBuilder: (c, o, s) => const Icon(Icons.g_mobiledata, size: 28),
+                ),
+                const SizedBox(width: 12),
+                const Text('Continue with Google'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: TextButton(
+            onPressed: _submitting ? null : widget.onUsePhoneSignup,
+            child: const Text('Use mobile number instead'),
+          ),
+        ),
       ],
     );
   }
@@ -130,6 +188,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildLabeledField(label: 'Full name', controller: _fullNameController, icon: Icons.person_outline),
+        const SizedBox(height: 16),
+        _buildLabeledField(label: 'Phone number', controller: _phoneController, icon: Icons.phone_android, keyboardType: TextInputType.phone),
+        const SizedBox(height: 24),
         _buildLabeledField(label: 'Child name', controller: _childNameController, icon: Icons.child_care),
         const SizedBox(height: 16),
         _buildLabeledField(label: 'School', controller: _schoolController, icon: Icons.school_outlined),
@@ -165,40 +227,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return _buildDriverStep();
   }
 
-  bool _validatePersonal() {
-    if (_fullNameController.text.trim().isEmpty || _emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
-      _showMessage('Fill your name, email, password, and phone number.');
+  bool _validateAccount() {
+    if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
+      _showMessage('Enter your email and choose a password.');
       return false;
     }
     return true;
   }
 
-  bool _validateChild() {
-    if (_childNameController.text.trim().isEmpty || _schoolController.text.trim().isEmpty || _pickupController.text.trim().isEmpty) {
-      _showMessage('Tell us about your child, school, and pickup location.');
+  bool _validateDetails() {
+    if (_fullNameController.text.trim().isEmpty ||
+        _phoneController.text.trim().isEmpty ||
+        _childNameController.text.trim().isEmpty ||
+        _schoolController.text.trim().isEmpty ||
+        _pickupController.text.trim().isEmpty) {
+      _showMessage('Fill in your name, phone, child, school and pickup.');
       return false;
     }
     return true;
   }
+
+  bool _accountCreated = false;
 
   Future<void> _submit() async {
-    final phone = _phoneController.text.trim();
-    final childName = _childNameController.text.trim().isEmpty ? 'Your child' : _childNameController.text.trim();
-    final driverCode = _driverCodeController.text.trim();
+    if (!_accountCreated) {
+      _showMessage('Account setup incomplete. Go back and enter your email and password.');
+      return;
+    }
 
     setState(() => _submitting = true);
     try {
-      final authResult = await AuthService.instance.signInOrSignUp(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
+      final phone = _phoneController.text.trim();
+      final childName = _childNameController.text.trim().isEmpty
+          ? 'Your child'
+          : _childNameController.text.trim();
+      final driverCode = _driverCodeController.text.trim();
 
-      if (authResult.requiresEmailVerification) {
-        _showMessage('Please verify your email from the link we sent, then sign in again.');
-        return;
-      }
-
-      await AuthService.instance.markEmailVerified();
       await AuthService.instance.saveParentProfile(fullName: _fullNameController.text.trim(), phone: phone);
       final childId = await AuthService.instance.createChild(
         childName: _childNameController.text.trim(),
@@ -227,6 +291,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  Future<void> _confirmAndCancelSignup() async {
+    if (_submitting) return;
+
+    final shouldCancel = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Cancel signup?'),
+              content: const Text(
+                'This will delete your partially created account and any related data. You can start again later.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Keep editing'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Delete & exit'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!shouldCancel) return;
+
+    setState(() => _submitting = true);
+    try {
+      await AuthService.instance.cancelSignup();
+      if (!mounted) return;
+      widget.onCancel();
+      _showMessage('Signup cancelled and data removed.');
+    } catch (error) {
+      _showMessage('Unable to cancel signup: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
   void _goBack() {
     if (_step == 0 || _submitting) {
       widget.onBack();
@@ -240,10 +347,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    if (_step == 0 && !_validatePersonal()) {
+    if (_step == 0) {
+      if (!_validateAccount()) {
+        return;
+      }
+      _completeAccountSetup();
       return;
     }
-    if (_step == 1 && !_validateChild()) {
+
+    if (_step == 1 && !_validateDetails()) {
       return;
     }
 
@@ -257,6 +369,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     setState(() => _step += 1);
+  }
+
+  Future<void> _completeAccountSetup() async {
+    setState(() => _submitting = true);
+    try {
+      final authResult = await AuthService.instance.signInOrSignUp(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      if (authResult.requiresEmailVerification) {
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => EmailOtpScreen(
+              email: _emailController.text.trim(),
+            ),
+          ),
+        );
+      }
+
+      await AuthService.instance.markEmailVerified();
+
+      if (!mounted) return;
+      setState(() {
+        _accountCreated = true;
+        _step = 1;
+      });
+    } catch (error) {
+      _showMessage('Unable to create account: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  Future<void> _handleGoogleSignup() async {
+    setState(() => _submitting = true);
+    try {
+      await AuthService.instance.signInWithGoogleNative(
+        webClientId: AppConfig.googleWebClientId,
+        iosClientId: AppConfig.googleIosClientId,
+        androidClientId: AppConfig.googleAndroidClientId,
+      );
+
+      final status = await AuthService.instance.fetchOnboardingStatus();
+
+      if (!mounted) return;
+
+      // If profile is already complete, just signal completion and let outer flow
+      // decide next navigation. Otherwise, move user into details step to
+      // collect required parent/child information.
+      setState(() {
+        _accountCreated = true;
+        _step = status.phase == OnboardingPhase.completed ? 2 : 1;
+      });
+    } catch (error) {
+      _showMessage('Google sign-in failed: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
   }
 
   @override
@@ -273,7 +449,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               IconButton(onPressed: widget.onBack, icon: const Icon(Icons.arrow_back)),
               const SizedBox(width: 8),
-              Text('Create parent account', style: AppTypography.display.copyWith(fontSize: 24)),
+              Expanded(
+                child: Text(
+                  'Create parent account',
+                  style: AppTypography.display.copyWith(fontSize: 24),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: _confirmAndCancelSignup,
+                child: const Text('Cancel'),
+              ),
             ],
           ),
           const SizedBox(height: 16),

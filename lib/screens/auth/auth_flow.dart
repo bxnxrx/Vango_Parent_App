@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:vango_parent_app/screens/auth/link_driver_screen.dart';
 import 'package:vango_parent_app/screens/auth/login_screen.dart';
+import 'package:vango_parent_app/screens/auth/phone_login_screen.dart';
 import 'package:vango_parent_app/screens/auth/otp_screen.dart';
 import 'package:vango_parent_app/screens/auth/permissions_sheet.dart';
 import 'package:vango_parent_app/screens/auth/register_screen.dart';
@@ -18,7 +19,7 @@ class AuthFlow extends StatefulWidget {
 }
 
 class _AuthFlowState extends State<AuthFlow> {
-  // 0 = login, 1 = register, 2 = otp
+  // 0 = login, 1 = register, 2 = phone login, 3 = otp, 4 = link driver
   int _screenIndex = 0;
   String _phoneNumber = '+94';
   String? _preferredChildId;
@@ -36,15 +37,54 @@ class _AuthFlowState extends State<AuthFlow> {
     setState(() => _screenIndex = 1);
   }
 
+  void _moveToPhoneLogin() {
+    setState(() => _screenIndex = 2);
+  }
+
   void _moveToOtp(String phone, {String? childId}) {
     setState(() {
       _phoneNumber = phone;
       _preferredChildId = childId;
-      _screenIndex = 2;
+      _screenIndex = 3;
     });
   }
 
   void _moveToOtpFromLogin(String phone) => _moveToOtp(phone);
+
+  Future<void> _handleLoginCompleted(String _) async {
+    try {
+      final status = await AuthService.instance.fetchOnboardingStatus();
+      if (!mounted) return;
+
+      if (status.ready) {
+        _openPermissionsSheet();
+        return;
+      }
+
+      if (!status.phoneComplete) {
+        setState(() => _screenIndex = 2);
+        _showMessage('Add and verify your phone number to continue.');
+        return;
+      }
+
+      if (!status.profileComplete) {
+        setState(() => _screenIndex = 1);
+        _showMessage('Finish your profile details to continue.');
+        return;
+      }
+
+      if (!status.linkComplete) {
+        setState(() => _screenIndex = 4);
+        return;
+      }
+
+      setState(() => _screenIndex = 0);
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage('Login successful but status check failed: $error');
+      setState(() => _screenIndex = 0);
+    }
+  }
 
   void _openPermissionsSheet() {
     showModalBottomSheet(
@@ -69,8 +109,8 @@ class _AuthFlowState extends State<AuthFlow> {
     if (_screenIndex == 0) {
       return LoginScreen(
         key: const ValueKey('login'),
-        onContinue: _moveToOtpFromLogin,
-        onUseOtp: _moveToOtpFromLogin,
+        onContinue: _handleLoginCompleted,
+        onUsePhoneLogin: _moveToPhoneLogin,
         onCreateAccount: _moveToRegister,
       );
     }
@@ -86,10 +126,24 @@ class _AuthFlowState extends State<AuthFlow> {
             SnackBar(content: Text('Welcome ${result.childName}! Confirm OTP to finish.')),
           );
         },
+        onCancel: () {
+          _pendingDriverCode = null;
+          _preferredChildId = null;
+          _moveToLogin();
+        },
+        onUsePhoneSignup: _moveToPhoneLogin,
       );
     }
 
     if (_screenIndex == 2) {
+      return PhoneLoginScreen(
+        key: const ValueKey('phone-login'),
+        onBack: _moveToLogin,
+        onCodeSent: _moveToOtpFromLogin,
+      );
+    }
+
+    if (_screenIndex == 3) {
       return OtpScreen(
         key: ValueKey('otp-$_phoneNumber'),
         phoneNumber: _phoneNumber,
@@ -123,7 +177,7 @@ class _AuthFlowState extends State<AuthFlow> {
       }
 
       if (status.phase == OnboardingPhase.link) {
-        setState(() => _screenIndex = 3);
+        setState(() => _screenIndex = 4);
         return;
       }
 
@@ -137,7 +191,7 @@ class _AuthFlowState extends State<AuthFlow> {
     } catch (error) {
       if (!mounted) return;
       _showMessage('Phone verification saved but status check failed: $error');
-      setState(() => _screenIndex = 3);
+      setState(() => _screenIndex = 4);
     }
   }
 
