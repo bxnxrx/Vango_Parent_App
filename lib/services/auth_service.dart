@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -160,7 +162,18 @@ class AuthService {
     await _client.auth.signInWithOAuth(OAuthProvider.google);
   }
 
-  Future<void> signInWithGoogleNative({String? webClientId, String? iosClientId, String? androidClientId}) async {
+  Future<void> signInWithGoogleNative({
+    String? webClientId,
+    String? iosClientId,
+    String? androidClientId,
+  }) async {
+    // Align behaviour with driver app: enforce iOS client ID and handle errors clearly.
+    if (Platform.isIOS && (iosClientId == null || iosClientId.isEmpty)) {
+      throw Exception(
+        'GOOGLE_IOS_CLIENT_ID is missing in .env. Please add it.',
+      );
+    }
+
     final googleSignIn = GoogleSignIn(
       scopes: const ['email', 'profile'],
       serverClientId: webClientId,
@@ -168,24 +181,31 @@ class AuthService {
     );
 
     await googleSignIn.signOut();
-    final googleUser = await googleSignIn.signIn();
-    if (googleUser == null) {
-      throw Exception('Google sign-in was cancelled');
+
+    try {
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        throw Exception('Google sign-in was cancelled');
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      final accessToken = googleAuth.accessToken;
+
+      if (idToken == null) {
+        throw Exception('Missing Google ID token');
+      }
+
+      await _client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+    } catch (e) {
+      throw Exception(
+        'Google Sign-In failed: $e. (Check Info.plist URL Schemes)',
+      );
     }
-
-    final googleAuth = await googleUser.authentication;
-    final idToken = googleAuth.idToken;
-    final accessToken = googleAuth.accessToken;
-
-    if (idToken == null) {
-      throw Exception('Missing Google ID token');
-    }
-
-    await _client.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: accessToken,
-    );
   }
 
   Future<void> signInWithApple() async {
@@ -277,6 +297,30 @@ class AuthService {
     await _client.auth.verifyOTP(phone: phone, token: token, type: OtpType.sms);
   }
 
+  Future<void> requestPasswordReset(String email) async {
+    await _client.auth.resetPasswordForEmail(email);
+  }
+
+  Future<void> requestEmailOtp(String email) async {
+    await _client.auth.resend(
+      type: OtpType.signup,
+      email: email,
+    );
+  }
+
+  Future<void> verifyEmailOtp({
+    required String email,
+    required String token,
+    OtpType type = OtpType.signup,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: type,
+    );
+    await markEmailVerified();
+  }
+
   Future<void> cachePhone(String phone) async {
     await _storage.write(key: 'parent_phone', value: phone);
   }
@@ -287,5 +331,11 @@ class AuthService {
 
   Future<bool> hasDriverLink() {
     return ParentDataService.instance.hasLinkedDriver();
+  }
+
+  Future<void> cancelSignup() async {
+    await BackendClient.instance.post('/api/auth/cancel-signup', {});
+    await _client.auth.signOut();
+    await _storage.delete(key: 'parent_phone');
   }
 }
