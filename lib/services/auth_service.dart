@@ -145,9 +145,7 @@ class AuthService {
       email: email,
       password: password,
       emailRedirectTo: null,
-      data: const {
-        'role': 'parent',
-      },
+      data: const {'role': 'parent'},
     );
 
     final requiresVerification = response.session == null;
@@ -167,7 +165,6 @@ class AuthService {
     String? iosClientId,
     String? androidClientId,
   }) async {
-    // Align behaviour with driver app: enforce iOS client ID and handle errors clearly.
     if (Platform.isIOS && (iosClientId == null || iosClientId.isEmpty)) {
       throw Exception(
         'GOOGLE_IOS_CLIENT_ID is missing in .env. Please add it.',
@@ -221,31 +218,25 @@ class AuthService {
   }
 
   Future<OnboardingStatus> markEmailVerified({String role = 'parent'}) {
-    return _postProgress({
-      'role': role,
-      'emailVerifiedAt': _isoNow(),
-    });
+    return _postProgress({'role': role, 'emailVerifiedAt': _isoNow()});
   }
 
   Future<OnboardingStatus> markPhoneVerified() {
-    return _postProgress({
-      'role': 'parent',
-      'phoneVerifiedAt': _isoNow(),
-    });
+    return _postProgress({'role': 'parent', 'phoneVerifiedAt': _isoNow()});
   }
 
   Future<OnboardingStatus> markProfileCompleted() {
-    return _postProgress({
-      'role': 'parent',
-      'profileCompletedAt': _isoNow(),
-    });
+    return _postProgress({'role': 'parent', 'profileCompletedAt': _isoNow()});
   }
 
   Future<OnboardingStatus> _postProgress(Map<String, dynamic> body) async {
     if (body.isEmpty) {
       throw Exception('No onboarding fields supplied');
     }
-    final response = await BackendClient.instance.post('/api/auth/progress', body);
+    final response = await BackendClient.instance.post(
+      '/api/auth/progress',
+      body,
+    );
     if (response is Map<String, dynamic>) {
       final onboarding = response['onboarding'];
       if (onboarding is Map<String, dynamic>) {
@@ -257,10 +248,17 @@ class AuthService {
 
   String _isoNow() => DateTime.now().toUtc().toIso8601String();
 
-  Future<void> saveParentProfile({required String fullName, required String phone}) async {
+  Future<void> saveParentProfile({
+    required String fullName,
+    required String phone,
+    String? email,
+    String? relationship,
+  }) async {
     await BackendClient.instance.post('/api/parents/profile', {
       'fullName': fullName,
       'phone': phone,
+      if (email != null) 'email': email,
+      if (relationship != null) 'relationship': relationship,
     });
   }
 
@@ -279,7 +277,10 @@ class AuthService {
     return profile.id;
   }
 
-  Future<void> linkDriver({required String code, required String childId}) async {
+  Future<void> linkDriver({
+    required String code,
+    required String childId,
+  }) async {
     await BackendClient.instance.post('/api/parents/link-driver', {
       'code': code.trim().toUpperCase(),
       'childId': childId,
@@ -287,13 +288,13 @@ class AuthService {
   }
 
   Future<void> requestPhoneOtp(String phone) async {
-    await _client.auth.signInWithOtp(
-      phone: phone,
-      shouldCreateUser: false,
-    );
+    await _client.auth.signInWithOtp(phone: phone, shouldCreateUser: false);
   }
 
-  Future<void> verifyPhoneOtp({required String phone, required String token}) async {
+  Future<void> verifyPhoneOtp({
+    required String phone,
+    required String token,
+  }) async {
     await _client.auth.verifyOTP(phone: phone, token: token, type: OtpType.sms);
   }
 
@@ -302,10 +303,7 @@ class AuthService {
   }
 
   Future<void> requestEmailOtp(String email) async {
-    await _client.auth.resend(
-      type: OtpType.signup,
-      email: email,
-    );
+    await _client.auth.resend(type: OtpType.signup, email: email);
   }
 
   Future<void> verifyEmailOtp({
@@ -313,11 +311,7 @@ class AuthService {
     required String token,
     OtpType type = OtpType.signup,
   }) async {
-    await _client.auth.verifyOTP(
-      email: email,
-      token: token,
-      type: type,
-    );
+    await _client.auth.verifyOTP(email: email, token: token, type: type);
     await markEmailVerified();
   }
 
