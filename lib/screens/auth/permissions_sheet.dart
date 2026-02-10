@@ -4,69 +4,90 @@ import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
 
-class PermissionsSheet extends StatelessWidget {
+class PermissionsSheet extends StatefulWidget {
   const PermissionsSheet({super.key, required this.onComplete});
 
   final VoidCallback onComplete;
 
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  State<PermissionsSheet> createState() => _PermissionsSheetState();
+}
+
+class _PermissionsSheetState extends State<PermissionsSheet> {
+  bool _locationApproved = true;
+  bool _notificationApproved = true;
+  bool _backgroundUpdates = false;
+
+  void _finish() {
+    if (!_locationApproved || !_notificationApproved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location and notifications must stay enabled to continue.')),
+      );
+      return;
+    }
+    widget.onComplete();
+  }
+
+  Widget _buildToggle({required String title, required String description, required bool value, required ValueChanged<bool> onChanged}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
         children: [
-          Text('Almost done', style: AppTypography.display.copyWith(fontSize: 28)),
-          const SizedBox(height: 8),
-          Text('Enable the required permissions to get real-time pickup updates and driver contact info.', style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
-          const SizedBox(height: 24),
-          const _PermissionTile(icon: Icons.location_on, title: 'Location access', description: 'Used to show your child\'s live bus position and proximity to your home.'),
-          const SizedBox(height: 16),
-          const _PermissionTile(icon: Icons.notifications_active, title: 'Notifications', description: 'Critical alerts for pickups, delays, and emergency broadcasts.'),
-          const SizedBox(height: 16),
-          const _PermissionTile(icon: Icons.call, title: 'Phone', description: 'Lets you call the assigned driver directly from the chat screen.'),
-          const SizedBox(height: 24),
-          GradientButton(label: 'Enable & continue', expanded: true, onPressed: onComplete),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTypography.title.copyWith(fontSize: 16)),
+                const SizedBox(height: 4),
+                Text(description, style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          Switch(value: value, onChanged: onChanged),
         ],
       ),
     );
   }
-}
-
-class _PermissionTile extends StatelessWidget {
-  const _PermissionTile({required this.icon, required this.title, required this.description});
-
-  final IconData icon;
-  final String title;
-  final String description;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
+    return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(color: AppColors.accent.withOpacity(.1), shape: BoxShape.circle),
-              child: Icon(icon, color: AppColors.accent),
+            Text('Enable permissions', style: AppTypography.display.copyWith(fontSize: 24)),
+            const SizedBox(height: 8),
+            Text('We need a few permissions to keep you connected with your driver and child.', style: AppTypography.body),
+            const SizedBox(height: 20),
+            _buildToggle(
+              title: 'Location access',
+              description: 'Required to show live van location and pickup ETA.',
+              value: _locationApproved,
+              onChanged: (value) => setState(() => _locationApproved = value),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: AppTypography.title),
-                  const SizedBox(height: 4),
-                  Text(description, style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
-                ],
-              ),
+            const SizedBox(height: 12),
+            _buildToggle(
+              title: 'Push notifications',
+              description: 'Alerts for boarding, drop-off, and schedule changes.',
+              value: _notificationApproved,
+              onChanged: (value) => setState(() => _notificationApproved = value),
             ),
-            Switch(value: true, onChanged: (_) {}),
+            const SizedBox(height: 12),
+            _buildToggle(
+              title: 'Background updates',
+              description: 'Optional: keep trip status fresh even when the app is closed.',
+              value: _backgroundUpdates,
+              onChanged: (value) => setState(() => _backgroundUpdates = value),
+            ),
+            const SizedBox(height: 24),
+            GradientButton(label: 'Finish setup', expanded: true, onPressed: _finish),
           ],
         ),
       ),
