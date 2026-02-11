@@ -8,6 +8,7 @@ import 'package:vango_parent_app/screens/onboarding/onboarding_screen.dart';
 import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_theme.dart';
+import 'package:vango_parent_app/widgets/payment_card.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -82,6 +83,9 @@ class _VanGoAppState extends State<VanGoApp> {
         home = AppShell(
           onShowOnboarding: _showOnboardingAgain,
           onSignOut: _signOut,
+          payments_screen: () {}, // TODO: implement
+          Messages_screen: () {}, // TODO: implement
+          home_screen: () {}, // TODO: implement
         );
         break;
     }
@@ -131,10 +135,7 @@ class ParentOfflineApp extends StatelessWidget {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  error.toString(),
-                  textAlign: TextAlign.center,
-                ),
+                Text(error.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => _retry(context),
@@ -148,5 +149,3 @@ class ParentOfflineApp extends StatelessWidget {
     );
   }
 }
-
-

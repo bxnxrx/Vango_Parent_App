@@ -5,10 +5,20 @@ import 'package:vango_parent_app/screens/messages/messages_screen.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, required this.onShowOnboarding, required this.onSignOut});
+  const AppShell({
+    super.key,
+    required this.onShowOnboarding,
+    required this.onSignOut,
+    required this.payments_screen,
+    required this.Messages_screen,
+    required this.home_screen,
+  });
 
   final VoidCallback onShowOnboarding;
   final VoidCallback onSignOut;
+  final VoidCallback payments_screen;
+  final VoidCallback Messages_screen;
+  final VoidCallback home_screen;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -37,42 +47,103 @@ class _AppShellState extends State<AppShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: _selectTab,
-        indicatorColor: AppColors.accent.withOpacity(0.1),
+        // Changed AppColors.accent.withOpacity to AppColors.accentLow
+        indicatorColor: AppColors.accentLow,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.search), selectedIcon: Icon(Icons.search_off), label: 'Finder'),
-          NavigationDestination(icon: Icon(Icons.message_outlined), selectedIcon: Icon(Icons.message), label: 'Messages'),
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.search),
+            selectedIcon: Icon(Icons.search_off),
+            label: 'Finder',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.message_outlined),
+            selectedIcon: Icon(Icons.message),
+            label: 'Messages',
+          ),
         ],
       ),
     );
   }
 
   Drawer _buildDrawer() {
+    // We use AppColors.accent because "primary" is not defined in your file
+    const Color brandColor = AppColors.accent;
+
     return Drawer(
       child: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        child: Column(
           children: [
-            const DrawerHeader(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(radius: 28, child: Icon(Icons.person)),
-                  SizedBox(height: 12),
-                  Text('Parent account'),
-                ],
+            UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(color: brandColor),
+              currentAccountPicture: const CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, color: brandColor),
               ),
+              accountName: const Text(
+                'Parent Account',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              accountEmail: const Text('user@vango.com'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.search_outlined),
+              title: const Text('Find driver'),
+              onTap: () {
+                Navigator.pop(context);
+                _selectTab(1);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.home_outlined),
+              title: const Text('Home'),
+              onTap: () {
+                Navigator.pop(context);
+                _selectTab(0);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.payment_outlined),
+              title: const Text('Payments'),
+              onTap: () {
+                Navigator.pop(context);
+                widget.payments_screen();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.message_outlined),
+              title: const Text('Messages'),
+              onTap: () {
+                Navigator.pop(context);
+                _selectTab(2);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.school_outlined),
               title: const Text('Onboarding'),
-              onTap: widget.onShowOnboarding,
+              onTap: () {
+                Navigator.pop(context);
+                _selectTab(2);
+              },
             ),
+            const Spacer(),
+            const Divider(),
             ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Sign out'),
-              onTap: widget.onSignOut,
+              leading: const Icon(Icons.logout, color: AppColors.danger),
+              title: const Text(
+                'Sign out',
+                style: TextStyle(color: AppColors.danger),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                widget.onSignOut();
+              },
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
