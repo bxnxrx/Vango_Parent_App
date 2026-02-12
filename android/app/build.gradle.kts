@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.vango_driver_app"
+    namespace = "com.vango.parent"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
