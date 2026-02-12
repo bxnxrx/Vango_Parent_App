@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:vango_parent_app/screens/auth/otp_screen.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 
@@ -25,7 +26,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  // Removed _emergencyContactController
+
+  // State to lock fields if auto-detected
+  bool _emailReadOnly = false;
+  bool _phoneReadOnly = false;
 
   // Dropdown State
   String? _selectedRelationship;
@@ -34,13 +38,30 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCachedPhone();
+    _autoDetectUser();
   }
 
-  Future<void> _loadCachedPhone() async {
-    final cached = await AuthService.instance.getCachedPhone();
-    if (cached != null && mounted) {
-      _phoneController.text = cached;
+  Future<void> _autoDetectUser() async {
+    final user = AuthService.instance.currentUser;
+    final cachedPhone = await AuthService.instance.getCachedPhone();
+
+    if (mounted) {
+      setState(() {
+        // 1. Auto-fill and Lock Email if present in Auth
+        if (user?.email != null && user!.email!.isNotEmpty) {
+          _emailController.text = user.email!;
+          _emailReadOnly = true;
+        }
+
+        // 2. Auto-fill and Lock Phone if present in Auth
+        if (user?.phone != null && user!.phone!.isNotEmpty) {
+          _phoneController.text = user.phone!;
+          _phoneReadOnly = true;
+        } else if (cachedPhone != null && _phoneController.text.isEmpty) {
+          // Fallback to cached phone
+          _phoneController.text = cachedPhone;
+        }
+      });
     }
   }
 
@@ -49,33 +70,179 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     _fullNameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
-    // Removed disposal of _emergencyContactController
     super.dispose();
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _submitDetails() async {
-    if (!_formKey.currentState!.validate()) return;
+  // --- VALIDATORS ---
+
+  String? _validateName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Full Name is required';
+    }
+    if (value.trim().length < 3) {
+      return 'Name must be at least 3 characters';
+    }
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Mobile Number is required';
+    }
+    final cleanPhone = value.replaceAll(' ', '');
+    // Regex: Starts with optional +, followed by 94, then 9 digits
+    final phoneRegex = RegExp(r'^\+?94[0-9]{9}$');
+    if (!phoneRegex.hasMatch(cleanPhone)) {
+      return 'Invalid format (use +947XXXXXXXX)';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
+  // --- ACTIONS ---
+
+  Future<void> _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) {
+      _showMessage('Please check the form for errors.');
+      return;
+    }
     if (_selectedRelationship == null) {
       _showMessage('Please select your relationship type.');
       return;
     }
 
+    // Normalize inputs
+    var phoneInput = _phoneController.text.trim().replaceAll(' ', '');
+    if (!phoneInput.startsWith('+')) {
+      phoneInput = '+$phoneInput';
+    }
+    final emailInput = _emailController.text.trim();
+
+    // SCENARIO 1: User signed up via Email -> Phone is editable -> Must Verify Phone & Link
+    if (!_phoneReadOnly) {
+      await _verifyPhoneAndSave(phoneInput, emailInput);
+      return;
+    }
+
+    // SCENARIO 2: User signed up via Phone -> Email is editable -> Must Verify Email & Link
+    if (!_emailReadOnly && emailInput.isNotEmpty) {
+      await _verifyEmailAndSave(emailInput, phoneInput);
+      return;
+    }
+
+    // SCENARIO 3: No new verification needed (e.g. Phone Auth, Email empty)
+    await _saveProfile(phoneInput, emailInput);
+  }
+
+  Future<void> _verifyPhoneAndSave(String phone, String email) async {
     setState(() => _submitting = true);
     try {
-      final emailInput = _emailController.text.trim();
+      // 1. Send Link OTP to the new phone
+      await AuthService.instance.linkPhone(phone);
 
+      if (!mounted) return;
+      setState(() => _submitting = false);
+
+      // 2. Navigate to OTP Screen with Custom Linking Logic
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OtpScreen(
+            identifier: phone,
+            isEmail: false,
+            // Override the verification logic to perform "Phone Change" verification
+            onVerifyOverride: (code) async {
+              await AuthService.instance.verifyLinkedPhone(
+                phone: phone,
+                token: code,
+              );
+            },
+            // Override resend to use updateUser logic
+            onResendOverride: () async {
+              await AuthService.instance.linkPhone(phone);
+            },
+            onVerified: () async {
+              // 3. On success, pop OTP screen and save
+              Navigator.pop(context);
+              await _saveProfile(phone, email);
+            },
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+    } catch (e) {
+      setState(() => _submitting = false);
+      _showMessage('Failed to send verification code: $e');
+    }
+  }
+
+  Future<void> _verifyEmailAndSave(String email, String phone) async {
+    setState(() => _submitting = true);
+    try {
+      // 1. Send Link OTP to the new email
+      await AuthService.instance.linkEmail(email);
+
+      if (!mounted) return;
+      setState(() => _submitting = false);
+
+      // 2. Navigate to OTP Screen with Custom Linking Logic
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OtpScreen(
+            identifier: email,
+            isEmail: true,
+            // Override the verification logic to perform "Email Change" verification
+            onVerifyOverride: (code) async {
+              await AuthService.instance.verifyLinkedEmail(
+                email: email,
+                token: code,
+              );
+            },
+            // Override resend to use updateUser logic
+            onResendOverride: () async {
+              await AuthService.instance.linkEmail(email);
+            },
+            onVerified: () async {
+              // 3. On success, pop OTP screen and save
+              Navigator.pop(context);
+              await _saveProfile(phone, email);
+            },
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+    } catch (e) {
+      setState(() => _submitting = false);
+      _showMessage('Failed to send verification code: $e');
+    }
+  }
+
+  Future<void> _saveProfile(String phone, String email) async {
+    setState(() => _submitting = true);
+    try {
       // 1. Save Parent Profile
       await AuthService.instance.saveParentProfile(
         fullName: _fullNameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        // FIX: Send null if empty so backend validation doesn't fail on ""
-        email: emailInput.isEmpty ? null : emailInput,
+        phone: phone,
+        email: email.isEmpty ? null : email,
         relationship: _selectedRelationship,
       );
 
@@ -247,6 +414,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                     label: 'Full Name',
                                     hint: 'e.g. John Doe',
                                     icon: Icons.person_outline,
+                                    validator: _validateName,
                                   ),
                                   const SizedBox(height: 16),
 
@@ -257,6 +425,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                     hint: '+94 7X XXX XXXX',
                                     icon: Icons.phone_android_rounded,
                                     inputType: TextInputType.phone,
+                                    validator: _validatePhone,
+                                    readOnly: _phoneReadOnly,
                                   ),
                                   const SizedBox(height: 16),
 
@@ -267,14 +437,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                   // Email
                                   _buildTextField(
                                     controller: _emailController,
-                                    label: 'Email Address',
+                                    label: 'Email Address (Optional)',
                                     hint: 'john@example.com',
                                     icon: Icons.email_outlined,
                                     inputType: TextInputType.emailAddress,
-                                    required: false,
+                                    validator: _validateEmail,
+                                    readOnly: _emailReadOnly,
                                   ),
 
-                                  // Removed Emergency Contact Field
                                   const SizedBox(height: 32),
 
                                   // Submit Button
@@ -284,7 +454,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                     child: ElevatedButton(
                                       onPressed: _submitting
                                           ? null
-                                          : _submitDetails,
+                                          : _handleSubmit,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: vangoBlue,
                                         foregroundColor: Colors.white,
@@ -337,7 +507,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     required String hint,
     required IconData icon,
     TextInputType inputType = TextInputType.text,
-    bool required = true,
+    String? Function(String?)? validator,
+    bool readOnly = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,26 +527,39 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         TextFormField(
           controller: controller,
           keyboardType: inputType,
-          validator: required
-              ? (val) =>
-                    (val == null || val.isEmpty) ? '$label is required' : null
-              : null,
-          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500),
+          validator: validator,
+          readOnly: readOnly,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: readOnly ? Colors.grey.shade600 : Colors.black,
+          ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
             prefixIcon: Icon(icon, color: Colors.grey),
+            filled: readOnly,
+            fillColor: readOnly ? Colors.grey.shade100 : Colors.white,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 20,
               vertical: 16,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              borderSide: const BorderSide(color: Colors.black, width: 1),
+              borderSide: BorderSide(
+                color: readOnly ? Colors.grey.shade300 : Colors.black,
+                width: 1,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              borderSide: const BorderSide(color: Color(0xFF2D325A), width: 2),
+              borderSide: BorderSide(
+                color: readOnly
+                    ? Colors.grey.shade300
+                    : const Color(0xFF2D325A),
+                width: readOnly ? 1 : 2,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
@@ -415,7 +599,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           ),
           dropdownColor: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          validator: (val) => val == null ? 'Required' : null,
+          validator: (val) =>
+              val == null ? 'Please select a relationship' : null,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           style: GoogleFonts.inter(
             fontSize: 15,
             fontWeight: FontWeight.w500,

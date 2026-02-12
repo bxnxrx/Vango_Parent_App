@@ -126,6 +126,8 @@ class AuthService {
   final SupabaseClient _client = Supabase.instance.client;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
+  User? get currentUser => _client.auth.currentUser;
+
   Future<void> initialize() async {
     AppConfig.ensure();
     await BackendClient.instance.ensureBackendHealthy();
@@ -314,6 +316,62 @@ class AuthService {
     await _client.auth.verifyOTP(email: email, token: token, type: type);
     await markEmailVerified();
   }
+
+  Future<void> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.recovery,
+    );
+  }
+
+  Future<void> updateUserPassword(String newPassword) async {
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  // --- IDENTITY LINKING METHODS ---
+
+  /// Links a phone number to the currently logged in user (Email account)
+  Future<void> linkPhone(String phone) async {
+    await _client.auth.updateUser(UserAttributes(phone: phone));
+  }
+
+  /// Verifies the OTP sent to the phone for linking purposes
+  Future<void> verifyLinkedPhone({
+    required String phone,
+    required String token,
+  }) async {
+    await _client.auth.verifyOTP(
+      phone: phone,
+      token: token,
+      type: OtpType.phoneChange,
+    );
+    // Optionally mark as verified in your DB immediately
+    await markPhoneVerified();
+  }
+
+  /// Links an email to the currently logged in user (Phone account)
+  Future<void> linkEmail(String email) async {
+    await _client.auth.updateUser(UserAttributes(email: email));
+  }
+
+  /// Verifies the OTP sent to the email for linking purposes
+  Future<void> verifyLinkedEmail({
+    required String email,
+    required String token,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.emailChange,
+    );
+    await markEmailVerified();
+  }
+
+  // ------------------------------
 
   Future<void> cachePhone(String phone) async {
     await _storage.write(key: 'parent_phone', value: phone);
