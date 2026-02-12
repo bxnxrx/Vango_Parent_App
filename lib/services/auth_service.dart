@@ -167,19 +167,28 @@ class AuthService {
     String? iosClientId,
     String? androidClientId,
   }) async {
-    if (Platform.isIOS && (iosClientId == null || iosClientId.isEmpty)) {
-      throw Exception(
-        'GOOGLE_IOS_CLIENT_ID is missing in .env. Please add it.',
-      );
-    }
+    // 1. Determine the Client ID based on Platform
+    String? clientId;
 
+    if (Platform.isIOS) {
+      // iOS always requires the ID manually
+      if (iosClientId == null || iosClientId.isEmpty) {
+        throw Exception('GOOGLE_IOS_CLIENT_ID is missing in .env.');
+      }
+      clientId = iosClientId;
+    }
+    // On Android, we leave clientId as null.
+    // This forces the plugin to use the android/app/google-services.json file.
+
+    // 2. Initialize Google Sign-In
     final googleSignIn = GoogleSignIn(
       scopes: const ['email', 'profile'],
+      // serverClientId is CRITICAL for Supabase (it generates the ID Token)
       serverClientId: webClientId,
-      clientId: iosClientId ?? androidClientId,
+      clientId: clientId,
     );
 
-    await googleSignIn.signOut();
+    await googleSignIn.signOut(); // Clean slate
 
     try {
       final googleUser = await googleSignIn.signIn();
@@ -192,18 +201,19 @@ class AuthService {
       final accessToken = googleAuth.accessToken;
 
       if (idToken == null) {
-        throw Exception('Missing Google ID token');
+        throw Exception(
+          'Missing Google ID token. Check GOOGLE_WEB_CLIENT_ID in .env',
+        );
       }
 
+      // 3. Authenticate with Supabase
       await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
     } catch (e) {
-      throw Exception(
-        'Google Sign-In failed: $e. (Check Info.plist URL Schemes)',
-      );
+      throw Exception('Google Sign-In failed: $e');
     }
   }
 
