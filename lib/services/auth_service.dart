@@ -164,9 +164,11 @@ class AuthService {
 
   Future<void> signInWithGoogleNative({
     String? webClientId,
-    String? iosClientId,
+    // REMOVED: String? iosClientId, (Not needed anymore)
     String? androidClientId,
   }) async {
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
     if (Platform.isIOS && (iosClientId == null || iosClientId.isEmpty)) {
       throw Exception(
         'GOOGLE_IOS_CLIENT_ID is missing in .env. Please add it.',
@@ -177,6 +179,20 @@ class AuthService {
       scopes: const ['email', 'profile'],
       serverClientId: webClientId,
       clientId: iosClientId ?? androidClientId,
+=======
+    // 1. Initialize Google Sign-In
+    // We do NOT pass clientId for iOS anymore. The plugin reads it from GoogleService-Info.plist automatically.
+    final googleSignIn = GoogleSignIn(
+      scopes: const ['email', 'profile'],
+      serverClientId: webClientId,
+>>>>>>> Stashed changes
+=======
+    // 1. Initialize Google Sign-In
+    // We do NOT pass clientId for iOS anymore. The plugin reads it from GoogleService-Info.plist automatically.
+    final googleSignIn = GoogleSignIn(
+      scopes: const ['email', 'profile'],
+      serverClientId: webClientId,
+>>>>>>> Stashed changes
     );
 
     await googleSignIn.signOut();
@@ -195,15 +211,32 @@ class AuthService {
         throw Exception('Missing Google ID token');
       }
 
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+      // 2. Authenticate with Supabase
+>>>>>>> Stashed changes
+=======
+      // 2. Authenticate with Supabase
+>>>>>>> Stashed changes
       await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
     } catch (e) {
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
       throw Exception(
         'Google Sign-In failed: $e. (Check Info.plist URL Schemes)',
       );
+=======
+=======
+>>>>>>> Stashed changes
+      // Log the full error to help debug
+      print("Google Sign In Error: $e");
+      throw Exception('Google Sign-In failed: $e');
+>>>>>>> Stashed changes
     }
   }
 

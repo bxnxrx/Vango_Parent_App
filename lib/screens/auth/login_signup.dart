@@ -470,10 +470,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                                       .signInWithGoogleNative(
                                                         webClientId: AppConfig
                                                             .googleWebClientId,
-                                                        iosClientId: AppConfig
-                                                            .googleIosClientId,
-                                                        androidClientId: AppConfig
-                                                            .googleAndroidClientId,
                                                       ),
                                                 ),
                                         ),
