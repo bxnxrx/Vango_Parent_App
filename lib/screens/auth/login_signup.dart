@@ -452,6 +452,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
                                   Row(
                                     children: [
+                                      // Google Button
                                       Expanded(
                                         child: _buildSocialButton(
                                           icon: Image.network(
@@ -466,6 +467,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                           onPressed: _isLoading
                                               ? null
                                               : () => _handleSocialLogin(
+                                                  // Passing all IDs from .env to the Service
                                                   () => AuthService.instance
                                                       .signInWithGoogleNative(
                                                         webClientId: AppConfig
