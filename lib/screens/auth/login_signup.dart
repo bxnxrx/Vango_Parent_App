@@ -450,9 +450,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                   ),
                                   const SizedBox(height: 20),
 
+                                  // SOCIAL LOGIN BUTTONS
                                   Row(
                                     children: [
-                                      // Google Button
+                                      // Google Button (Takes full width if Android, shares width if iOS)
                                       Expanded(
                                         child: _buildSocialButton(
                                           icon: Image.network(
@@ -476,25 +477,27 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                                 ),
                                         ),
                                       ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: _buildSocialButton(
-                                          icon: const Icon(
-                                            Icons.apple,
-                                            size: 28,
-                                            color: Colors.black,
+
+                                      // Apple Button (Only shown on iOS)
+                                      if (Platform.isIOS) ...[
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: _buildSocialButton(
+                                            icon: const Icon(
+                                              Icons.apple,
+                                              size: 28,
+                                              color: Colors.black,
+                                            ),
+                                            onPressed: _isLoading
+                                                ? null
+                                                : () => _handleSocialLogin(
+                                                    AuthService
+                                                        .instance
+                                                        .signInWithApple,
+                                                  ),
                                           ),
-                                          onPressed: _isLoading
-                                              ? null
-                                              : (Platform.isIOS
-                                                    ? () => _handleSocialLogin(
-                                                        AuthService
-                                                            .instance
-                                                            .signInWithApple,
-                                                      )
-                                                    : null),
                                         ),
-                                      ),
+                                      ],
                                     ],
                                   ),
                                 ],
