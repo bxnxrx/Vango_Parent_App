@@ -164,28 +164,12 @@ class AuthService {
 
   Future<void> signInWithGoogleNative({
     String? webClientId,
-    String? iosClientId,
-    String? androidClientId,
   }) async {
-    // 1. Determine the Client ID based on Platform
-    String? clientId;
-
-    if (Platform.isIOS) {
-      // iOS always requires the ID manually
-      if (iosClientId == null || iosClientId.isEmpty) {
-        throw Exception('GOOGLE_IOS_CLIENT_ID is missing in .env.');
-      }
-      clientId = iosClientId;
-    }
-    // On Android, we leave clientId as null.
-    // This forces the plugin to use the android/app/google-services.json file.
-
-    // 2. Initialize Google Sign-In
+    
+   
     final googleSignIn = GoogleSignIn(
       scopes: const ['email', 'profile'],
-      // serverClientId is CRITICAL for Supabase (it generates the ID Token)
-      serverClientId: webClientId,
-      clientId: clientId,
+      serverClientId: webClientId, 
     );
 
     await googleSignIn.signOut(); // Clean slate
@@ -206,13 +190,13 @@ class AuthService {
         );
       }
 
-      // 3. Authenticate with Supabase
       await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
     } catch (e) {
+      print("Google Sign In Error: $e");
       throw Exception('Google Sign-In failed: $e');
     }
   }
