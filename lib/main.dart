@@ -83,7 +83,7 @@ class _VanGoAppState extends State<VanGoApp> {
     }
 
     return MaterialApp(
-      title: 'VanGo Parent',
+      title: 'VanGo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       home: home,

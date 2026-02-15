@@ -1,0 +1,63 @@
+{
+  "project_info": {
+    "project_number": "40578572044",
+    "project_id": "vangolk-30026",
+    "storage_bucket": "vangolk-30026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:40578572044:android:54dd70affa88fa9314b329",
+        "android_client_info": {
+          "package_name": "com.vango.parent"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "40578572044-mj5pknm6anq19aop5k54ljj0jo6q9qp8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vango.parent",
+            "certificate_hash": "cb4ac3aee09d439cf9b225c541a5207883b092ac"
+          }
+        },
+        {
+          "client_id": "40578572044-pt9htenjv3eqj9e1hetvcmbba5oa0tol.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vango.parent",
+            "certificate_hash": "f41ab68c0887e0472430521a8b8ed225040ee773"
+          }
+        },
+        {
+          "client_id": "40578572044-q98rtkj5gi960ub79530aajqb99vjb94.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vango.parent",
+            "certificate_hash": "ee61a07083249a3e7baa1ecb73c772dcb097e0ad"
+          }
+        },
+        {
+          "client_id": "40578572044-fdj6ovv7phs86p1rqi2kpf7jlhje6fih.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8vmSgG-G4YU62fTf6rsO6XvXdJqoNK7E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "40578572044-fdj6ovv7phs86p1rqi2kpf7jlhje6fih.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

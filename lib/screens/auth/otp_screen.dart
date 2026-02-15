@@ -5,21 +5,26 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Needed for OtpType
 
 import 'package:vango_parent_app/services/auth_service.dart';
-import 'package:vango_parent_app/theme/app_colors.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({
     super.key,
-    required this.identifier, // Changed from phoneNumber to identifier
-    this.isEmail = false, // Added isEmail flag
+    required this.identifier,
+    this.isEmail = false,
     required this.onVerified,
     required this.onBack,
+    this.onVerifyOverride,
+    this.onResendOverride,
   });
 
-  final String identifier; // Can be Phone (+94...) or Email
+  final String identifier;
   final bool isEmail;
   final Future<void> Function() onVerified;
   final VoidCallback onBack;
+
+  // New overrides for custom logic (like Identity Linking)
+  final Future<void> Function(String code)? onVerifyOverride;
+  final Future<void> Function()? onResendOverride;
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -84,18 +89,21 @@ class _OtpScreenState extends State<OtpScreen> {
 
     setState(() => _isLoading = true);
     try {
-      if (widget.isEmail) {
-        // Verify Email OTP
-        await AuthService.instance.verifyEmailOtp(
-          email: widget.identifier,
-          token: code,
-        );
+      // If override provided (Linking), use it. Otherwise use default (Login).
+      if (widget.onVerifyOverride != null) {
+        await widget.onVerifyOverride!(code);
       } else {
-        // Verify Phone OTP
-        await AuthService.instance.verifyPhoneOtp(
-          phone: widget.identifier,
-          token: code,
-        );
+        if (widget.isEmail) {
+          await AuthService.instance.verifyEmailOtp(
+            email: widget.identifier,
+            token: code,
+          );
+        } else {
+          await AuthService.instance.verifyPhoneOtp(
+            phone: widget.identifier,
+            token: code,
+          );
+        }
       }
 
       if (!mounted) return;
@@ -114,10 +122,14 @@ class _OtpScreenState extends State<OtpScreen> {
 
     setState(() => _resending = true);
     try {
-      if (widget.isEmail) {
-        await AuthService.instance.requestEmailOtp(widget.identifier);
+      if (widget.onResendOverride != null) {
+        await widget.onResendOverride!();
       } else {
-        await AuthService.instance.requestPhoneOtp(widget.identifier);
+        if (widget.isEmail) {
+          await AuthService.instance.requestEmailOtp(widget.identifier);
+        } else {
+          await AuthService.instance.requestPhoneOtp(widget.identifier);
+        }
       }
 
       _startCountdown();
