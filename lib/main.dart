@@ -81,8 +81,8 @@ class _VanGoAppState extends State<VanGoApp> {
         break;
       case _AppStage.home:
         home = AppShell(
-          onShowOnboarding: _showOnboardingAgain,
           onSignOut: _signOut,
+          onAttendancePressed: () {} ,
           payments_screen: () {}, // TODO: implement
           Messages_screen: () {}, // TODO: implement
           home_screen: () {}, // TODO: implement

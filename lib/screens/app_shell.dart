@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:vango_parent_app/models/child_profile.dart';
+import 'package:vango_parent_app/screens/Attendance/Attendance.dart';
 import 'package:vango_parent_app/screens/finder/finder_screen.dart';
 import 'package:vango_parent_app/screens/home/home_screen.dart';
 import 'package:vango_parent_app/screens/messages/messages_screen.dart';
+
 import 'package:vango_parent_app/theme/app_colors.dart';
+import 'package:vango_parent_app/screens/payments/payments_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
-    required this.onShowOnboarding,
+    // Removed onShowOnboarding
     required this.onSignOut,
     required this.payments_screen,
     required this.Messages_screen,
     required this.home_screen,
+    required this.onAttendancePressed,
   });
 
-  final VoidCallback onShowOnboarding;
   final VoidCallback onSignOut;
   final VoidCallback payments_screen;
   final VoidCallback Messages_screen;
   final VoidCallback home_screen;
+  final VoidCallback onAttendancePressed;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -38,6 +43,7 @@ class _AppShellState extends State<AppShell> {
       HomeScreen(onOpenMore: () => _scaffoldKey.currentState?.openDrawer()),
       const FinderScreen(),
       const MessagesScreen(),
+      const PaymentsScreen(),
     ];
 
     return Scaffold(
@@ -64,6 +70,16 @@ class _AppShellState extends State<AppShell> {
             icon: Icon(Icons.message_outlined),
             selectedIcon: Icon(Icons.message),
             label: 'Messages',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.payment_outlined),
+            selectedIcon: Icon(Icons.payment),
+            label: 'Payments',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.how_to_reg_outlined),
+            selectedIcon: Icon(Icons.school),
+            label: 'Attendance',
           ),
         ],
       ),
@@ -111,7 +127,7 @@ class _AppShellState extends State<AppShell> {
               title: const Text('Payments'),
               onTap: () {
                 Navigator.pop(context);
-                widget.payments_screen();
+                _selectTab(3);
               },
             ),
             ListTile(
@@ -127,7 +143,7 @@ class _AppShellState extends State<AppShell> {
               title: const Text('Onboarding'),
               onTap: () {
                 Navigator.pop(context);
-                _selectTab(2);
+                _selectTab(4);
               },
             ),
             const Spacer(),
