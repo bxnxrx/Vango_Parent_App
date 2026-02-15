@@ -28,7 +28,6 @@ Future<void> main() async {
   }
 }
 
-// Keeps track of the user's current step inside the app.
 enum _AppStage { onboarding, auth, home }
 
 class VanGoApp extends StatefulWidget {
@@ -39,28 +38,21 @@ class VanGoApp extends StatefulWidget {
 }
 
 class _VanGoAppState extends State<VanGoApp> {
+  // Starts with onboarding for new users
   _AppStage _stage = _AppStage.onboarding;
 
-  // Move from onboarding screens to the auth flow.
   void _finishOnboarding() {
     if (_stage == _AppStage.onboarding) {
       setState(() => _stage = _AppStage.auth);
     }
   }
 
-  // Unlock the main app once sign-in is done.
   void _completeAuth() {
     if (_stage == _AppStage.auth) {
       setState(() => _stage = _AppStage.home);
     }
   }
 
-  // Reset everything when the user wants to revisit onboarding.
-  void _showOnboardingAgain() {
-    setState(() => _stage = _AppStage.onboarding);
-  }
-
-  // Drop back to auth when the user signs out.
   void _signOut() {
     if (_stage == _AppStage.home) {
       setState(() => _stage = _AppStage.auth);
@@ -79,9 +71,13 @@ class _VanGoAppState extends State<VanGoApp> {
         home = AuthFlow(onAuthenticated: _completeAuth);
         break;
       case _AppStage.home:
+        // FIXED: This now matches the AppShell constructor exactly
         home = AppShell(
-          onShowOnboarding: _showOnboardingAgain,
           onSignOut: _signOut,
+          onAttendancePressed: () {},
+          payments_screen: () {},
+          Messages_screen: () {},
+          home_screen: () {},
         );
         break;
     }
@@ -131,10 +127,7 @@ class ParentOfflineApp extends StatelessWidget {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  error.toString(),
-                  textAlign: TextAlign.center,
-                ),
+                Text(error.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => _retry(context),
@@ -148,5 +141,3 @@ class ParentOfflineApp extends StatelessWidget {
     );
   }
 }
-
-
