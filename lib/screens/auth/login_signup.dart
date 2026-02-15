@@ -1,11 +1,13 @@
 import 'dart:io';
 
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
+import 'package:vango_parent_app/screens/auth/reset_password_screen.dart';
 
 class LoginSignupScreen extends StatefulWidget {
   const LoginSignupScreen({
@@ -23,10 +25,17 @@ class LoginSignupScreen extends StatefulWidget {
   State<LoginSignupScreen> createState() => _LoginSignupScreenState();
 }
 
+const String _googleIconSvg = '''
+<svg xmlns="http://www.w3.org/2000/svg" width="800px" height="800px" viewBox="-3 0 262 262" preserveAspectRatio="xMidYMid"><path d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027" fill="#4285F4"/><path d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1" fill="#34A853"/><path d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782" fill="#FBBC05"/><path d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251" fill="#EB4335"/></svg>
+''';
+
 class _LoginSignupScreenState extends State<LoginSignupScreen> {
   // Mode Toggle (true = Phone, false = Email)
   bool _isPhoneLogin = true;
   bool _isLoading = false;
+
+  // Validation Key
+  final _formKey = GlobalKey<FormState>();
 
   // Controllers
   final TextEditingController _phoneController = TextEditingController(
@@ -44,19 +53,80 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  // --- VALIDATORS ---
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Phone number is required';
+    }
+    // Remove spaces for validation
+    final cleanPhone = value.replaceAll(' ', '');
+    // Regex: Starts with +94, followed by 9 digits
+    final phoneRegex = RegExp(r'^\+94[0-9]{9}$');
+    if (!phoneRegex.hasMatch(cleanPhone)) {
+      return 'Invalid format (use +947XXXXXXXX)';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Email is required';
+    }
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+
+    // Check for uppercase
+    if (!value.contains(RegExp(r'[A-Z]'))) {
+      return 'Password must contain at least one uppercase letter';
+    }
+
+    // Check for lowercase
+    if (!value.contains(RegExp(r'[a-z]'))) {
+      return 'Password must contain at least one lowercase letter';
+    }
+
+    // Check for digits
+    if (!value.contains(RegExp(r'[0-9]'))) {
+      return 'Password must contain at least one number';
+    }
+
+    // Check for special characters
+    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      return 'Password must contain at least one special character';
+    }
+
+    return null;
+  }
+
   // --- ACTIONS ---
 
   Future<void> _handlePhoneLogin() async {
-    final phone = _phoneController.text.trim();
-    if (phone.length < 9) {
-      _showMessage('Please enter a valid phone number');
+    // Run validation before proceeding
+    if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    final phone = _phoneController.text.trim().replaceAll(' ', '');
 
     setState(() => _isLoading = true);
     try {
@@ -70,13 +140,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   }
 
   Future<void> _handleEmailLogin() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      _showMessage('Please enter email and password');
+    // Run validation before proceeding
+    if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
     setState(() => _isLoading = true);
     try {
@@ -102,6 +172,35 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       }
     } catch (e) {
       _showMessage('Login failed: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleForgotPassword() async {
+    final email = _emailController.text.trim();
+
+    // Validate email
+    final emailError = _validateEmail(email);
+    if (emailError != null) {
+      _showMessage(emailError);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await AuthService.instance.requestPasswordReset(email);
+
+      if (!mounted) return;
+
+      // Navigate to the Verification & Reset Screen
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ResetPasswordScreen(email: email),
+        ),
+      );
+    } catch (e) {
+      _showMessage('Failed to send reset link: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -210,191 +309,200 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                 ),
                               ],
                             ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 150),
-                                  child: Text(
-                                    'Get Started',
-                                    key: ValueKey<bool>(_isPhoneLogin),
-                                    style: GoogleFonts.inter(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
+                            child: Form(
+                              key: _formKey,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 150),
+                                    child: Text(
+                                      'Get Started',
+                                      key: ValueKey<bool>(_isPhoneLogin),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Enter your details to log in or sign up',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.inter(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 14,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Enter your details to log in or sign up',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 14,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 30),
+                                  const SizedBox(height: 30),
 
-                                // TOGGLE BUTTON
-                                Container(
-                                  height: 50,
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(14),
+                                  // TOGGLE BUTTON
+                                  Container(
+                                    height: 50,
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: _ToggleTab(
+                                            label: 'Phone',
+                                            isSelected: _isPhoneLogin,
+                                            onTap: () {
+                                              setState(() {
+                                                _isPhoneLogin = true;
+                                              });
+                                              // Clear previous validation errors when switching tabs
+                                              _formKey.currentState?.reset();
+                                            },
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: _ToggleTab(
+                                            label: 'Email',
+                                            isSelected: !_isPhoneLogin,
+                                            onTap: () {
+                                              setState(() {
+                                                _isPhoneLogin = false;
+                                              });
+                                              _formKey.currentState?.reset();
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  child: Row(
+                                  const SizedBox(height: 25),
+
+                                  // INPUT FIELDS
+                                  AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 150),
+                                    child: _isPhoneLogin
+                                        ? _buildPhoneInput(vangoBlue)
+                                        : _buildEmailInput(vangoBlue),
+                                  ),
+
+                                  const SizedBox(height: 20),
+
+                                  // MAIN BUTTON
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 55,
+                                    child: ElevatedButton(
+                                      onPressed: _isLoading
+                                          ? null
+                                          : (_isPhoneLogin
+                                                ? _handlePhoneLogin
+                                                : _handleEmailLogin),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: vangoBlue,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            30,
+                                          ),
+                                        ),
+                                      ),
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              width: 24,
+                                              height: 24,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : Text(
+                                              'Continue',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 25),
+
+                                  Row(
                                     children: [
                                       Expanded(
-                                        child: _ToggleTab(
-                                          label: 'Phone',
-                                          isSelected: _isPhoneLogin,
-                                          onTap: () => setState(
-                                            () => _isPhoneLogin = true,
+                                        child: Divider(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                        ),
+                                        child: Text(
+                                          "Or",
+                                          style: TextStyle(
+                                            color: Colors.grey.shade500,
+                                            fontSize: 14,
                                           ),
                                         ),
                                       ),
                                       Expanded(
-                                        child: _ToggleTab(
-                                          label: 'Email',
-                                          isSelected: !_isPhoneLogin,
-                                          onTap: () => setState(
-                                            () => _isPhoneLogin = false,
-                                          ),
+                                        child: Divider(
+                                          color: Colors.grey.shade300,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                const SizedBox(height: 25),
+                                  const SizedBox(height: 20),
 
-                                // INPUT FIELDS
-                                AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 150),
-                                  child: _isPhoneLogin
-                                      ? _buildPhoneInput(vangoBlue)
-                                      : _buildEmailInput(vangoBlue),
-                                ),
-
-                                // --- GAP REDUCED HERE ---
-                                const SizedBox(height: 20),
-
-                                // MAIN BUTTON
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 55,
-                                  child: ElevatedButton(
-                                    onPressed: _isLoading
-                                        ? null
-                                        : (_isPhoneLogin
-                                              ? _handlePhoneLogin
-                                              : _handleEmailLogin),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: vangoBlue,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(30),
-                                      ),
-                                    ),
-                                    child: _isLoading
-                                        ? const SizedBox(
-                                            width: 24,
+                                  // SOCIAL LOGIN BUTTONS
+                                  Row(
+                                    children: [
+                                      // Google Button (Takes full width if Android, shares width if iOS)
+                                      Expanded(
+                                        child: _buildSocialButton(
+                                          icon: SvgPicture.string(
+                                            _googleIconSvg,
                                             height: 24,
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : Text(
-                                            'Continue',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                            width: 24,
                                           ),
+                                          onPressed: _isLoading
+                                              ? null
+                                              : () => _handleSocialLogin(
+                                                  // Passing all IDs from .env to the Service
+                                                  () => AuthService.instance
+                                                      .signInWithGoogleNative(
+                                                        webClientId: AppConfig
+                                                            .googleWebClientId,
+                                                      ),
+                                                ),
+                                        ),
+                                      ),
+
+                                      // Apple Button (Only shown on iOS)
+                                      if (Platform.isIOS) ...[
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: _buildSocialButton(
+                                            icon: const Icon(
+                                              Icons.apple,
+                                              size: 28,
+                                              color: Colors.black,
+                                            ),
+                                            onPressed: _isLoading
+                                                ? null
+                                                : () => _handleSocialLogin(
+                                                    AuthService
+                                                        .instance
+                                                        .signInWithApple,
+                                                  ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
-                                ),
-
-                                const SizedBox(height: 25),
-
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Divider(
-                                        color: Colors.grey.shade300,
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                      ),
-                                      child: Text(
-                                        "Or",
-                                        style: TextStyle(
-                                          color: Colors.grey.shade500,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Divider(
-                                        color: Colors.grey.shade300,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 20),
-
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildSocialButton(
-                                        icon: Image.network(
-                                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png',
-                                          height: 24,
-                                          errorBuilder: (c, o, s) => const Icon(
-                                            Icons.g_mobiledata,
-                                            size: 28,
-                                          ),
-                                        ),
-                                        onPressed: _isLoading
-                                            ? null
-                                            : () => _handleSocialLogin(
-                                                () => AuthService.instance
-                                                    .signInWithGoogleNative(
-                                                      webClientId: AppConfig
-                                                          .googleWebClientId,
-                                                      iosClientId: AppConfig
-                                                          .googleIosClientId,
-                                                      androidClientId: AppConfig
-                                                          .googleAndroidClientId,
-                                                    ),
-                                              ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildSocialButton(
-                                        icon: const Icon(
-                                          Icons.apple,
-                                          size: 28,
-                                          color: Colors.black,
-                                        ),
-                                        onPressed: _isLoading
-                                            ? null
-                                            : (Platform.isIOS
-                                                  ? () => _handleSocialLogin(
-                                                      AuthService
-                                                          .instance
-                                                          .signInWithApple,
-                                                    )
-                                                  : null),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -421,6 +529,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         icon: Icons.phone_android_rounded,
         inputType: TextInputType.phone,
         activeColor: activeColor,
+        validator: _validatePhone,
       ),
     );
   }
@@ -436,6 +545,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           icon: Icons.email_outlined,
           inputType: TextInputType.emailAddress,
           activeColor: activeColor,
+          validator: _validateEmail,
         ),
         const SizedBox(height: 16),
         _buildTextField(
@@ -445,19 +555,17 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           icon: Icons.lock_outline,
           isPassword: true,
           activeColor: activeColor,
+          validator: _validatePassword,
         ),
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
-            // Removed default padding to make it tighter
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            onPressed: () => AuthService.instance.requestPasswordReset(
-              _emailController.text,
-            ),
+            onPressed: _isLoading ? null : _handleForgotPassword,
             child: Text(
               'Forgot Password?',
               style: GoogleFonts.inter(
@@ -479,11 +587,14 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     TextInputType inputType = TextInputType.text,
     bool isPassword = false,
     required Color activeColor,
+    String? Function(String?)? validator,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       keyboardType: inputType,
       obscureText: isPassword,
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -499,6 +610,14 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
           borderSide: BorderSide(color: activeColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.red, width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.red, width: 2),
         ),
       ),
     );

@@ -1,4 +1,4 @@
-package com.example.vango_driver_app
+package com.vango.parent
 
 import io.flutter.embedding.android.FlutterActivity
 
