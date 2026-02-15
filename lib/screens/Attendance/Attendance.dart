@@ -4,67 +4,102 @@ import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 
 class AttendanceScreen extends StatefulWidget {
-  final ChildProfile child;
-
-  const AttendanceScreen({super.key, required this.child});
+  final ChildProfile? child;
+  const AttendanceScreen({super.key, this.child});
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  // Mock data for attendance history
   final List<Map<String, dynamic>> _history = [
-    {'date': 'Oct 24, 2023', 'status': AttendanceState.coming, 'time': '06:42 AM'},
-    {'date': 'Oct 23, 2023', 'status': AttendanceState.notComing, 'time': '--'},
-    {'date': 'Oct 22, 2023', 'status': AttendanceState.coming, 'time': '06:45 AM'},
-    {'date': 'Oct 21, 2023', 'status': AttendanceState.coming, 'time': '06:40 AM'},
+    {
+      'date': 'Oct 26, 2023',
+      'status': AttendanceState.coming,
+      'time': '06:42 AM',
+    },
+    {'date': 'Oct 25, 2023', 'status': AttendanceState.notComing, 'time': '--'},
+    {
+      'date': 'Oct 24, 2023',
+      'status': AttendanceState.coming,
+      'time': '06:55 AM',
+    },
+    {
+      'date': 'Oct 23, 2023',
+      'status': AttendanceState.coming,
+      'time': '06:40 AM',
+    },
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.accent, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text('Attendance History', style: AppTypography.title),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 10),
-            _buildChildSummaryCard(),
-            const SizedBox(height: 24),
-            Text('Recent Logs', style: AppTypography.title.copyWith(fontSize: 18)),
-            const SizedBox(height: 12),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _history.length,
-              itemBuilder: (context, index) {
-                final item = _history[index];
-                return _AttendanceHistoryTile(
-                  date: item['date'],
-                  status: item['status'],
-                  time: item['time'],
-                );
-              },
+    final String displayName = widget.child?.name ?? "All Students";
+    final Color displayColor = widget.child?.avatarColor ?? AppColors.accent;
+
+    // We use a Column + AppBar here.
+    // IMPORTANT: No Scaffold here because AppShell already provides one!
+    return Column(
+      children: [
+        AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          automaticallyImplyLeading:
+              false, // We control the leading icon manually
+          leading: IconButton(
+            icon: Icon(
+              Navigator.canPop(context) ? Icons.arrow_back_ios_new : Icons.menu,
+              color: AppColors.accent,
+              size: 22,
             ),
-          ],
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                // This now correctly opens the AppShell's Sidebar
+                Scaffold.of(context).openDrawer();
+              }
+            },
+          ),
+          title: Text('Attendance History', style: AppTypography.title),
+          centerTitle: true,
         ),
-      ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 10),
+                _buildChildSummaryCard(displayName, displayColor),
+                const SizedBox(height: 24),
+                Text(
+                  'Recent Logs',
+                  style: AppTypography.title.copyWith(fontSize: 18),
+                ),
+                const SizedBox(height: 12),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _history.length,
+                  itemBuilder: (context, index) {
+                    final item = _history[index];
+                    return _AttendanceHistoryTile(
+                      date: item['date'],
+                      status: item['status'],
+                      time: item['time'],
+                    );
+                  },
+                ),
+                const SizedBox(height: 100), // Space for the bottom nav bar
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildChildSummaryCard() {
+  Widget _buildChildSummaryCard(String name, Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -76,10 +111,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         children: [
           CircleAvatar(
             radius: 30,
-            backgroundColor: widget.child.avatarColor.withOpacity(0.1),
+            backgroundColor: color.withOpacity(0.1),
             child: Text(
-              widget.child.name[0].toUpperCase(),
-              style: TextStyle(color: widget.child.avatarColor, fontSize: 24, fontWeight: FontWeight.bold),
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: TextStyle(
+                color: color,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -87,10 +126,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.child.name, style: AppTypography.headline.copyWith(fontSize: 20)),
+                Text(
+                  name,
+                  style: AppTypography.headline.copyWith(fontSize: 20),
+                ),
                 Text(
                   'Monthly Attendance: 92%',
-                  style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -105,7 +149,6 @@ class _AttendanceHistoryTile extends StatelessWidget {
   final String date;
   final AttendanceState status;
   final String time;
-
   const _AttendanceHistoryTile({
     required this.date,
     required this.status,
@@ -115,7 +158,6 @@ class _AttendanceHistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isPresent = status == AttendanceState.coming;
-    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -126,17 +168,9 @@ class _AttendanceHistoryTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: (isPresent ? AppColors.success : AppColors.danger).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isPresent ? Icons.check_circle : Icons.cancel,
-              color: isPresent ? AppColors.success : AppColors.danger,
-              size: 20,
-            ),
+          Icon(
+            isPresent ? Icons.check_circle : Icons.cancel,
+            color: isPresent ? AppColors.success : AppColors.danger,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -146,23 +180,12 @@ class _AttendanceHistoryTile extends StatelessWidget {
                 Text(date, style: AppTypography.title.copyWith(fontSize: 15)),
                 Text(
                   isPresent ? 'Picked up at $time' : 'Marked as Absent',
-                  style: AppTypography.body.copyWith(fontSize: 13, color: AppColors.textSecondary),
+                  style: AppTypography.body.copyWith(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              isPresent ? 'Present' : 'Absent',
-              style: AppTypography.label.copyWith(
-                color: isPresent ? AppColors.success : AppColors.danger,
-                fontSize: 11,
-              ),
             ),
           ),
         ],

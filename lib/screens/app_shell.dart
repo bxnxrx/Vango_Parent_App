@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/screens/Attendance/Attendance.dart';
 import 'package:vango_parent_app/screens/finder/finder_screen.dart';
 import 'package:vango_parent_app/screens/home/home_screen.dart';
 import 'package:vango_parent_app/screens/messages/messages_screen.dart';
-
-import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/screens/payments/payments_screen.dart';
+import 'package:vango_parent_app/theme/app_colors.dart';
+import 'package:vango_parent_app/theme/app_typography.dart'; // Make sure this import exists
 
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
-    // Removed onShowOnboarding
     required this.onSignOut,
+    // Note: These parameters below are currently not used in your build logic
+    // but kept to avoid breaking your main.dart calls.
     required this.payments_screen,
     required this.Messages_screen,
     required this.home_screen,
@@ -44,6 +44,7 @@ class _AppShellState extends State<AppShell> {
       const FinderScreen(),
       const MessagesScreen(),
       const PaymentsScreen(),
+      const AttendanceScreen(),
     ];
 
     return Scaffold(
@@ -53,7 +54,6 @@ class _AppShellState extends State<AppShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: _selectTab,
-        // Changed AppColors.accent.withOpacity to AppColors.accentLow
         indicatorColor: AppColors.accentLow,
         destinations: const [
           NavigationDestination(
@@ -77,7 +77,7 @@ class _AppShellState extends State<AppShell> {
             label: 'Payments',
           ),
           NavigationDestination(
-            icon: Icon(Icons.how_to_reg_outlined),
+            icon: Icon(Icons.school_outlined),
             selectedIcon: Icon(Icons.school),
             label: 'Attendance',
           ),
@@ -87,81 +87,128 @@ class _AppShellState extends State<AppShell> {
   }
 
   Drawer _buildDrawer() {
-    // We use AppColors.accent because "primary" is not defined in your file
     const Color brandColor = AppColors.accent;
 
     return Drawer(
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
       child: SafeArea(
         child: Column(
           children: [
             UserAccountsDrawerHeader(
-              decoration: const BoxDecoration(color: brandColor),
-              currentAccountPicture: const CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Icon(Icons.person, color: brandColor),
+              decoration: const BoxDecoration(
+                gradient: AppColors.buttonGradient,
+                borderRadius: BorderRadius.only(topRight: Radius.circular(30)),
               ),
-              accountName: const Text(
+              currentAccountPicture: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: const CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person, color: brandColor, size: 35),
+                ),
+              ),
+              accountName: Text(
                 'Parent Account',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: AppTypography.title.copyWith(
+                  color: Colors.white,
+                  fontSize: 18,
+                ),
               ),
-              accountEmail: const Text('user@vango.com'),
+              accountEmail: Text(
+                'user@vango.com',
+                style: AppTypography.body.copyWith(color: Colors.white70),
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.search_outlined),
-              title: const Text('Find driver'),
-              onTap: () {
-                Navigator.pop(context);
-                _selectTab(1);
-              },
+            const SizedBox(height: 10),
+            _buildDrawerItem(icon: Icons.home_rounded, label: 'Home', index: 0),
+            _buildDrawerItem(
+              icon: Icons.search_rounded,
+              label: 'Find Driver',
+              index: 1,
             ),
-            ListTile(
-              leading: const Icon(Icons.home_outlined),
-              title: const Text('Home'),
-              onTap: () {
-                Navigator.pop(context);
-                _selectTab(0);
-              },
+            _buildDrawerItem(
+              icon: Icons.chat_bubble_rounded,
+              label: 'Messages',
+              index: 2,
             ),
-            ListTile(
-              leading: const Icon(Icons.payment_outlined),
-              title: const Text('Payments'),
-              onTap: () {
-                Navigator.pop(context);
-                _selectTab(3);
-              },
+            _buildDrawerItem(
+              icon: Icons.account_balance_wallet_rounded,
+              label: 'Payments',
+              index: 3,
             ),
-            ListTile(
-              leading: const Icon(Icons.message_outlined),
-              title: const Text('Messages'),
-              onTap: () {
-                Navigator.pop(context);
-                _selectTab(2);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.school_outlined),
-              title: const Text('Onboarding'),
-              onTap: () {
-                Navigator.pop(context);
-                _selectTab(4);
-              },
+            _buildDrawerItem(
+              icon: Icons.verified_user_rounded,
+              label: 'Attendance',
+              index: 4,
             ),
             const Spacer(),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: AppColors.danger),
-              title: const Text(
-                'Sign out',
-                style: TextStyle(color: AppColors.danger),
+            const Divider(indent: 20, endIndent: 20),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                tileColor: AppColors.danger.withOpacity(0.1),
+                leading: const Icon(
+                  Icons.logout_rounded,
+                  color: AppColors.danger,
+                ),
+                title: Text(
+                  'Sign out',
+                  style: AppTypography.title.copyWith(
+                    color: AppColors.danger,
+                    fontSize: 16,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  widget.onSignOut();
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onSignOut();
-              },
             ),
-            const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String label,
+    required int index,
+  }) {
+    final bool isSelected = _index == index;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: ListTile(
+        selected: isSelected,
+        selectedTileColor: AppColors.accent.withOpacity(0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        leading: Icon(
+          icon,
+          color: isSelected ? AppColors.accent : AppColors.textSecondary,
+        ),
+        title: Text(
+          label,
+          style: AppTypography.body.copyWith(
+            color: isSelected ? AppColors.accent : AppColors.textPrimary,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+        onTap: () {
+          Navigator.pop(context);
+          _selectTab(index);
+        },
       ),
     );
   }

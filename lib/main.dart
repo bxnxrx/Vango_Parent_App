@@ -8,7 +8,6 @@ import 'package:vango_parent_app/screens/onboarding/onboarding_screen.dart';
 import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_theme.dart';
-import 'package:vango_parent_app/widgets/payment_card.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +28,6 @@ Future<void> main() async {
   }
 }
 
-// Keeps track of the user's current step inside the app.
 enum _AppStage { onboarding, auth, home }
 
 class VanGoApp extends StatefulWidget {
@@ -40,28 +38,21 @@ class VanGoApp extends StatefulWidget {
 }
 
 class _VanGoAppState extends State<VanGoApp> {
+  // Starts with onboarding for new users
   _AppStage _stage = _AppStage.onboarding;
 
-  // Move from onboarding screens to the auth flow.
   void _finishOnboarding() {
     if (_stage == _AppStage.onboarding) {
       setState(() => _stage = _AppStage.auth);
     }
   }
 
-  // Unlock the main app once sign-in is done.
   void _completeAuth() {
     if (_stage == _AppStage.auth) {
       setState(() => _stage = _AppStage.home);
     }
   }
 
-  // Reset everything when the user wants to revisit onboarding.
-  void _showOnboardingAgain() {
-    setState(() => _stage = _AppStage.onboarding);
-  }
-
-  // Drop back to auth when the user signs out.
   void _signOut() {
     if (_stage == _AppStage.home) {
       setState(() => _stage = _AppStage.auth);
@@ -80,12 +71,13 @@ class _VanGoAppState extends State<VanGoApp> {
         home = AuthFlow(onAuthenticated: _completeAuth);
         break;
       case _AppStage.home:
+        // FIXED: This now matches the AppShell constructor exactly
         home = AppShell(
           onSignOut: _signOut,
-          onAttendancePressed: () {} ,
-          payments_screen: () {}, // TODO: implement
-          Messages_screen: () {}, // TODO: implement
-          home_screen: () {}, // TODO: implement
+          onAttendancePressed: () {},
+          payments_screen: () {},
+          Messages_screen: () {},
+          home_screen: () {},
         );
         break;
     }
