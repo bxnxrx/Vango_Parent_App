@@ -8,9 +8,12 @@ import 'package:vango_parent_app/screens/onboarding/onboarding_screen.dart';
 import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_theme.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:vango_parent_app/services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   await dotenv.load(fileName: ".env");
   AppConfig.ensure();
 
@@ -38,8 +41,23 @@ class VanGoApp extends StatefulWidget {
 }
 
 class _VanGoAppState extends State<VanGoApp> {
-  // Starts with onboarding for new users
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  final GlobalKey<ScaffoldMessengerState> _messengerKey = GlobalKey<ScaffoldMessengerState>();
   _AppStage _stage = _AppStage.onboarding;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkNotificationPermissions();
+  }
+
+  // NEW: Helper function to request permissions
+  Future<void> _checkNotificationPermissions() async {
+    // We initialize the service first
+    await NotificationService.instance.initialize();
+    // Then we trigger the system popup (Allow/Don't Allow)
+    await NotificationService.instance.requestPermissions();
+  }
 
   void _finishOnboarding() {
     if (_stage == _AppStage.onboarding) {
@@ -47,10 +65,39 @@ class _VanGoAppState extends State<VanGoApp> {
     }
   }
 
-  void _completeAuth() {
-    if (_stage == _AppStage.auth) {
-      setState(() => _stage = _AppStage.home);
+Future<void> _completeAuth() async {
+    try {
+      // 1. Fire off the notification
+      await NotificationService.instance.initialize();
+      bool granted = await NotificationService.instance.requestPermissions();
+      if (granted) {
+        await NotificationService.instance.showManualNotification(
+          "Welcome to VanGo!", 
+          "Account created successfully."
+        );
+      }
+    } catch (e) {
+      debugPrint("Notification failed: $e");
     }
+
+    if (!mounted) return;
+
+    // 2. Clear any "Personal Info" or "OTP" screens that might be open
+   _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    // 3. Show the green success SnackBar
+    _messengerKey.currentState?.showSnackBar(
+      const SnackBar(
+        content: Text('Account created successfully!'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    // 4. Switch the UI to the Home screen
+    setState(() {
+      _stage = _AppStage.home;
+    });
   }
 
   void _signOut() {
@@ -83,6 +130,8 @@ class _VanGoAppState extends State<VanGoApp> {
     }
 
     return MaterialApp(
+      navigatorKey: _navigatorKey,
+      scaffoldMessengerKey: _messengerKey,
       title: 'VanGo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
