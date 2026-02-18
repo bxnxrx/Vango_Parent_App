@@ -72,22 +72,7 @@ class _AuthFlowState extends State<AuthFlow> {
 
   void _openPermissionsOrFinish() {
     // Show permissions sheet before letting them in completely
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) {
-        return PermissionsSheet(
-          onComplete: () {
-            Navigator.of(context).pop();
-            widget.onAuthenticated();
-          },
-        );
-      },
-    );
+    widget.onAuthenticated();
   }
 
   // Handles logic after Phone OTP is verified
