@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-
 import 'package:vango_parent_app/screens/auth/login_signup.dart';
 import 'package:vango_parent_app/screens/auth/create_account.dart';
 import 'package:vango_parent_app/screens/auth/otp_screen.dart';
-import 'package:vango_parent_app/screens/auth/permissions_sheet.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 
