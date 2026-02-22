@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -126,6 +124,8 @@ class AuthService {
   final SupabaseClient _client = Supabase.instance.client;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
+  User? get currentUser => _client.auth.currentUser;
+
   Future<void> initialize() async {
     AppConfig.ensure();
     await BackendClient.instance.ensureBackendHealthy();
@@ -145,9 +145,7 @@ class AuthService {
       email: email,
       password: password,
       emailRedirectTo: null,
-      data: const {
-        'role': 'parent',
-      },
+      data: const {'role': 'parent'},
     );
 
     final requiresVerification = response.session == null;
@@ -164,25 +162,16 @@ class AuthService {
 
   Future<void> signInWithGoogleNative({
     String? webClientId,
-    String? iosClientId,
-    String? androidClientId,
   }) async {
-    // Align behaviour with driver app: enforce iOS client ID and handle errors clearly.
-    if (Platform.isIOS && (iosClientId == null || iosClientId.isEmpty)) {
-      throw Exception(
-        'GOOGLE_IOS_CLIENT_ID is missing in .env. Please add it.',
+    final normalizedClientId = webClientId?.trim();
+
+    Future<void> tryNative({String? serverClientId}) async {
+      final googleSignIn = GoogleSignIn(
+        scopes: const ['email', 'profile'],
+        serverClientId: serverClientId,
       );
-    }
 
-    final googleSignIn = GoogleSignIn(
-      scopes: const ['email', 'profile'],
-      serverClientId: webClientId,
-      clientId: iosClientId ?? androidClientId,
-    );
-
-    await googleSignIn.signOut();
-
-    try {
+      await googleSignIn.signOut();
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         throw Exception('Google sign-in was cancelled');
@@ -192,7 +181,7 @@ class AuthService {
       final idToken = googleAuth.idToken;
       final accessToken = googleAuth.accessToken;
 
-      if (idToken == null) {
+      if (idToken == null || idToken.isEmpty) {
         throw Exception('Missing Google ID token');
       }
 
@@ -201,9 +190,26 @@ class AuthService {
         idToken: idToken,
         accessToken: accessToken,
       );
-    } catch (e) {
+    }
+
+    try {
+      await tryNative(
+        serverClientId:
+            (normalizedClientId == null || normalizedClientId.isEmpty)
+            ? null
+            : normalizedClientId,
+      );
+      return;
+    } catch (firstError) {
+      print('Google native sign-in (with configured client ID) failed: $firstError');
+    }
+
+    try {
+      await tryNative(serverClientId: null);
+    } catch (secondError) {
+      print('Google native sign-in (without server client ID) failed: $secondError');
       throw Exception(
-        'Google Sign-In failed: $e. (Check Info.plist URL Schemes)',
+        'Google Sign-In failed on this device. Check Android SHA fingerprints and OAuth client setup in Firebase/Supabase.',
       );
     }
   }
@@ -221,31 +227,25 @@ class AuthService {
   }
 
   Future<OnboardingStatus> markEmailVerified({String role = 'parent'}) {
-    return _postProgress({
-      'role': role,
-      'emailVerifiedAt': _isoNow(),
-    });
+    return _postProgress({'role': role, 'emailVerifiedAt': _isoNow()});
   }
 
   Future<OnboardingStatus> markPhoneVerified() {
-    return _postProgress({
-      'role': 'parent',
-      'phoneVerifiedAt': _isoNow(),
-    });
+    return _postProgress({'role': 'parent', 'phoneVerifiedAt': _isoNow()});
   }
 
   Future<OnboardingStatus> markProfileCompleted() {
-    return _postProgress({
-      'role': 'parent',
-      'profileCompletedAt': _isoNow(),
-    });
+    return _postProgress({'role': 'parent', 'profileCompletedAt': _isoNow()});
   }
 
   Future<OnboardingStatus> _postProgress(Map<String, dynamic> body) async {
     if (body.isEmpty) {
       throw Exception('No onboarding fields supplied');
     }
-    final response = await BackendClient.instance.post('/api/auth/progress', body);
+    final response = await BackendClient.instance.post(
+      '/api/auth/progress',
+      body,
+    );
     if (response is Map<String, dynamic>) {
       final onboarding = response['onboarding'];
       if (onboarding is Map<String, dynamic>) {
@@ -257,10 +257,17 @@ class AuthService {
 
   String _isoNow() => DateTime.now().toUtc().toIso8601String();
 
-  Future<void> saveParentProfile({required String fullName, required String phone}) async {
+  Future<void> saveParentProfile({
+    required String fullName,
+    required String phone,
+    String? email,
+    String? relationship,
+  }) async {
     await BackendClient.instance.post('/api/parents/profile', {
       'fullName': fullName,
       'phone': phone,
+      if (email != null) 'email': email,
+      if (relationship != null) 'relationship': relationship,
     });
   }
 
@@ -279,7 +286,10 @@ class AuthService {
     return profile.id;
   }
 
-  Future<void> linkDriver({required String code, required String childId}) async {
+  Future<void> linkDriver({
+    required String code,
+    required String childId,
+  }) async {
     await BackendClient.instance.post('/api/parents/link-driver', {
       'code': code.trim().toUpperCase(),
       'childId': childId,
@@ -287,13 +297,13 @@ class AuthService {
   }
 
   Future<void> requestPhoneOtp(String phone) async {
-    await _client.auth.signInWithOtp(
-      phone: phone,
-      shouldCreateUser: false,
-    );
+    await _client.auth.signInWithOtp(phone: phone, shouldCreateUser: false);
   }
 
-  Future<void> verifyPhoneOtp({required String phone, required String token}) async {
+  Future<void> verifyPhoneOtp({
+    required String phone,
+    required String token,
+  }) async {
     await _client.auth.verifyOTP(phone: phone, token: token, type: OtpType.sms);
   }
 
@@ -302,10 +312,7 @@ class AuthService {
   }
 
   Future<void> requestEmailOtp(String email) async {
-    await _client.auth.resend(
-      type: OtpType.signup,
-      email: email,
-    );
+    await _client.auth.resend(type: OtpType.signup, email: email);
   }
 
   Future<void> verifyEmailOtp({
@@ -313,13 +320,65 @@ class AuthService {
     required String token,
     OtpType type = OtpType.signup,
   }) async {
+    await _client.auth.verifyOTP(email: email, token: token, type: type);
+    await markEmailVerified();
+  }
+
+  Future<void> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  }) async {
     await _client.auth.verifyOTP(
       email: email,
       token: token,
-      type: type,
+      type: OtpType.recovery,
+    );
+  }
+
+  Future<void> updateUserPassword(String newPassword) async {
+    await _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  // --- IDENTITY LINKING METHODS ---
+
+  /// Links a phone number to the currently logged in user (Email account)
+  Future<void> linkPhone(String phone) async {
+    await _client.auth.updateUser(UserAttributes(phone: phone));
+  }
+
+  /// Verifies the OTP sent to the phone for linking purposes
+  Future<void> verifyLinkedPhone({
+    required String phone,
+    required String token,
+  }) async {
+    await _client.auth.verifyOTP(
+      phone: phone,
+      token: token,
+      type: OtpType.phoneChange,
+    );
+    // Optionally mark as verified in your DB immediately
+    await markPhoneVerified();
+  }
+
+  /// Links an email to the currently logged in user (Phone account)
+  Future<void> linkEmail(String email) async {
+    await _client.auth.updateUser(UserAttributes(email: email));
+  }
+
+  /// Verifies the OTP sent to the email for linking purposes
+  Future<void> verifyLinkedEmail({
+    required String email,
+    required String token,
+  }) async {
+    await _client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.emailChange,
     );
     await markEmailVerified();
   }
+
+  // ------------------------------
 
   Future<void> cachePhone(String phone) async {
     await _storage.write(key: 'parent_phone', value: phone);
