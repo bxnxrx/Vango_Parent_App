@@ -22,7 +22,7 @@ class _FinderScreenState extends State<FinderScreen> {
   bool _loading = true;
   String? _error;
 
-  static const List<String> _filters = ['All', 'Van', 'Car', 'Mini Bus'];
+  static const List<String> _filters = ['All', 'Van','Mini Bus'];
   static const List<String> _recentLocations = [
     'Home - Bambalapitiya',
     'Royal Primary School',
