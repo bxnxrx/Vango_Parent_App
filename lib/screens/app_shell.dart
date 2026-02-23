@@ -42,7 +42,7 @@ class _AppShellState extends State<AppShell> {
     final pages = <Widget>[
       HomeScreen(onOpenMore: () => _scaffoldKey.currentState?.openDrawer()),
       const FinderScreen(),
-      const MessagesScreen(),
+      MessagesScreen(onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer()),
       const PaymentsScreen(),
       const AttendanceScreen(),
     ];
