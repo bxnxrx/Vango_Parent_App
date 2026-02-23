@@ -1,10 +1,15 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:vango_parent_app/models/child_profile.dart';
+import 'package:vango_parent_app/models/live_trip_location.dart';
 import 'package:vango_parent_app/models/notification_item.dart';
 import 'package:vango_parent_app/models/ride_status.dart';
+import 'package:vango_parent_app/screens/tracking/live_tracking_screen.dart';
 import 'package:vango_parent_app/screens/ride_detail/ride_detail_screen.dart';
+import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
+import 'package:vango_parent_app/services/parent_tracking_repository.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
@@ -161,16 +166,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Jump into the ride detail screen.
   void _openRideDetail() {
+    final tripId = AppConfig.trackingTripId;
+    if (tripId == null || tripId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Set TRACKING_TRIP_ID in .env to open ride details.')),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => RideDetailScreen(status: _rideStatus)),
+      MaterialPageRoute(
+        builder: (_) => RideDetailScreen(
+          status: _rideStatus,
+          tripId: tripId,
+        ),
+      ),
     );
   }
 
   // Present the full map preview in a dialog-like screen.
   void _openFullscreenMap() {
+    final tripId = AppConfig.trackingTripId;
+    if (tripId == null || tripId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Set TRACKING_TRIP_ID in .env to open live tracking.')),
+      );
+      return;
+    }
+
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const _FullscreenMapView()));
+    ).push(
+      MaterialPageRoute(
+        builder: (_) => LiveTrackingScreen(tripId: tripId),
+      ),
+    );
   }
 
   // Open the action sheet so a parent can mark attendance.
@@ -269,7 +299,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 12),
-                  _LiveMapCard(onExpand: _openFullscreenMap),
+                  _LiveMapCard(
+                    onExpand: _openFullscreenMap,
+                    tripId: AppConfig.trackingTripId,
+                  ),
                   const SizedBox(height: 16),
                   _TodayStatusCard(
                     children: _children,
@@ -422,9 +455,123 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // Preview tile for the in-progress ride map.
 class _LiveMapCard extends StatelessWidget {
-  const _LiveMapCard({required this.onExpand});
+  const _LiveMapCard({required this.onExpand, required this.tripId});
 
   final VoidCallback onExpand;
+  final String? tripId;
+
+  @override
+  Widget build(BuildContext context) {
+    if (tripId == null || tripId!.isEmpty) {
+      return _LiveMapCardShell(
+        onExpand: onExpand,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Set TRACKING_TRIP_ID in .env to show live map preview.',
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _LiveMapPreview(
+      onExpand: onExpand,
+      tripId: tripId!,
+    );
+  }
+}
+
+class _LiveMapPreview extends StatefulWidget {
+  const _LiveMapPreview({required this.onExpand, required this.tripId});
+
+  final VoidCallback onExpand;
+  final String tripId;
+
+  @override
+  State<_LiveMapPreview> createState() => _LiveMapPreviewState();
+}
+
+class _LiveMapPreviewState extends State<_LiveMapPreview> {
+  static const LatLng _fallbackCenter = LatLng(6.9271, 79.8612);
+  static const String _purpleMapStyle = '''
+[
+  {"elementType":"geometry","stylers":[{"color":"#242f3e"}]},
+  {"elementType":"labels.text.fill","stylers":[{"color":"#746855"}]},
+  {"elementType":"labels.text.stroke","stylers":[{"color":"#242f3e"}]},
+  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#4b3b6b"}]},
+  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#3b2d55"}]},
+  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#1f1730"}]}
+]
+''';
+
+  final ParentTrackingRepository _repository = ParentTrackingRepository();
+  LiveTripLocation? _latestLocation;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLatest();
+  }
+
+  Future<void> _loadLatest() async {
+    final latest = await _repository.fetchLatest(widget.tripId);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _latestLocation = latest;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = _latestLocation;
+    final center = latest == null ? _fallbackCenter : LatLng(latest.latitude, latest.longitude);
+
+    return _LiveMapCardShell(
+      onExpand: widget.onExpand,
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : GoogleMap(
+              initialCameraPosition: CameraPosition(target: center, zoom: 13),
+              mapToolbarEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              scrollGesturesEnabled: false,
+              zoomGesturesEnabled: false,
+              rotateGesturesEnabled: false,
+              tiltGesturesEnabled: false,
+              markers: latest == null
+                  ? const <Marker>{}
+                  : {
+                      Marker(
+                        markerId: const MarkerId('van_preview'),
+                        position: LatLng(latest.latitude, latest.longitude),
+                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                      ),
+                    },
+              onMapCreated: (controller) {
+                controller.setMapStyle(_purpleMapStyle);
+              },
+            ),
+    );
+  }
+}
+
+class _LiveMapCardShell extends StatelessWidget {
+  const _LiveMapCardShell({required this.onExpand, required this.child});
+
+  final VoidCallback onExpand;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -446,25 +593,7 @@ class _LiveMapCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           child: Stack(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.accent.withOpacity(0.1),
-                      AppColors.surface,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.map,
-                    size: 64,
-                    color: AppColors.accent.withOpacity(0.3),
-                  ),
-                ),
-              ),
+              Positioned.fill(child: child),
               Positioned(
                 top: 16,
                 left: 16,
@@ -530,128 +659,6 @@ class _LiveMapCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// Lightweight full screen placeholder for the map integration.
-class _FullscreenMapView extends StatelessWidget {
-  const _FullscreenMapView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8),
-            ],
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.close, color: AppColors.accent),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-      ),
-      body: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.accent.withOpacity(0.1), AppColors.surface],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.map_outlined,
-                    size: 120,
-                    color: AppColors.accent.withOpacity(0.3),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Google Maps integration',
-                    style: AppTypography.title.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 32,
-            left: 20,
-            right: 20,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          color: AppColors.success,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Bus arriving in 8 mins',
-                        style: AppTypography.title.copyWith(fontSize: 16),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: AppColors.textSecondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '2.3 km away - Moving at 35 km/h',
-                        style: AppTypography.body.copyWith(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

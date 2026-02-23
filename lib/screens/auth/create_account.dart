@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:vango_parent_app/screens/auth/otp_screen.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
-import 'package:vango_parent_app/theme/app_colors.dart';
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({
@@ -591,7 +590,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           ),
         ),
         DropdownButtonFormField<String>(
-          value: _selectedRelationship,
+          initialValue: _selectedRelationship,
           isExpanded: true,
           icon: const Icon(
             Icons.keyboard_arrow_down_rounded,

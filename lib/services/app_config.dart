@@ -7,6 +7,7 @@ class AppConfig {
   static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
   static String get backendBaseUrl => _resolveBackendBaseUrl();
   static String? get googleWebClientId => _readOptional('GOOGLE_WEB_CLIENT_ID');
+  static String? get trackingTripId => _readOptional('TRACKING_TRIP_ID');
 
   static void ensure() {
     if (supabaseUrl.isEmpty ||

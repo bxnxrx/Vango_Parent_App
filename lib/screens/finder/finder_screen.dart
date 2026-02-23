@@ -114,10 +114,11 @@ class _FinderScreenState extends State<FinderScreen> {
 
     if (selected != null && selected.isNotEmpty) {
       setState(() {
-        if (isPickup)
+        if (isPickup) {
           _pickup = selected;
-        else
+        } else {
           _drop = selected;
+        }
       });
     }
   }

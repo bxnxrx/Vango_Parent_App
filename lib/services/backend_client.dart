@@ -55,7 +55,22 @@ class BackendClient {
     }
 
     debugPrint('Backend request to $path failed with ${response.statusCode}: ${response.body}');
-    throw Exception('Backend request failed');
+
+    String errorMessage = 'Backend request failed (${response.statusCode})';
+    try {
+      final Map<String, dynamic> errorBody = jsonDecode(response.body);
+      if (errorBody.containsKey('message')) {
+        errorMessage = errorBody['message']?.toString() ?? errorMessage;
+      } else if (errorBody.containsKey('errors')) {
+        errorMessage = 'Validation Error: ${errorBody['errors']}';
+      }
+    } catch (_) {
+      if (response.body.isNotEmpty) {
+        errorMessage = '$errorMessage: ${response.body}';
+      }
+    }
+
+    throw Exception(errorMessage);
   }
 
   Future<dynamic> get(String path, {Map<String, String>? queryParameters}) {
