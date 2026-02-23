@@ -7,7 +7,7 @@ import 'package:vango_parent_app/widgets/gradient_button.dart';
 import 'chat_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
-  const MessagesScreen({super.key});
+  const MessagesScreen({super.key, required void Function() onOpenDrawer});
 
   @override
   State<MessagesScreen> createState() => _MessagesScreenState();
