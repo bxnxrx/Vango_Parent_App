@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:vango_parent_app/models/ride_status.dart';
+import 'package:vango_parent_app/screens/tracking/live_tracking_screen.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 
 class RideDetailScreen extends StatelessWidget {
-  const RideDetailScreen({super.key, this.status});
+  const RideDetailScreen({
+    super.key,
+    this.status,
+    required this.tripId,
+  });
 
   final RideStatus? status;
+  final String tripId;
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +63,23 @@ class RideDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Text('Detailed tracking coming soon', style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => LiveTrackingScreen(
+                        tripId: tripId,
+                        title: 'Ride live tracking',
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.map),
+                label: const Text('Open live tracking map'),
+              ),
+            ),
           ],
         ),
       ),

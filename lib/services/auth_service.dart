@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -164,16 +163,15 @@ class AuthService {
   Future<void> signInWithGoogleNative({
     String? webClientId,
   }) async {
-    
-   
-    final googleSignIn = GoogleSignIn(
-      scopes: const ['email', 'profile'],
-      serverClientId: webClientId, 
-    );
+    final normalizedClientId = webClientId?.trim();
 
-    await googleSignIn.signOut(); // Clean slate
+    Future<void> tryNative({String? serverClientId}) async {
+      final googleSignIn = GoogleSignIn(
+        scopes: const ['email', 'profile'],
+        serverClientId: serverClientId,
+      );
 
-    try {
+      await googleSignIn.signOut();
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         throw Exception('Google sign-in was cancelled');
@@ -183,10 +181,8 @@ class AuthService {
       final idToken = googleAuth.idToken;
       final accessToken = googleAuth.accessToken;
 
-      if (idToken == null) {
-        throw Exception(
-          'Missing Google ID token. Check GOOGLE_WEB_CLIENT_ID in .env',
-        );
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception('Missing Google ID token');
       }
 
       await _client.auth.signInWithIdToken(
@@ -194,9 +190,27 @@ class AuthService {
         idToken: idToken,
         accessToken: accessToken,
       );
-    } catch (e) {
-      print("Google Sign In Error: $e");
-      throw Exception('Google Sign-In failed: $e');
+    }
+
+    try {
+      await tryNative(
+        serverClientId:
+            (normalizedClientId == null || normalizedClientId.isEmpty)
+            ? null
+            : normalizedClientId,
+      );
+      return;
+    } catch (firstError) {
+      print('Google native sign-in (with configured client ID) failed: $firstError');
+    }
+
+    try {
+      await tryNative(serverClientId: null);
+    } catch (secondError) {
+      print('Google native sign-in (without server client ID) failed: $secondError');
+      throw Exception(
+        'Google Sign-In failed on this device. Check Android SHA fingerprints and OAuth client setup in Firebase/Supabase.',
+      );
     }
   }
 
