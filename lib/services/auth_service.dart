@@ -257,18 +257,34 @@ class AuthService {
 
   String _isoNow() => DateTime.now().toUtc().toIso8601String();
 
-  Future<void> saveParentProfile({
+  
+
+ Future<void> saveParentProfile({
     required String fullName,
     required String phone,
     String? email,
     String? relationship,
   }) async {
+    
     await BackendClient.instance.post('/api/parents/profile', {
       'fullName': fullName,
       'phone': phone,
       if (email != null) 'email': email,
       if (relationship != null) 'relationship': relationship,
     });
+
+    // 2. DIRECT DATABASE UPDATE: Mark the account as fully created
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId != null) {
+        await _client.from('parents').update({
+          'is_account_created': true, 
+        }).eq('supabase_user_id', userId); // 👈 CHANGE THIS LINE
+        print('✅ Successfully marked is_account_created = true in Supabase');
+      }
+    } catch (e) {
+      print('❌ Failed to update is_account_created: $e');
+    }
   }
 
   Future<String> createChild({
