@@ -1,6 +1,9 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:vango_parent_app/screens/app_shell.dart';
 import 'package:vango_parent_app/screens/auth/auth_flow.dart';
@@ -8,12 +11,56 @@ import 'package:vango_parent_app/screens/onboarding/onboarding_screen.dart';
 import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_theme.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:vango_parent_app/services/notification_service.dart';
+import 'package:vango_parent_app/services/device_service.dart'; // Make sure this path is correct
+
+// --- 1. BACKGROUND MESSAGE HANDLER ---
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp();
+  }
+  debugPrint("📩 Background Message Received: ${message.messageId}");
+  // Android automatically displays the notification in the background
+  // We DO NOT call local notifications here to avoid duplicates!
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 2. INITIALIZE FIREBASE
   await Firebase.initializeApp();
+
+  // 3. SET UP HIGH IMPORTANCE CHANNEL
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'vango_notifications_v4', // id: MUST MATCH what you used in NotificationService and AndroidManifest
+    'Parent Notifications',
+    description: 'Important updates for parents.',
+    importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
+    showBadge: true,
+  );
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >()
+      ?.createNotificationChannel(channel);
+
+  // 4. REGISTER FIREBASE HANDLERS
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  // 5. LOAD ENV & SUPABASE
   await dotenv.load(fileName: ".env");
   AppConfig.ensure();
 
@@ -21,8 +68,27 @@ Future<void> main() async {
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,
   );
+
   try {
+    // 6. INITIALIZE SERVICES
+    await NotificationService.instance.initialize();
     await AuthService.instance.initialize();
+
+    final deviceService = DeviceService();
+
+    // 7. LISTEN FOR LOGIN / LOGOUT TO SYNC TOKENS
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedIn ||
+          data.event == AuthChangeEvent.initialSession) {
+        debugPrint("🔐 Auth state change detected! Syncing Device Data...");
+        deviceService.syncDeviceData();
+        deviceService.listenForTokenRefreshes();
+      }
+    });
+
+    // 8. SYNC DEVICE DATA ON STARTUP
+    await deviceService.syncDeviceData();
+
     runApp(const VanGoApp());
   } catch (error, stackTrace) {
     debugPrint('Parent app offline: $error');
@@ -48,15 +114,7 @@ class _VanGoAppState extends State<VanGoApp> {
   @override
   void initState() {
     super.initState();
-    _checkNotificationPermissions();
-  }
-
-  // NEW: Helper function to request permissions
-  Future<void> _checkNotificationPermissions() async {
-    // We initialize the service first
-    await NotificationService.instance.initialize();
-    // Then we trigger the system popup (Allow/Don't Allow)
-    await NotificationService.instance.requestPermissions();
+    // Notification permissions are now handled inside NotificationService.instance.initialize()
   }
 
   void _finishOnboarding() {
@@ -65,36 +123,23 @@ class _VanGoAppState extends State<VanGoApp> {
     }
   }
 
-Future<void> _completeAuth() async {
+  Future<void> _completeAuth() async {
     try {
-      // 1. Fire off the notification
-      await NotificationService.instance.initialize();
-      bool granted = await NotificationService.instance.requestPermissions();
-      if (granted) {
-        await NotificationService.instance.showManualNotification(
-          "Welcome to VanGo!", 
-          "Account created successfully."
-        );
-      }
+      // Because we added the onAuthStateChange listener in main(), 
+      // the device data will automatically sync. 
+      // We don't need manual notifications here since the Node.js webhook sends the push notification!
     } catch (e) {
-      debugPrint("Notification failed: $e");
+      debugPrint("Auth completion error: $e");
     }
 
     if (!mounted) return;
 
-    // 2. Clear any "Personal Info" or "OTP" screens that might be open
-   _navigatorKey.currentState?.popUntil((route) => route.isFirst);
-    // 3. Show the green success SnackBar
-    _messengerKey.currentState?.showSnackBar(
-      const SnackBar(
-        content: Text('Account created successfully!'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 3),
-      ),
-    );
+    // 1. Clear any "Personal Info" or "OTP" screens that might be open
+    _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    
+    // SnackBar removed! Now relying solely on push notifications.
 
-    // 4. Switch the UI to the Home screen
+    // 2. Switch the UI to the Home screen
     setState(() {
       _stage = _AppStage.home;
     });
@@ -118,7 +163,6 @@ Future<void> _completeAuth() async {
         home = AuthFlow(onAuthenticated: _completeAuth);
         break;
       case _AppStage.home:
-        // FIXED: This now matches the AppShell constructor exactly
         home = AppShell(
           onSignOut: _signOut,
           onAttendancePressed: () {},
