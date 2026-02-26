@@ -1,6 +1,5 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/models/live_trip_location.dart';
 import 'package:vango_parent_app/models/notification_item.dart';
