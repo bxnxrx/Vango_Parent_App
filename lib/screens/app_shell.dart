@@ -6,6 +6,7 @@ import 'package:vango_parent_app/screens/messages/messages_screen.dart';
 import 'package:vango_parent_app/screens/payments/payments_screen.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart'; // Make sure this import exists
+import 'package:supabase_flutter/supabase_flutter.dart'; // ✅ ADD THIS
 
 class AppShell extends StatefulWidget {
   const AppShell({
@@ -32,6 +33,56 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _index = 0;
+  String _parentName = 'Parent'; // ✅ ADD THIS
+  String _userEmail = ''; // ✅ ADD THIS (optional)
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserEmail();
+  }
+
+  Future<void> _loadUserEmail() async {
+    // First try Supabase auth directly
+    final user = Supabase.instance.client.auth.currentUser;
+
+    final authEmail =
+        user?.email ?? user?.userMetadata?['email'] as String? ?? '';
+    final authPhone = user?.phone ?? '';
+
+    // Set whatever we have immediately
+    if (authEmail.isNotEmpty) {
+      setState(() => _userEmail = authEmail);
+      return;
+    }
+
+    if (authPhone.isNotEmpty) {
+      setState(() => _userEmail = authPhone);
+      return;
+    }
+
+    // If both empty, fetch from your backend profile
+    // (which stores email during registration)
+    try {
+      final profileData = await Supabase.instance.client
+          .from('parents')
+          .select('email, phone')
+          .eq('supabase_user_id', user?.id ?? '')
+          .single();
+
+      debugPrint('👤 parents table data: $profileData');
+
+      final dbEmail = profileData['email'] as String? ?? '';
+      final dbPhone = profileData['phone'] as String? ?? '';
+
+      setState(() {
+        _userEmail = dbEmail.isNotEmpty ? dbEmail : dbPhone;
+      });
+    } catch (e) {
+      debugPrint('❌ Failed to fetch profile email: $e');
+      setState(() => _userEmail = '');
+    }
+  }
 
   void _selectTab(int index) {
     setState(() => _index = index);
@@ -40,9 +91,18 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      HomeScreen(onOpenMore: () => _scaffoldKey.currentState?.openDrawer()),
+      HomeScreen(
+        onOpenMore: () => _scaffoldKey.currentState?.openDrawer(),
+        onNameLoaded: (name) {
+          setState(
+            () => _parentName = name,
+          ); // ✅ setState triggers drawer rebuild
+        },
+      ),
       const FinderScreen(),
-      MessagesScreen(onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer()),
+      MessagesScreen(
+        onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+      ),
       const PaymentsScreen(),
       const AttendanceScreen(),
     ];
@@ -110,20 +170,29 @@ class _AppShellState extends State<AppShell> {
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
-                child: const CircleAvatar(
+                child: CircleAvatar(
                   backgroundColor: Colors.white,
-                  child: Icon(Icons.person, color: brandColor, size: 35),
+                  child: Text(
+                    _parentName.isNotEmpty
+                        ? _parentName[0].toUpperCase()
+                        : 'P', // ✅
+                    style: const TextStyle(
+                      color: brandColor,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
               accountName: Text(
-                'Parent Account',
+                _parentName, // ✅ real name from DB
                 style: AppTypography.title.copyWith(
                   color: Colors.white,
                   fontSize: 18,
                 ),
               ),
               accountEmail: Text(
-                'user@vango.com',
+                _userEmail.isNotEmpty ? _userEmail : 'Vango Parent',
                 style: AppTypography.body.copyWith(color: Colors.white70),
               ),
             ),
