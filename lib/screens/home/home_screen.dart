@@ -14,9 +14,13 @@ import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.onOpenMore});
-
+  const HomeScreen({
+    super.key,
+    required this.onOpenMore,
+    this.onNameLoaded, // ✅ ADD THIS
+  });
   final VoidCallback onOpenMore;
+  final ValueChanged<String>? onNameLoaded;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -30,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final RideStatus _rideStatus = const RideStatus.placeholder();
   bool _loading = true;
   String? _error;
+  String _parentName = "Parent";
 
   @override
   void initState() {
@@ -46,24 +51,35 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      final childrenFuture = _dataService.fetchChildren();
-      final notificationsFuture = _dataService.fetchNotifications();
-      final children = await childrenFuture;
-      final notifications = await notificationsFuture;
+      final results = await Future.wait([
+        _dataService.fetchChildren(),
+        _dataService.fetchNotifications(),
+        _dataService.fetchProfile(),
+      ]);
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+
+      final children = results[0] as List<ChildProfile>;
+      final notifications = results[1] as List<NotificationItem>;
+      final profileData = results[2] as Map<String, dynamic>;
+
+      // ✅ Debug — remove after confirming it works
+      debugPrint('📦 profileData: $profileData');
+
+      final name = (profileData['full_name'] as String? ?? '').trim();
+      final resolvedName = name.isEmpty ? 'Parent' : name;
 
       setState(() {
         _children = children;
         _notifications = notifications;
+        _parentName = resolvedName;
         _loading = false;
       });
+
+      widget.onNameLoaded?.call(resolvedName);
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      debugPrint('❌ _loadDashboard error: $error'); // ✅ Debug
+      if (!mounted) return;
       setState(() {
         _error = error.toString();
         _loading = false;
@@ -168,17 +184,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final tripId = AppConfig.trackingTripId;
     if (tripId == null || tripId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Set TRACKING_TRIP_ID in .env to open ride details.')),
+        const SnackBar(
+          content: Text('Set TRACKING_TRIP_ID in .env to open ride details.'),
+        ),
       );
       return;
     }
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => RideDetailScreen(
-          status: _rideStatus,
-          tripId: tripId,
-        ),
+        builder: (_) => RideDetailScreen(status: _rideStatus, tripId: tripId),
       ),
     );
   }
@@ -188,17 +203,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final tripId = AppConfig.trackingTripId;
     if (tripId == null || tripId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Set TRACKING_TRIP_ID in .env to open live tracking.')),
+        const SnackBar(
+          content: Text('Set TRACKING_TRIP_ID in .env to open live tracking.'),
+        ),
       );
       return;
     }
 
-    Navigator.of(
-      context,
-    ).push(
-      MaterialPageRoute(
-        builder: (_) => LiveTrackingScreen(tripId: tripId),
-      ),
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => LiveTrackingScreen(tripId: tripId)),
     );
   }
 
@@ -365,12 +378,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       title: Row(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 18,
             backgroundColor: AppColors.accent,
             child: Text(
-              'L',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              _parentName.isNotEmpty ? _parentName[0].toUpperCase() : 'P',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
           ),
           const SizedBox(width: 12),
@@ -379,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Good morning, Lakshmi',
+                  'Hi, $_parentName',
                   style: AppTypography.headline.copyWith(fontSize: 18),
                 ),
                 Text(
@@ -479,10 +492,7 @@ class _LiveMapCard extends StatelessWidget {
       );
     }
 
-    return _LiveMapPreview(
-      onExpand: onExpand,
-      tripId: tripId!,
-    );
+    return _LiveMapPreview(onExpand: onExpand, tripId: tripId!);
   }
 }
 
@@ -534,7 +544,9 @@ class _LiveMapPreviewState extends State<_LiveMapPreview> {
   @override
   Widget build(BuildContext context) {
     final latest = _latestLocation;
-    final center = latest == null ? _fallbackCenter : LatLng(latest.latitude, latest.longitude);
+    final center = latest == null
+        ? _fallbackCenter
+        : LatLng(latest.latitude, latest.longitude);
 
     return _LiveMapCardShell(
       onExpand: widget.onExpand,
@@ -555,7 +567,9 @@ class _LiveMapPreviewState extends State<_LiveMapPreview> {
                       Marker(
                         markerId: const MarkerId('van_preview'),
                         position: LatLng(latest.latitude, latest.longitude),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                        icon: BitmapDescriptor.defaultMarkerWithHue(
+                          BitmapDescriptor.hueAzure,
+                        ),
                       ),
                     },
               onMapCreated: (controller) {
