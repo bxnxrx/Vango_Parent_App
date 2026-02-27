@@ -22,7 +22,7 @@ class _FinderScreenState extends State<FinderScreen> {
   bool _loading = true;
   String? _error;
 
-  static const List<String> _filters = ['All', 'Van','Mini Bus'];
+  static const List<String> _filters = ['All', 'Van', 'Mini Bus'];
   static const List<String> _recentLocations = [
     'Home - Bambalapitiya',
     'Royal Primary School',
@@ -43,7 +43,7 @@ class _FinderScreenState extends State<FinderScreen> {
     });
 
     try {
-      final results = await _dataService.fetchFinderServices(
+      final results = await _dataService.fetchFinderServicesDetailed(
         vehicleType: _selectedFilter == 'All' ? null : _selectedFilter,
         sortBy: _sortBy,
       );
@@ -176,7 +176,12 @@ class _FinderScreenState extends State<FinderScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            _InfoRow(icon: Icons.person, label: 'Driver', value: service.name),
+            _InfoRow(
+              icon: Icons.phone,
+              label: 'Phone',
+              value: service.phone.isNotEmpty ? service.phone : 'Not available',
+            ),
             _InfoRow(icon: Icons.route, label: 'Route', value: service.route),
             _InfoRow(
               icon: Icons.star,
@@ -185,21 +190,8 @@ class _FinderScreenState extends State<FinderScreen> {
             ),
             _InfoRow(
               icon: Icons.payments,
-              label: 'Monthly',
+              label: 'Monthly fee',
               value: 'Rs. ${service.price}',
-            ),
-            const SizedBox(height: 24),
-            GradientButton(
-              label: 'Request service',
-              expanded: true,
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Booking request sent to ${service.name}'),
-                  ),
-                );
-              },
             ),
           ],
         ),

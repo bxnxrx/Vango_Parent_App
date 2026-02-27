@@ -13,6 +13,14 @@ class ParentDataService {
   final BackendClient _backend = BackendClient.instance;
   static const String _defaultPickupTime = '06:45 AM';
 
+  // --- ADDED THIS METHOD ---
+  /// Fetches the parent's profile data (including full_name)
+  Future<Map<String, dynamic>> fetchProfile() async {
+    final response = await _backend.get('/api/parents/profile');
+    return _expectMap(response);
+  }
+  // -------------------------
+
   Future<List<ChildProfile>> fetchChildren() async {
     final response = await _backend.get('/api/parents/children');
     return _mapList(response, ChildProfile.fromJson);
@@ -30,7 +38,9 @@ class ParentDataService {
       pickupLocation: pickupLocation,
       pickupTime: pickupTime,
     );
-    final response = _expectMap(await _backend.post('/api/parents/children', payload));
+    final response = _expectMap(
+      await _backend.post('/api/parents/children', payload),
+    );
     return ChildProfile.fromJson(response);
   }
 
@@ -49,7 +59,10 @@ class ParentDataService {
     await _backend.patch('/api/parents/notifications/$notificationId/read', {});
   }
 
-  Future<List<DriverProfile>> fetchFinderServices({String? vehicleType, String? sortBy}) async {
+  Future<List<DriverProfile>> fetchFinderServices({
+    String? vehicleType,
+    String? sortBy,
+  }) async {
     final query = <String, String>{};
     if (vehicleType != null && vehicleType.isNotEmpty && vehicleType != 'All') {
       query['vehicleType'] = vehicleType;
@@ -58,7 +71,10 @@ class ParentDataService {
       query['sortBy'] = sortBy;
     }
 
-    final response = await _backend.get('/api/parents/finder/services', queryParameters: query.isEmpty ? null : query);
+    final response = await _backend.get(
+      '/api/parents/finder/services',
+      queryParameters: query.isEmpty ? null : query,
+    );
     return _mapList(response, DriverProfile.fromJson);
   }
 
@@ -73,7 +89,9 @@ class ParentDataService {
   }
 
   Future<Message> sendMessage(String threadId, String body) async {
-    final response = await _backend.post('/api/parents/messages/$threadId', {'body': body}) as Map<String, dynamic>;
+    final response =
+        await _backend.post('/api/parents/messages/$threadId', {'body': body})
+            as Map<String, dynamic>;
     return Message.fromJson(response);
   }
 
@@ -88,9 +106,14 @@ class ParentDataService {
     return linked is bool ? linked : false;
   }
 
-  List<T> _mapList<T>(dynamic payload, T Function(Map<String, dynamic>) mapper) {
+  List<T> _mapList<T>(
+    dynamic payload,
+    T Function(Map<String, dynamic>) mapper,
+  ) {
     if (payload is List) {
-      return payload.map((item) => mapper(item as Map<String, dynamic>)).toList();
+      return payload
+          .map((item) => mapper(item as Map<String, dynamic>))
+          .toList();
     }
     return <T>[];
   }
@@ -101,7 +124,9 @@ class ParentDataService {
     required String pickupLocation,
     String? pickupTime,
   }) {
-    final normalizedTime = (pickupTime ?? '').trim().isEmpty ? _defaultPickupTime : pickupTime!.trim();
+    final normalizedTime = (pickupTime ?? '').trim().isEmpty
+        ? _defaultPickupTime
+        : pickupTime!.trim();
     return {
       'childName': childName.trim(),
       'school': school.trim(),
@@ -115,5 +140,25 @@ class ParentDataService {
       return payload;
     }
     throw StateError('Unexpected backend payload: ${payload.runtimeType}');
+  }
+
+  // ADD at line 143 (before the last closing })
+  Future<List<DriverProfile>> fetchFinderServicesDetailed({
+    String? vehicleType,
+    String? sortBy,
+  }) async {
+    final query = <String, String>{};
+    if (vehicleType != null && vehicleType.isNotEmpty && vehicleType != 'All') {
+      query['vehicleType'] = vehicleType;
+    }
+    if (sortBy != null && sortBy.isNotEmpty) {
+      query['sortBy'] = sortBy;
+    }
+
+    final response = await _backend.get(
+      '/api/parents/finder/services/detailed',
+      queryParameters: query.isEmpty ? null : query,
+    );
+    return _mapList(response, DriverProfile.fromJson);
   }
 }

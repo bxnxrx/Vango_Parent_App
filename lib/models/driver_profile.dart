@@ -2,6 +2,7 @@ class DriverProfile {
   const DriverProfile({
     required this.id,
     required this.name,
+    required this.phone, // ADD after required this.name,
     required this.vehicleType,
     required this.route,
     required this.price,
@@ -14,6 +15,7 @@ class DriverProfile {
 
   final String id;
   final String name;
+  final String phone; // ADD after final String name;
   final String vehicleType;
   final String route;
   final double price;
@@ -29,6 +31,7 @@ class DriverProfile {
     return DriverProfile(
       id: json['id'] as String,
       name: rawName.isEmpty ? 'Driver' : rawName,
+      phone: json['driverPhone'] as String? ?? '', // ADD after name: rawName...
       vehicleType: json['vehicleType'] as String? ?? 'Van',
       route: json['route'] as String? ?? 'Daily route',
       price: _toDouble(json['price']),
@@ -36,7 +39,9 @@ class DriverProfile {
       rating: _toDouble(json['rating'], fallback: 5),
       seats: (json['seats'] as num?)?.toInt() ?? 0,
       vehicleImageUrl: json['vehicleImageUrl'] as String? ?? '',
-      tags: rawTags is List ? rawTags.whereType<String>().toList() : const <String>[],
+      tags: rawTags is List
+          ? rawTags.whereType<String>().toList()
+          : const <String>[],
     );
   }
 
@@ -44,6 +49,7 @@ class DriverProfile {
     return DriverProfile(
       id: id,
       name: name,
+      phone: phone, // ADD after name: name,
       vehicleType: vehicleType,
       route: route,
       price: price,
