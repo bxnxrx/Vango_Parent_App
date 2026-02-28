@@ -634,20 +634,58 @@ class _ConfirmBookingSheetState extends State<_ConfirmBookingSheet> {
                 expanded: true,
                 onPressed: _selectedChildIds.isEmpty
                     ? null
-                    : () {
-                        Navigator.pop(context);
+                    : () async {
                         final selectedNames = _children
                             .where((c) => _selectedChildIds.contains(c.id))
                             .map((c) => c.name)
                             .join(', ');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Booking confirmed with ${widget.service.name} for $selectedNames!',
+
+                        Navigator.pop(context);
+
+                        try {
+                          await ParentDataService.instance.createBookingRequest(
+                            vehicleId: widget.service.id,
+                            childIds: _selectedChildIds.toList(),
+                          );
+                          if (!context.mounted) return;
+                          await showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              title: const Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: AppColors.success,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('Booking Requested'),
+                                ],
+                              ),
+                              content: Text(
+                                'Your booking request for $selectedNames has been sent to ${widget.service.name}. You will be notified once confirmed.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('OK'),
+                                ),
+                              ],
                             ),
-                            backgroundColor: AppColors.success,
-                          ),
-                        );
+                          );
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Failed to send booking request: $e',
+                              ),
+                              backgroundColor: AppColors.danger,
+                            ),
+                          );
+                        }
                       },
               ),
               if (_selectedChildIds.isEmpty &&
