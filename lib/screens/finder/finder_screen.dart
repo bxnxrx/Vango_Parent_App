@@ -361,14 +361,56 @@ class _FinderScreenState extends State<FinderScreen> {
             GradientButton(
               label: 'Submit Report',
               expanded: true,
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Report submitted. Thank you.'),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
+              // REPLACE onPressed in Submit Report button
+              onPressed: () async {
+                if (_reportController.text.trim().length < 5) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Please describe the issue (min 5 characters)',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                try {
+                  await ParentDataService.instance.submitDriverReport(
+                    driverId: service.id,
+                    reason: _reportController.text.trim(),
+                  );
+                  if (!context.mounted) return;
+                  Navigator.pop(context); // close the sheet after success
+                  await showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: const Row(
+                        children: [
+                          Icon(Icons.check_circle, color: AppColors.success),
+                          SizedBox(width: 8),
+                          Text('Report Recorded'),
+                        ],
+                      ),
+                      content: const Text(
+                        'Your report has been submitted successfully. We will review it and take appropriate action.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                } catch (e) {
+                  if (!context.mounted) return;
+                  Navigator.pop(context); // close the sheet on error too
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to submit report: $e')),
+                  );
+                }
               },
             ),
             const SizedBox(height: 12),
