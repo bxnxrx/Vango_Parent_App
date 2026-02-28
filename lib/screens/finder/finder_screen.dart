@@ -640,14 +640,13 @@ class _ConfirmBookingSheetState extends State<_ConfirmBookingSheet> {
                             .map((c) => c.name)
                             .join(', ');
 
-                        Navigator.pop(context);
-
                         try {
                           await ParentDataService.instance.createBookingRequest(
                             vehicleId: widget.service.id,
                             childIds: _selectedChildIds.toList(),
                           );
                           if (!context.mounted) return;
+                          Navigator.pop(context);
                           await showDialog(
                             context: context,
                             builder: (context) => AlertDialog(
@@ -677,6 +676,7 @@ class _ConfirmBookingSheetState extends State<_ConfirmBookingSheet> {
                           );
                         } catch (e) {
                           if (!context.mounted) return;
+                          Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
