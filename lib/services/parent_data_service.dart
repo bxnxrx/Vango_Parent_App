@@ -161,4 +161,13 @@ class ParentDataService {
     );
     return _mapList(response, DriverProfile.fromJson);
   }
+
+  Future<void> submitDriverReport({
+    required String driverId,
+    required String reason,
+  }) async {
+    await _backend.post('/api/parents/drivers/$driverId/report', {
+      'reason': reason,
+    });
+  }
 }
