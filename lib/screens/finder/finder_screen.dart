@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/models/driver_profile.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
@@ -218,94 +219,18 @@ class _FinderScreenState extends State<FinderScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Confirm Booking',
-              style: AppTypography.headline.copyWith(fontSize: 22),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'You are about to request a service from ${service.name}.',
-              style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            _InfoRow(icon: Icons.person, label: 'Driver', value: service.name),
-            _InfoRow(
-              icon: Icons.phone,
-              label: 'Phone',
-              value: service.phone.isNotEmpty ? service.phone : 'Not available',
-            ),
-            _InfoRow(icon: Icons.route, label: 'Route', value: service.route),
-            _InfoRow(
-              icon: Icons.payments,
-              label: 'Monthly fee',
-              value: 'Rs. ${service.price}',
-            ),
-            const SizedBox(height: 24),
-            GradientButton(
-              label: 'Confirm Booking',
-              expanded: true,
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Booking confirmed with ${service.name}!'),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-            ),
-            // ADD after the Cancel TextButton
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showReportSheet(service);
-                },
-                icon: const Icon(Icons.flag_outlined, color: AppColors.danger),
-                label: const Text(
-                  'Report Driver',
-                  style: TextStyle(color: AppColors.danger),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.danger),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
+      builder: (context) => _ConfirmBookingSheet(
+        service: service,
+        onReport: () {
+          Navigator.pop(context);
+          _showReportSheet(service);
+        },
       ),
     );
   }
 
   void _showReportSheet(DriverProfile service) {
-    final TextEditingController _reportController = TextEditingController();
+    final TextEditingController reportController = TextEditingController();
 
     showModalBottomSheet<void>(
       context: context,
@@ -348,7 +273,7 @@ class _FinderScreenState extends State<FinderScreen> {
             ),
             const SizedBox(height: 20),
             TextField(
-              controller: _reportController,
+              controller: reportController,
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Describe the issue...',
@@ -361,9 +286,8 @@ class _FinderScreenState extends State<FinderScreen> {
             GradientButton(
               label: 'Submit Report',
               expanded: true,
-              // REPLACE onPressed in Submit Report button
               onPressed: () async {
-                if (_reportController.text.trim().length < 5) {
+                if (reportController.text.trim().length < 5) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
@@ -376,10 +300,10 @@ class _FinderScreenState extends State<FinderScreen> {
                 try {
                   await ParentDataService.instance.submitDriverReport(
                     driverId: service.id,
-                    reason: _reportController.text.trim(),
+                    reason: reportController.text.trim(),
                   );
                   if (!context.mounted) return;
-                  Navigator.pop(context); // close the sheet after success
+                  Navigator.pop(context);
                   await showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
@@ -406,7 +330,7 @@ class _FinderScreenState extends State<FinderScreen> {
                   );
                 } catch (e) {
                   if (!context.mounted) return;
-                  Navigator.pop(context); // close the sheet on error too
+                  Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Failed to submit report: $e')),
                   );
@@ -453,7 +377,6 @@ class _FinderScreenState extends State<FinderScreen> {
       );
     }
 
-    // IMPORTANT: No Scaffold here. It uses the Scaffold from AppShell.
     return Container(
       color: AppColors.background,
       child: CustomScrollView(
@@ -462,7 +385,7 @@ class _FinderScreenState extends State<FinderScreen> {
             floating: true,
             backgroundColor: AppColors.background,
             elevation: 0,
-            automaticallyImplyLeading: false, // We handle the icon ourselves
+            automaticallyImplyLeading: false,
             leading: IconButton(
               icon: Icon(
                 Navigator.canPop(context)
@@ -475,7 +398,6 @@ class _FinderScreenState extends State<FinderScreen> {
                 if (Navigator.canPop(context)) {
                   Navigator.pop(context);
                 } else {
-                  // This now correctly opens the AppShell's Drawer
                   Scaffold.of(context).openDrawer();
                 }
               },
@@ -553,12 +475,302 @@ class _FinderScreenState extends State<FinderScreen> {
                       onBook: () => _showBookingSheet(service),
                     ),
                   ),
-                  const SizedBox(height: 100), // Extra space for bottom nav
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Confirm Booking Sheet (stateful for children selection) ──────────────────
+
+class _ConfirmBookingSheet extends StatefulWidget {
+  const _ConfirmBookingSheet({required this.service, required this.onReport});
+
+  final DriverProfile service;
+  final VoidCallback onReport;
+
+  @override
+  State<_ConfirmBookingSheet> createState() => _ConfirmBookingSheetState();
+}
+
+class _ConfirmBookingSheetState extends State<_ConfirmBookingSheet> {
+  List<ChildProfile> _children = [];
+  final Set<String> _selectedChildIds = {};
+  bool _loadingChildren = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChildren();
+  }
+
+  Future<void> _loadChildren() async {
+    try {
+      final children = await ParentDataService.instance.fetchChildren();
+      if (!mounted) return;
+      setState(() {
+        _children = children;
+        _loadingChildren = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingChildren = false);
+    }
+  }
+
+  void _toggleChild(String childId) {
+    setState(() {
+      if (_selectedChildIds.contains(childId)) {
+        _selectedChildIds.remove(childId);
+      } else {
+        _selectedChildIds.add(childId);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Confirm Booking',
+                style: AppTypography.headline.copyWith(fontSize: 22),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'You are about to request a service from ${widget.service.name}.',
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _InfoRow(
+                icon: Icons.person,
+                label: 'Driver',
+                value: widget.service.name,
+              ),
+              _InfoRow(
+                icon: Icons.phone,
+                label: 'Phone',
+                value: widget.service.phone.isNotEmpty
+                    ? widget.service.phone
+                    : 'Not available',
+              ),
+              _InfoRow(
+                icon: Icons.route,
+                label: 'Route',
+                value: widget.service.route,
+              ),
+              _InfoRow(
+                icon: Icons.payments,
+                label: 'Monthly fee',
+                value: 'Rs. ${widget.service.price}',
+              ),
+              const SizedBox(height: 20),
+
+              // ── Children selection ───────────────────────────────────────────
+              Row(
+                children: [
+                  const Icon(
+                    Icons.child_care,
+                    size: 18,
+                    color: AppColors.accent,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Select children for this service',
+                    style: AppTypography.title.copyWith(fontSize: 15),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (_loadingChildren)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_children.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'No children found. Add a child first.',
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                )
+              else
+                ...(_children.map(
+                  (child) => _ChildSelectionTile(
+                    child: child,
+                    selected: _selectedChildIds.contains(child.id),
+                    onTap: () => _toggleChild(child.id),
+                  ),
+                )),
+
+              // ────────────────────────────────────────────────────────────────
+              const SizedBox(height: 24),
+              GradientButton(
+                label: 'Confirm Booking',
+                expanded: true,
+                onPressed: _selectedChildIds.isEmpty
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        final selectedNames = _children
+                            .where((c) => _selectedChildIds.contains(c.id))
+                            .map((c) => c.name)
+                            .join(', ');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Booking confirmed with ${widget.service.name} for $selectedNames!',
+                            ),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      },
+              ),
+              if (_selectedChildIds.isEmpty &&
+                  !_loadingChildren &&
+                  _children.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Center(
+                    child: Text(
+                      'Please select at least one child',
+                      style: AppTypography.body.copyWith(
+                        color: AppColors.danger,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: widget.onReport,
+                  icon: const Icon(
+                    Icons.flag_outlined,
+                    color: AppColors.danger,
+                  ),
+                  label: const Text(
+                    'Report Driver',
+                    style: TextStyle(color: AppColors.danger),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.danger),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Child selection tile ─────────────────────────────────────────────────────
+
+class _ChildSelectionTile extends StatelessWidget {
+  const _ChildSelectionTile({
+    required this.child,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ChildProfile child;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.accent.withOpacity(0.08)
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppColors.accent : AppColors.stroke,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.accent.withOpacity(0.15),
+              child: Text(
+                child.name.isNotEmpty ? child.name[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    child.name,
+                    style: AppTypography.title.copyWith(fontSize: 14),
+                  ),
+                  Text(
+                    child.school,
+                    style: AppTypography.body.copyWith(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              selected ? Icons.check_circle : Icons.circle_outlined,
+              color: selected ? AppColors.accent : AppColors.textSecondary,
+            ),
+          ],
+        ),
       ),
     );
   }
