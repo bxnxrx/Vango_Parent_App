@@ -13,13 +13,11 @@ class ParentDataService {
   final BackendClient _backend = BackendClient.instance;
   static const String _defaultPickupTime = '06:45 AM';
 
-  // --- ADDED THIS METHOD ---
   /// Fetches the parent's profile data (including full_name)
   Future<Map<String, dynamic>> fetchProfile() async {
     final response = await _backend.get('/api/parents/profile');
     return _expectMap(response);
   }
-  // -------------------------
 
   Future<List<ChildProfile>> fetchChildren() async {
     final response = await _backend.get('/api/parents/children');
@@ -106,6 +104,51 @@ class ParentDataService {
     return linked is bool ? linked : false;
   }
 
+  Future<List<DriverProfile>> fetchFinderServicesDetailed({
+    String? vehicleType,
+    String? sortBy,
+  }) async {
+    final query = <String, String>{};
+    if (vehicleType != null && vehicleType.isNotEmpty && vehicleType != 'All') {
+      query['vehicleType'] = vehicleType;
+    }
+    if (sortBy != null && sortBy.isNotEmpty) {
+      query['sortBy'] = sortBy;
+    }
+
+    final response = await _backend.get(
+      '/api/parents/finder/services/detailed',
+      queryParameters: query.isEmpty ? null : query,
+    );
+    return _mapList(response, DriverProfile.fromJson);
+  }
+
+  Future<void> submitDriverReport({
+    required String driverId,
+    required String reason,
+  }) async {
+    await _backend.post('/api/parents/drivers/$driverId/report', {
+      'reason': reason,
+    });
+  }
+
+  /// Creates a booking request for a vehicle with selected children.
+  /// [vehicleId] is the DriverProfile.id (vehicle id from finder).
+  /// [childIds] is the list of selected child ids.
+  /// [note] is an optional note from the parent.
+  Future<Map<String, dynamic>> createBookingRequest({
+    required String vehicleId,
+    required List<String> childIds,
+    String? note,
+  }) async {
+    final response = await _backend.post('/api/parents/booking-requests', {
+      'vehicleId': vehicleId,
+      'childIds': childIds,
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+    });
+    return _expectMap(response);
+  }
+
   List<T> _mapList<T>(
     dynamic payload,
     T Function(Map<String, dynamic>) mapper,
@@ -140,34 +183,5 @@ class ParentDataService {
       return payload;
     }
     throw StateError('Unexpected backend payload: ${payload.runtimeType}');
-  }
-
-  // ADD at line 143 (before the last closing })
-  Future<List<DriverProfile>> fetchFinderServicesDetailed({
-    String? vehicleType,
-    String? sortBy,
-  }) async {
-    final query = <String, String>{};
-    if (vehicleType != null && vehicleType.isNotEmpty && vehicleType != 'All') {
-      query['vehicleType'] = vehicleType;
-    }
-    if (sortBy != null && sortBy.isNotEmpty) {
-      query['sortBy'] = sortBy;
-    }
-
-    final response = await _backend.get(
-      '/api/parents/finder/services/detailed',
-      queryParameters: query.isEmpty ? null : query,
-    );
-    return _mapList(response, DriverProfile.fromJson);
-  }
-
-  Future<void> submitDriverReport({
-    required String driverId,
-    required String reason,
-  }) async {
-    await _backend.post('/api/parents/drivers/$driverId/report', {
-      'reason': reason,
-    });
   }
 }
