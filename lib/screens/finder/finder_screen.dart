@@ -193,6 +193,193 @@ class _FinderScreenState extends State<FinderScreen> {
               label: 'Monthly fee',
               value: 'Rs. ${service.price}',
             ),
+            const SizedBox(height: 24),
+            GradientButton(
+              label: 'Book Now',
+              expanded: true,
+              onPressed: () {
+                Navigator.pop(context);
+                _showConfirmBookingSheet(service);
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showConfirmBookingSheet(DriverProfile service) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Confirm Booking',
+              style: AppTypography.headline.copyWith(fontSize: 22),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You are about to request a service from ${service.name}.',
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _InfoRow(icon: Icons.person, label: 'Driver', value: service.name),
+            _InfoRow(
+              icon: Icons.phone,
+              label: 'Phone',
+              value: service.phone.isNotEmpty ? service.phone : 'Not available',
+            ),
+            _InfoRow(icon: Icons.route, label: 'Route', value: service.route),
+            _InfoRow(
+              icon: Icons.payments,
+              label: 'Monthly fee',
+              value: 'Rs. ${service.price}',
+            ),
+            const SizedBox(height: 24),
+            GradientButton(
+              label: 'Confirm Booking',
+              expanded: true,
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Booking confirmed with ${service.name}!'),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ),
+            // ADD after the Cancel TextButton
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showReportSheet(service);
+                },
+                icon: const Icon(Icons.flag_outlined, color: AppColors.danger),
+                label: const Text(
+                  'Report Driver',
+                  style: TextStyle(color: AppColors.danger),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.danger),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showReportSheet(DriverProfile service) {
+    final TextEditingController _reportController = TextEditingController();
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.flag, color: AppColors.danger),
+                const SizedBox(width: 8),
+                Text(
+                  'Report Driver',
+                  style: AppTypography.headline.copyWith(
+                    fontSize: 20,
+                    color: AppColors.danger,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Reporting ${service.name}. Please describe the issue.',
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _reportController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Describe the issue...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            GradientButton(
+              label: 'Submit Report',
+              expanded: true,
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Report submitted. Thank you.'),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
