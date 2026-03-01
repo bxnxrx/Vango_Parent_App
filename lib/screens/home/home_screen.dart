@@ -119,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
         school: request.school,
         pickupLocation: request.pickupLocation,
         pickupTime: request.pickupTime,
+        inviteCode: request.inviteCode,
       );
 
       if (!mounted) {
@@ -1032,12 +1033,14 @@ class _NewChildData {
     required this.school,
     required this.pickupLocation,
     required this.pickupTime,
+    required this.inviteCode,
   });
 
   final String name;
   final String school;
   final String pickupLocation;
   final String pickupTime;
+  final String inviteCode;
 }
 
 class _AddChildSheet extends StatefulWidget {
@@ -1053,6 +1056,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   final _schoolController = TextEditingController();
   final _pickupLocationController = TextEditingController(text: 'Front gate');
   final _pickupTimeController = TextEditingController(text: '6:45 AM');
+  final _inviteCodeController = TextEditingController();
 
   @override
   void dispose() {
@@ -1060,6 +1064,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     _schoolController.dispose();
     _pickupLocationController.dispose();
     _pickupTimeController.dispose();
+    _inviteCodeController.dispose();
     super.dispose();
   }
 
@@ -1076,6 +1081,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         pickupTime: _pickupTimeController.text.trim().isEmpty
             ? '6:45 AM'
             : _pickupTimeController.text.trim(),
+        inviteCode: _inviteCodeController.text.trim(),
       ),
     );
   }
@@ -1139,6 +1145,20 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                 prefixIcon: Icon(Icons.schedule_outlined),
               ),
             ),
+
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _inviteCodeController,
+              decoration: const InputDecoration(
+                labelText: 'Driver invite code',
+                prefixIcon: Icon(Icons.vpn_key_outlined),
+                hintText: 'Ask your driver for the code',
+              ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Invite code is required'
+                  : null,
+            ),
+            
             const SizedBox(height: 24),
             GradientButton(
               label: 'Add student',
