@@ -291,13 +291,16 @@ class AuthService {
     required String childName,
     required String school,
     required String pickupLocation,
+    required String inviteCode,
     String? pickupTime,
+
   }) async {
     final profile = await ParentDataService.instance.createChild(
       childName: childName,
       school: school,
       pickupLocation: pickupLocation,
       pickupTime: pickupTime,
+      inviteCode: inviteCode,
     );
     return profile.id;
   }
