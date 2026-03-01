@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
+
+enum AttendanceState { coming, notComing }
 
 class AttendanceScreen extends StatefulWidget {
   final ChildProfile? child;
@@ -13,64 +16,73 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  // Store status for any date (DateKey -> isComing)
   final Map<String, bool> _attendancePlan = {};
   late List<DateTime> _nextSevenDays;
 
   @override
   void initState() {
     super.initState();
-    // Generate the next 7 days for the horizontal strip
     _nextSevenDays = List.generate(7, (index) => DateTime.now().add(Duration(days: index + 1)));
     
-    // Default the next 7 days to 'Coming' (true)
     for (var date in _nextSevenDays) {
       _attendancePlan[DateFormat('yyyy-MM-dd').format(date)] = true;
     }
   }
 
-  // 1. Function to open calendar and then ask: Coming or Not Coming?
-  Future<void> _selectAndMarkDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+  // UPDATED: Enhanced Calendar UI Configuration
+  Future<void> _selectAndMarkMultiDates(BuildContext context) async {
+    final results = await showCalendarDatePicker2Dialog(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.accent,
-              onPrimary: Colors.white,
-              onSurface: AppColors.accent,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      config: CalendarDatePicker2WithActionButtonsConfig(
+        calendarType: CalendarDatePicker2Type.multi,
+        
+        // --- UI CUSTOMIZATION START ---
+        // Colors
+        selectedDayHighlightColor: AppColors.accent,
+        selectedDayTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        todayTextStyle: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold),
+        
+        // Header & Controls
+        controlsTextStyle: AppTypography.title.copyWith(fontSize: 16),
+        weekdayLabelTextStyle: AppTypography.body.copyWith(fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+        centerAlignModePicker: true,
+        lastMonthIcon: const Icon(Icons.arrow_back_ios, size: 15, color: AppColors.textSecondary),
+        nextMonthIcon: const Icon(Icons.arrow_forward_ios, size: 15, color: AppColors.textSecondary),
+        
+        // Buttons
+        okButtonTextStyle: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold),
+        cancelButtonTextStyle: const TextStyle(color: AppColors.textSecondary),
+        
+        // Layout
+        dayBorderRadius: BorderRadius.circular(12),
+        // --- UI CUSTOMIZATION END ---
+      ),
+      dialogSize: const Size(325, 400),
+      value: [], 
+      borderRadius: BorderRadius.circular(24),
     );
 
-    if (picked != null) {
-      // After selecting date, show a dialog to mark status
-      _showMarkingDialog(context, picked);
+    if (results != null && results.isNotEmpty) {
+      List<DateTime> selectedDates = results.whereType<DateTime>().toList();
+      _showBulkMarkingDialog(context, selectedDates);
     }
   }
 
-  // 2. Dialog to specifically mark the chosen date
-  void _showMarkingDialog(BuildContext context, DateTime date) {
-    String dateKey = DateFormat('yyyy-MM-dd').format(date);
-    String formattedDate = DateFormat('MMM dd, yyyy').format(date);
-
+  void _showBulkMarkingDialog(BuildContext context, List<DateTime> dates) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("Mark Attendance", style: AppTypography.title),
-        content: Text("Is your child coming on $formattedDate?"),
+        title: Text("Set Status", style: AppTypography.title),
+        content: Text("Mark ${dates.length} days as:"),
         actions: [
           TextButton(
             onPressed: () {
-              setState(() => _attendancePlan[dateKey] = false); // Mark Not Coming
+              setState(() {
+                for (var date in dates) {
+                  _attendancePlan[DateFormat('yyyy-MM-dd').format(date)] = false;
+                }
+              });
               Navigator.pop(context);
             },
             child: const Text("Not Coming", style: TextStyle(color: AppColors.danger)),
@@ -81,7 +93,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
-              setState(() => _attendancePlan[dateKey] = true); // Mark Coming
+              setState(() {
+                for (var date in dates) {
+                  _attendancePlan[DateFormat('yyyy-MM-dd').format(date)] = true;
+                }
+              });
               Navigator.pop(context);
             },
             child: const Text("Coming", style: TextStyle(color: Colors.white)),
@@ -96,44 +112,45 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final String displayName = widget.child?.name ?? "All Students";
     final Color displayColor = widget.child?.avatarColor ?? AppColors.accent;
 
-    return Column(
-      children: [
-        _buildAppBar(context),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                _buildChildSummaryCard(displayName, displayColor),
-                const SizedBox(height: 24),
-                
-                // Header with the functional Calendar Icon
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildAppBar(context),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Plan Next 7 Days', style: AppTypography.title.copyWith(fontSize: 18)),
-                    IconButton(
-                      icon: const Icon(Icons.calendar_month, color: AppColors.accent),
-                      onPressed: () => _selectAndMarkDate(context), // Trigger the logic
+                    const SizedBox(height: 10),
+                    _buildChildSummaryCard(displayName, displayColor),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Plan Attendance', style: AppTypography.title.copyWith(fontSize: 18)),
+                        IconButton(
+                          icon: const Icon(Icons.calendar_month, color: AppColors.accent),
+                          onPressed: () => _selectAndMarkMultiDates(context),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 12),
+                    _buildSevenDayPlanner(),
+                    const SizedBox(height: 24),
+                    Text('Recent Logs', style: AppTypography.title.copyWith(fontSize: 18)),
+                    const SizedBox(height: 12),
+                    _buildHistoryList(),
+                    const SizedBox(height: 100),
                   ],
                 ),
-                
-                const SizedBox(height: 12),
-                _buildSevenDayPlanner(),
-                
-                const SizedBox(height: 24),
-                Text('Recent Logs', style: AppTypography.title.copyWith(fontSize: 18)),
-                const SizedBox(height: 12),
-                _buildHistoryList(),
-                const SizedBox(height: 100),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -186,15 +203,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  // UI helpers for AppBar, Summary, and History based on your file
   Widget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       elevation: 0,
-      automaticallyImplyLeading: false,
       leading: IconButton(
         icon: Icon(Navigator.canPop(context) ? Icons.arrow_back_ios_new : Icons.menu, color: AppColors.accent, size: 22),
-        onPressed: () => Navigator.canPop(context) ? Navigator.pop(context) : Scaffold.of(context).openDrawer(),
+        onPressed: () => Navigator.canPop(context) ? Navigator.pop(context) : null,
       ),
       title: Text('Attendance', style: AppTypography.title),
       centerTitle: true,
@@ -235,7 +250,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: 4, // Simplified for brevity based on _history list
+      itemCount: 4,
       itemBuilder: (context, index) {
         return _AttendanceHistoryTile(
           date: 'Oct ${26 - index}, 2023',
@@ -247,7 +262,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 }
 
-// Re-using the private History Tile from your Attendance.dart
 class _AttendanceHistoryTile extends StatelessWidget {
   final String date;
   final AttendanceState status;
