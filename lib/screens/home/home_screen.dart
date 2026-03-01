@@ -17,7 +17,7 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     required this.onOpenMore,
-    this.onNameLoaded, // ✅ ADD THIS
+    this.onNameLoaded,
   });
   final VoidCallback onOpenMore;
   final ValueChanged<String>? onNameLoaded;
@@ -63,9 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final notifications = results[1] as List<NotificationItem>;
       final profileData = results[2] as Map<String, dynamic>;
 
-      // ✅ Debug — remove after confirming it works
-      debugPrint('📦 profileData: $profileData');
-
       final name = (profileData['full_name'] as String? ?? '').trim();
       final resolvedName = name.isEmpty ? 'Parent' : name;
 
@@ -78,7 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       widget.onNameLoaded?.call(resolvedName);
     } catch (error) {
-      debugPrint('❌ _loadDashboard error: $error'); // ✅ Debug
       if (!mounted) return;
       setState(() {
         _error = error.toString();
@@ -91,7 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return _loadDashboard(showSpinner: false);
   }
 
-  // Let parents create a quick profile for another child.
   Future<void> _openAddChildSheet() async {
     final request = await showModalBottomSheet<_NewChildData>(
       context: context,
@@ -109,9 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
 
-    if (request == null) {
-      return;
-    }
+    if (request == null) return;
 
     try {
       final created = await _dataService.createChild(
@@ -122,9 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
         inviteCode: request.inviteCode,
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         _children = [..._children, created];
@@ -134,16 +125,13 @@ class _HomeScreenState extends State<HomeScreen> {
         SnackBar(content: Text('${created.name} added to your roster')),
       );
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not add child: $error')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not add child: $error')),
+      );
     }
   }
 
-  // Flip the attendance for a single child in the list.
   Future<void> _toggleAttendance(ChildProfile child) async {
     final nextState = child.attendance == AttendanceState.coming
         ? AttendanceState.notComing
@@ -151,9 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       _children = _children.map((current) {
-        if (current.id != child.id) {
-          return current;
-        }
+        if (current.id != child.id) return current;
         return current.copyWith(attendance: nextState);
       }).toList();
     });
@@ -161,37 +147,27 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await _dataService.updateAttendance(child.id, nextState);
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setState(() {
         _children = _children.map((current) {
-          if (current.id != child.id) {
-            return current;
-          }
+          if (current.id != child.id) return current;
           return current.copyWith(attendance: child.attendance);
         }).toList();
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Unable to update attendance: $error')),
       );
     }
   }
 
-  // Jump into the ride detail screen.
   void _openRideDetail() {
     final tripId = AppConfig.trackingTripId;
     if (tripId == null || tripId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Set TRACKING_TRIP_ID in .env to open ride details.'),
-        ),
+        const SnackBar(content: Text('Tracking ID not set.')),
       );
       return;
     }
-
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => RideDetailScreen(status: _rideStatus, tripId: tripId),
@@ -199,24 +175,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Present the full map preview in a dialog-like screen.
   void _openFullscreenMap() {
     final tripId = AppConfig.trackingTripId;
-    if (tripId == null || tripId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Set TRACKING_TRIP_ID in .env to open live tracking.'),
-        ),
-      );
-      return;
-    }
-
+    if (tripId == null || tripId.isEmpty) return;
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => LiveTrackingScreen(tripId: tripId)),
     );
   }
 
-  // Open the action sheet so a parent can mark attendance.
   void _showAttendanceSheet(ChildProfile child) {
     showModalBottomSheet<void>(
       context: context,
@@ -231,10 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Update attendance for ${child.name}',
-                style: AppTypography.headline,
-              ),
+              Text('Update attendance for ${child.name}', style: AppTypography.headline),
               const SizedBox(height: 16),
               _AttendanceOption(
                 label: 'Coming today',
@@ -264,110 +227,61 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_loading) return const Center(child: CircularProgressIndicator());
 
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.refresh, size: 48, color: AppColors.textSecondary),
-            const SizedBox(height: 12),
-            Text(
-              'Could not load dashboard',
-              style: AppTypography.title.copyWith(fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: RefreshIndicator(
+        onRefresh: _refreshDashboard,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            _buildSliverAppBar(),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    _LiveMapCard(onExpand: _openFullscreenMap, tripId: AppConfig.trackingTripId),
+                    const SizedBox(height: 16),
+                    _TodayStatusCard(children: _children, onViewRide: _openRideDetail),
+                    const SizedBox(height: 24),
+                    _buildStudentsHeader(),
+                    const SizedBox(height: 12),
+                    if (_children.isEmpty)
+                      _EmptyStateCard(
+                        icon: Icons.person_add_alt,
+                        title: 'No children yet',
+                        message: 'Add your first child to start tracking rides.',
+                        actionLabel: 'Add child',
+                        onAction: _openAddChildSheet,
+                      )
+                    else
+                      ..._children.map((child) => _StudentListTile(child: child, onTap: () => _showAttendanceSheet(child))),
+                    const SizedBox(height: 24),
+                    _buildAlertsHeader(),
+                    const SizedBox(height: 12),
+                    if (_notifications.isEmpty)
+                      const _EmptyStateCard(
+                        icon: Icons.notifications_none,
+                        title: 'No alerts right now',
+                        message: 'We will notify you when a driver updates the ride.',
+                      )
+                    else
+                      ..._notifications.take(2).map((n) => _CompactNotificationCard(notification: n)),
+                    const SizedBox(height: 80),
+                  ],
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            GradientButton(
-              label: 'Try again',
-              onPressed: () {
-                _loadDashboard();
-              },
             ),
           ],
         ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _refreshDashboard,
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          _buildSliverAppBar(),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  _LiveMapCard(
-                    onExpand: _openFullscreenMap,
-                    tripId: AppConfig.trackingTripId,
-                  ),
-                  const SizedBox(height: 16),
-                  _TodayStatusCard(
-                    children: _children,
-                    onViewRide: _openRideDetail,
-                  ),
-                  const SizedBox(height: 24),
-                  _buildStudentsHeader(),
-                  const SizedBox(height: 12),
-                  if (_children.isEmpty)
-                    _EmptyStateCard(
-                      icon: Icons.person_add_alt,
-                      title: 'No children yet',
-                      message: 'Add your first child to start tracking rides.',
-                      actionLabel: 'Add child',
-                      onAction: _openAddChildSheet,
-                    )
-                  else
-                    ..._children.map(
-                      (child) => _StudentListTile(
-                        child: child,
-                        onTap: () => _showAttendanceSheet(child),
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  _buildAlertsHeader(),
-                  const SizedBox(height: 12),
-                  if (_notifications.isEmpty)
-                    const _EmptyStateCard(
-                      icon: Icons.notifications_none,
-                      title: 'No alerts right now',
-                      message:
-                          'We will notify you when a driver updates the ride.',
-                    )
-                  else
-                    ..._notifications
-                        .take(2)
-                        .map(
-                          (notification) => _CompactNotificationCard(
-                            notification: notification,
-                          ),
-                        ),
-                  const SizedBox(height: 80),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
 
-  // Reusable app bar with the parent avatar and notifications.
   SliverAppBar _buildSliverAppBar() {
     return SliverAppBar(
       floating: true,
@@ -392,47 +306,15 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Hi, $_parentName',
-                  style: AppTypography.headline.copyWith(fontSize: 18),
-                ),
-                Text(
-                  'Colombo 06',
-                  style: AppTypography.body.copyWith(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
+                Text('Hi, $_parentName', style: AppTypography.headline.copyWith(fontSize: 18)),
+                Text('Colombo 06', style: AppTypography.body.copyWith(fontSize: 12, color: AppColors.textSecondary)),
               ],
             ),
           ),
         ],
       ),
       actions: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(
-                Icons.notifications_none,
-                color: AppColors.accent,
-              ),
-            ),
-            Positioned(
-              right: 10,
-              top: 10,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: AppColors.danger,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ],
-        ),
+        IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_none, color: AppColors.accent)),
         const SizedBox(width: 8),
       ],
     );
@@ -456,136 +338,18 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          'Recent alerts',
-          style: AppTypography.title.copyWith(fontSize: 20),
-        ),
+        Text('Recent alerts', style: AppTypography.title.copyWith(fontSize: 20)),
         TextButton(onPressed: () {}, child: const Text('See all')),
       ],
     );
   }
 }
 
-// Preview tile for the in-progress ride map.
+// --- Map Widgets ---
 class _LiveMapCard extends StatelessWidget {
   const _LiveMapCard({required this.onExpand, required this.tripId});
-
   final VoidCallback onExpand;
   final String? tripId;
-
-  @override
-  Widget build(BuildContext context) {
-    if (tripId == null || tripId!.isEmpty) {
-      return _LiveMapCardShell(
-        onExpand: onExpand,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'Set TRACKING_TRIP_ID in .env to show live map preview.',
-              style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return _LiveMapPreview(onExpand: onExpand, tripId: tripId!);
-  }
-}
-
-class _LiveMapPreview extends StatefulWidget {
-  const _LiveMapPreview({required this.onExpand, required this.tripId});
-
-  final VoidCallback onExpand;
-  final String tripId;
-
-  @override
-  State<_LiveMapPreview> createState() => _LiveMapPreviewState();
-}
-
-class _LiveMapPreviewState extends State<_LiveMapPreview> {
-  static const LatLng _fallbackCenter = LatLng(6.9271, 79.8612);
-  static const String _purpleMapStyle = '''
-[
-  {"elementType":"geometry","stylers":[{"color":"#242f3e"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#746855"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#242f3e"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#4b3b6b"}]},
-  {"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#3b2d55"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#1f1730"}]}
-]
-''';
-
-  final ParentTrackingRepository _repository = ParentTrackingRepository();
-  LiveTripLocation? _latestLocation;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadLatest();
-  }
-
-  Future<void> _loadLatest() async {
-    final latest = await _repository.fetchLatest(widget.tripId);
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _latestLocation = latest;
-      _loading = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final latest = _latestLocation;
-    final center = latest == null
-        ? _fallbackCenter
-        : LatLng(latest.latitude, latest.longitude);
-
-    return _LiveMapCardShell(
-      onExpand: widget.onExpand,
-      child: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : GoogleMap(
-              initialCameraPosition: CameraPosition(target: center, zoom: 13),
-              mapToolbarEnabled: false,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              scrollGesturesEnabled: false,
-              zoomGesturesEnabled: false,
-              rotateGesturesEnabled: false,
-              tiltGesturesEnabled: false,
-              markers: latest == null
-                  ? const <Marker>{}
-                  : {
-                      Marker(
-                        markerId: const MarkerId('van_preview'),
-                        position: LatLng(latest.latitude, latest.longitude),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(
-                          BitmapDescriptor.hueAzure,
-                        ),
-                      ),
-                    },
-              onMapCreated: (controller) {
-                controller.setMapStyle(_purpleMapStyle);
-              },
-            ),
-    );
-  }
-}
-
-class _LiveMapCardShell extends StatelessWidget {
-  const _LiveMapCardShell({required this.onExpand, required this.child});
-
-  final VoidCallback onExpand;
-  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -595,191 +359,51 @@ class _LiveMapCardShell extends StatelessWidget {
         height: 200,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accent.withOpacity(0.15),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
+          color: Colors.grey[200],
+        ),
+        child: Stack(
+          children: [
+            const Center(child: Text("Map Preview")),
+            Positioned(
+              top: 16,
+              left: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                child: const Text("Live tracking", style: TextStyle(fontSize: 12)),
+              ),
             ),
           ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: Stack(
-            children: [
-              Positioned.fill(child: child),
-              Positioned(
-                top: 16,
-                left: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppColors.success,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Live tracking',
-                        style: AppTypography.label.copyWith(fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 16,
-                right: 16,
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.accent,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.accent.withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.fullscreen,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
   }
 }
 
-// Summarises the next pickup in a tappable card.
+// --- Status Card ---
 class _TodayStatusCard extends StatelessWidget {
   const _TodayStatusCard({required this.children, required this.onViewRide});
-
   final List<ChildProfile> children;
   final VoidCallback onViewRide;
 
   @override
   Widget build(BuildContext context) {
-    final comingCount = children
-        .where((c) => c.attendance == AttendanceState.coming)
-        .length;
+    final comingCount = children.where((c) => c.attendance == AttendanceState.coming).length;
     return GestureDetector(
       onTap: onViewRide,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.accent, AppColors.accent.withOpacity(0.8)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: AppColors.accent,
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.accent.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.bus_alert,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'En route',
-                        style: AppTypography.label.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.7)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "Today's pickup",
-              style: AppTypography.body.copyWith(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '6:45 AM',
-              style: AppTypography.display.copyWith(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  Icons.people_outline,
-                  color: Colors.white.withOpacity(0.9),
-                  size: 18,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '$comingCount of ${children.length} student${children.length > 1 ? 's' : ''} coming',
-                  style: AppTypography.body.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
+            Text("Today's pickup", style: TextStyle(color: Colors.white.withOpacity(0.8))),
+            const Text('6:45 AM', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('$comingCount students coming', style: const TextStyle(color: Colors.white)),
           ],
         ),
       ),
@@ -787,246 +411,6 @@ class _TodayStatusCard extends StatelessWidget {
   }
 }
 
-class _EmptyStateCard extends StatelessWidget {
-  const _EmptyStateCard({
-    required this.icon,
-    required this.title,
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.stroke.withOpacity(0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, size: 32, color: AppColors.textSecondary),
-          const SizedBox(height: 12),
-          Text(title, style: AppTypography.title, textAlign: TextAlign.center),
-          const SizedBox(height: 4),
-          Text(
-            message,
-            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
-            textAlign: TextAlign.center,
-          ),
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: 16),
-            GradientButton(
-              label: actionLabel!,
-              onPressed: onAction!,
-              expanded: true,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// One row inside the students list with attendance status.
-class _StudentListTile extends StatelessWidget {
-  const _StudentListTile({required this.child, required this.onTap});
-
-  final ChildProfile child;
-  final VoidCallback onTap;
-
-  Color _statusColor() {
-    if (child.attendance == AttendanceState.coming) {
-      return AppColors.success;
-    }
-
-    if (child.attendance == AttendanceState.notComing) {
-      return AppColors.textSecondary;
-    }
-
-    return AppColors.warning;
-  }
-
-  String _statusLabel() {
-    if (child.attendance == AttendanceState.coming) {
-      return 'Coming';
-    }
-
-    if (child.attendance == AttendanceState.notComing) {
-      return 'Not coming';
-    }
-
-    return 'Pending';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _statusColor();
-    final label = _statusLabel();
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.stroke.withOpacity(0.3)),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: CircleAvatar(
-          radius: 24,
-          backgroundColor: child.avatarColor.withOpacity(0.15),
-          child: Text(
-            child.name[0].toUpperCase(),
-            style: TextStyle(
-              color: child.avatarColor,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        title: Text(
-          child.name,
-          style: AppTypography.title.copyWith(fontSize: 16),
-        ),
-        subtitle: Row(
-          children: [
-            const Icon(
-              Icons.school_outlined,
-              size: 14,
-              color: AppColors.textSecondary,
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                child.school,
-                style: AppTypography.body.copyWith(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            label,
-            style: AppTypography.label.copyWith(color: color, fontSize: 12),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Condensed card for recent ride or payment notifications.
-class _CompactNotificationCard extends StatelessWidget {
-  const _CompactNotificationCard({required this.notification});
-
-  final NotificationItem notification;
-
-  IconData _iconForCategory() {
-    if (notification.category == NotificationCategory.ride) {
-      return Icons.directions_bus;
-    }
-
-    if (notification.category == NotificationCategory.payment) {
-      return Icons.payments;
-    }
-
-    return Icons.shield;
-  }
-
-  Color _colorForCategory() {
-    if (notification.category == NotificationCategory.ride) {
-      return AppColors.accent;
-    }
-
-    if (notification.category == NotificationCategory.payment) {
-      return AppColors.success;
-    }
-
-    return AppColors.warning;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _colorForCategory();
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.stroke.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(_iconForCategory(), color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  notification.title,
-                  style: AppTypography.title.copyWith(fontSize: 14),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  notification.body,
-                  style: AppTypography.body.copyWith(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            notification.relativeTime,
-            style: AppTypography.label.copyWith(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Bottom sheet used to capture a new child profile.
 class _NewChildData {
   const _NewChildData({
     required this.name,
@@ -1035,7 +419,6 @@ class _NewChildData {
     required this.pickupTime,
     required this.inviteCode,
   });
-
   final String name;
   final String school;
   final String pickupLocation;
@@ -1045,7 +428,6 @@ class _NewChildData {
 
 class _AddChildSheet extends StatefulWidget {
   const _AddChildSheet();
-
   @override
   State<_AddChildSheet> createState() => _AddChildSheetState();
 }
@@ -1057,6 +439,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   final _pickupLocationController = TextEditingController(text: 'Front gate');
   final _pickupTimeController = TextEditingController(text: '6:45 AM');
   final _inviteCodeController = TextEditingController();
+
+  // Added selection state
+  bool _hasDriver = false;
 
   @override
   void dispose() {
@@ -1075,13 +460,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       _NewChildData(
         name: _nameController.text.trim(),
         school: _schoolController.text.trim(),
-        pickupLocation: _pickupLocationController.text.trim().isEmpty
-            ? 'Front gate'
-            : _pickupLocationController.text.trim(),
-        pickupTime: _pickupTimeController.text.trim().isEmpty
-            ? '6:45 AM'
-            : _pickupTimeController.text.trim(),
-        inviteCode: _inviteCodeController.text.trim(),
+        pickupLocation: _pickupLocationController.text.trim(),
+        pickupTime: _pickupTimeController.text.trim(),
+        inviteCode: _hasDriver ? _inviteCodeController.text.trim() : "",
       ),
     );
   }
@@ -1092,115 +473,111 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
       child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Add a student', style: AppTypography.headline),
-            const SizedBox(height: 4),
-            Text(
-              'Create a child profile to track attendance and rides.',
-              style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Student name',
-                prefixIcon: Icon(Icons.child_care),
-              ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Name is required'
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _schoolController,
-              decoration: const InputDecoration(
-                labelText: 'School',
-                prefixIcon: Icon(Icons.school_outlined),
-              ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'School is required'
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _pickupLocationController,
-              decoration: const InputDecoration(
-                labelText: 'Pickup location',
-                prefixIcon: Icon(Icons.place_outlined),
-              ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Pickup location is required'
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _pickupTimeController,
-              decoration: const InputDecoration(
-                labelText: 'Pickup time',
-                prefixIcon: Icon(Icons.schedule_outlined),
-              ),
-            ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Add a student', style: AppTypography.headline),
+              const SizedBox(height: 4),
+              Text('Create a child profile to track attendance and rides.',
+                  style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
+              const SizedBox(height: 20),
 
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _inviteCodeController,
-              decoration: const InputDecoration(
-                labelText: 'Driver invite code',
-                prefixIcon: Icon(Icons.vpn_key_outlined),
-                hintText: 'Ask your driver for the code',
+              // Student Name
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: 'Student name', prefixIcon: Icon(Icons.child_care)),
+                validator: (v) => v!.isEmpty ? 'Name is required' : null,
               ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Invite code is required'
-                  : null,
-            ),
-            
-            const SizedBox(height: 24),
-            GradientButton(
-              label: 'Add student',
-              onPressed: _submit,
-              expanded: true,
-            ),
-            const SizedBox(height: 12),
-          ],
+              const SizedBox(height: 16),
+
+              // School
+              TextFormField(
+                controller: _schoolController,
+                decoration: const InputDecoration(labelText: 'School', prefixIcon: Icon(Icons.school_outlined)),
+                validator: (v) => v!.isEmpty ? 'School is required' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Driver Selection Section
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: SwitchListTile(
+                  title: const Text('Do you already have a driver?'),
+                  subtitle: Text(_hasDriver ? 'I have an invite code' : 'I need to find a driver'),
+                  value: _hasDriver,
+                  onChanged: (val) => setState(() => _hasDriver = val),
+                  secondary: Icon(_hasDriver ? Icons.local_taxi : Icons.person_search, color: AppColors.accent),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Conditional Invite Code Field
+              if (_hasDriver) ...[
+                TextFormField(
+                  controller: _inviteCodeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Driver invite code',
+                    prefixIcon: Icon(Icons.vpn_key_outlined),
+                    hintText: 'Enter code from your driver',
+                  ),
+                  validator: (v) => (_hasDriver && v!.isEmpty) ? 'Code is required' : null,
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Pickup Details
+              TextFormField(
+                controller: _pickupLocationController,
+                decoration: const InputDecoration(labelText: 'Pickup location', prefixIcon: Icon(Icons.place_outlined)),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _pickupTimeController,
+                decoration: const InputDecoration(labelText: 'Pickup time', prefixIcon: Icon(Icons.schedule_outlined)),
+              ),
+
+              const SizedBox(height: 24),
+              GradientButton(label: 'Add student', onPressed: _submit, expanded: true),
+              const SizedBox(height: 12),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// Radio list item for the attendance bottom sheet.
-class _AttendanceOption extends StatelessWidget {
-  const _AttendanceOption({
-    required this.label,
-    this.helper,
-    required this.value,
-    required this.groupValue,
-    required this.onChanged,
-  });
-
-  final String label;
-  final String? helper;
-  final AttendanceState value;
-  final AttendanceState groupValue;
-  final VoidCallback onChanged;
-
+// --- Helper Components (Simplified for space) ---
+class _EmptyStateCard extends StatelessWidget {
+  const _EmptyStateCard({required this.icon, required this.title, required this.message, this.actionLabel, this.onAction});
+  final IconData icon; final String title; final String message; final String? actionLabel; final VoidCallback? onAction;
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      subtitle: helper == null ? null : Text(helper!),
-      trailing: Radio<AttendanceState>(
-        value: value,
-        groupValue: groupValue,
-        onChanged: (_) => onChanged(),
-      ),
-      onTap: onChanged,
-    );
-  }
+  Widget build(BuildContext context) => Center(child: Column(children: [Icon(icon), Text(title), Text(message), if (onAction != null) ElevatedButton(onPressed: onAction, child: Text(actionLabel!))]));
+}
+
+class _StudentListTile extends StatelessWidget {
+  const _StudentListTile({required this.child, required this.onTap});
+  final ChildProfile child; final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => ListTile(onTap: onTap, leading: CircleAvatar(child: Text(child.name[0])), title: Text(child.name), subtitle: Text(child.school));
+}
+
+class _CompactNotificationCard extends StatelessWidget {
+  const _CompactNotificationCard({required this.notification});
+  final NotificationItem notification;
+  @override
+  Widget build(BuildContext context) => Card(child: ListTile(title: Text(notification.title), subtitle: Text(notification.body)));
+}
+
+class _AttendanceOption extends StatelessWidget {
+  const _AttendanceOption({required this.label, this.helper, required this.value, required this.groupValue, required this.onChanged});
+  final String label; final String? helper; final AttendanceState value; final AttendanceState groupValue; final VoidCallback onChanged;
+  @override
+  Widget build(BuildContext context) => ListTile(title: Text(label), subtitle: helper != null ? Text(helper!) : null, trailing: Radio(value: value, groupValue: groupValue, onChanged: (_) => onChanged()));
 }
