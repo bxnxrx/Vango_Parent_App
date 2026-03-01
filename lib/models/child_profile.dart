@@ -75,7 +75,7 @@ class ChildProfile {
       attendance: AttendanceStateApi.fromString(json['attendance_state'] as String? ?? 'coming'),
       paymentStatus: PaymentStatusApi.fromString(json['payment_status'] as String? ?? 'paid'),
       avatarColor: _colorFromName(name),
-      linkedDriverId: json['linked_driver_id'] as String?,
+      linkedDriverId: json['linked_driver_id']
     );
   }
 
