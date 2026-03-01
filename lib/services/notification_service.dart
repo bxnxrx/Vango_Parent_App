@@ -84,6 +84,19 @@ class NotificationService {
         final notificationId = message.messageId?.hashCode ?? DateTime.now().millisecond;
         showManualNotification(title, body, notificationId);
       }
+      final data = message.data;
+      final type = data['type']?.toString();
+
+      if (type == 'emergency_active') {
+        debugPrint('🚨 Emergency started! Pushing red screen...');
+        // TODO: Navigate to the Parent's Active Emergency Screen
+        // e.g., navigatorKey.currentState?.pushNamed('/parent_emergency_screen');
+      } 
+      else if (type == 'emergency_resolved') {
+        debugPrint('✅ Emergency resolved! Closing red screen...');
+        // TODO: Pop the emergency screen to return to the map/home
+        // e.g., navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      }
     });
 
     // B. HANDLE NOTIFICATION TAPS (When app is in background)
