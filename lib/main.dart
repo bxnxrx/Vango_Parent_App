@@ -12,7 +12,9 @@ import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_theme.dart';
 import 'package:vango_parent_app/services/notification_service.dart';
-import 'package:vango_parent_app/services/device_service.dart'; // Make sure this path is correct
+import 'package:vango_parent_app/services/device_service.dart';
+
+// Make sure this path is correct
 
 // --- 1. BACKGROUND MESSAGE HANDLER ---
 @pragma('vm:entry-point')

@@ -15,7 +15,7 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
-  static const String _channelId = 'parent_notifications_channel';
+  static const String _channelId = 'vango_notifications_v4';
 
   // 1. Initialize the service
   Future<void> initialize() async {
@@ -81,7 +81,8 @@ class NotificationService {
       final body = message.notification?.body;
 
       if (title != null && body != null) {
-        showManualNotification(title, body);
+        final notificationId = message.messageId?.hashCode ?? DateTime.now().millisecond;
+        showManualNotification(title, body, notificationId);
       }
     });
 
@@ -100,7 +101,7 @@ class NotificationService {
   }
 
   // 2. Show a notification manually (Used by foreground FCM listener)
-  Future<void> showManualNotification(String title, String body) async {
+  Future<void> showManualNotification(String title, String body,int notificationId) async {
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       _channelId,
@@ -126,7 +127,7 @@ class NotificationService {
     );
 
     await _localNotifications.show(
-      DateTime.now().millisecond, // Unique ID so notifications don't overwrite each other
+      notificationId,
       title,
       body,
       platformDetails,
