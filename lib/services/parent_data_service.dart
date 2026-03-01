@@ -28,6 +28,7 @@ class ParentDataService {
     required String childName,
     required String school,
     required String pickupLocation,
+    required String inviteCode,
     String? pickupTime,
   }) async {
     final payload = _buildChildPayload(
@@ -35,6 +36,7 @@ class ParentDataService {
       school: school,
       pickupLocation: pickupLocation,
       pickupTime: pickupTime,
+      inviteCode: inviteCode,
     );
     final response = _expectMap(
       await _backend.post('/api/parents/children', payload),
@@ -165,6 +167,7 @@ class ParentDataService {
     required String childName,
     required String school,
     required String pickupLocation,
+    required String inviteCode,
     String? pickupTime,
   }) {
     final normalizedTime = (pickupTime ?? '').trim().isEmpty
@@ -175,6 +178,7 @@ class ParentDataService {
       'school': school.trim(),
       'pickupLocation': pickupLocation.trim(),
       'pickupTime': normalizedTime,
+      'inviteCode': inviteCode.trim(),
     };
   }
 
