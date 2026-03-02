@@ -203,13 +203,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
+Widget _buildAppBar(BuildContext context) {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
       leading: IconButton(
-        icon: Icon(Navigator.canPop(context) ? Icons.arrow_back_ios_new : Icons.menu, color: AppColors.accent, size: 22),
-        onPressed: () => Navigator.canPop(context) ? Navigator.pop(context) : null,
+        icon: Icon(
+          Navigator.canPop(context) ? Icons.arrow_back : Icons.menu, 
+          color: AppColors.accent, 
+          size: 24, 
+        ),
+        onPressed: () {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else {
+            Scaffold.of(context).openDrawer();
+          }
+        },
       ),
       title: Text('Attendance', style: AppTypography.title),
       centerTitle: true,
