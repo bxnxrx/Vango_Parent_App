@@ -641,9 +641,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                   decoration: const InputDecoration(
                     labelText: 'Driver invite code',
                     prefixIcon: Icon(Icons.vpn_key_outlined),
-                    hintText: 'Enter code from your driver',
+                    hintText: 'Enter code from your driver (optional)',
                   ),
-                  validator: (v) => (_hasDriver && v!.isEmpty) ? 'Code is required' : null,
+                  validator: (v) => null,
                 ),
                 const SizedBox(height: 16),
               ],
