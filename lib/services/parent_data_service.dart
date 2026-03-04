@@ -43,12 +43,34 @@ class ParentDataService {
     );
     return ChildProfile.fromJson(response);
   }
+  Future<ChildProfile> updateChild({
+    required String childId,
+    required String childName,
+    required String school,
+    required String pickupLocation,
+    required String inviteCode,
+    String? pickupTime,
+  }) async {
+    final payload = _buildChildPayload(
+      childName: childName,
+      school: school,
+      pickupLocation: pickupLocation,
+      pickupTime: pickupTime,
+      inviteCode: inviteCode,
+    );
+    final response = _expectMap(
+      await _backend.put('/api/parents/children/$childId', payload), // <--- Changed to .put
+    );
+    return ChildProfile.fromJson(response);
+  }
 
   Future<void> updateAttendance(String childId, AttendanceState state) async {
     await _backend.patch('/api/parents/children/$childId/attendance', {
       'attendanceState': state.apiValue,
     });
   }
+  
+  
 
   Future<List<NotificationItem>> fetchNotifications() async {
     final response = await _backend.get('/api/parents/notifications');

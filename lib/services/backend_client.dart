@@ -43,6 +43,9 @@ class BackendClient {
       case 'PATCH':
         response = await _client.patch(uri, headers: headers, body: jsonEncode(body ?? <String, dynamic>{}));
         break;
+        case 'PUT': // <-- ADD THIS NEW CASE
+        response = await _client.put(uri, headers: headers, body: jsonEncode(body ?? <String, dynamic>{}));
+        break;
       default:
         throw UnsupportedError('Unsupported method $method');
     }
@@ -83,6 +86,9 @@ class BackendClient {
 
   Future<dynamic> patch(String path, Map<String, dynamic> body) {
     return _send(method: 'PATCH', path: path, body: body);
+  }
+  Future<dynamic> put(String path, Map<String, dynamic> body) {
+    return _send(method: 'PUT', path: path, body: body);
   }
 
   Future<void> ensureBackendHealthy() async {

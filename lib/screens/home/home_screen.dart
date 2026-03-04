@@ -132,6 +132,59 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // NEW: Added Edit Functionality exactly mirroring Add Logic
+  // NEW: Added Edit Functionality exactly mirroring Add Logic
+  Future<void> _openEditChildSheet(ChildProfile child) async {
+    final request = await showModalBottomSheet<_NewChildData>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      builder: (context) {
+        final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+        return Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: _AddChildSheet(existingChild: child), // Passing existing data
+        );
+      },
+    );
+
+    if (request == null) return;
+
+    try {
+      // 1. Actually call the backend service we created
+      final updatedChild = await _dataService.updateChild(
+        childId: child.id,
+        childName: request.name,
+        school: request.school,
+        pickupLocation: request.pickupLocation,
+        pickupTime: request.pickupTime,
+        inviteCode: request.inviteCode,
+      );
+
+      if (!mounted) return;
+
+      // 2. Update the local list with the fresh data from the backend
+      setState(() {
+        final index = _children.indexWhere((c) => c.id == child.id);
+        if (index != -1) {
+          _children[index] = updatedChild; 
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${request.name}\'s profile updated')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update profile: $error')),
+      );
+    }
+  }
+
   Future<void> _toggleAttendance(ChildProfile child) async {
     final nextState = child.attendance == AttendanceState.coming
         ? AttendanceState.notComing
@@ -259,7 +312,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         onAction: _openAddChildSheet,
                       )
                     else
-                      ..._children.map((child) => _StudentListTile(child: child, onTap: () => _showAttendanceSheet(child))),
+                      ..._children.map((child) => _StudentListTile(
+                            child: child, 
+                            onTap: () => _showAttendanceSheet(child),
+                            onEdit: () => _openEditChildSheet(child), // NEW: Passing the edit function
+                          )),
                     const SizedBox(height: 24),
                     _buildAlertsHeader(),
                     const SizedBox(height: 12),
@@ -427,21 +484,62 @@ class _NewChildData {
 }
 
 class _AddChildSheet extends StatefulWidget {
-  const _AddChildSheet();
+  final ChildProfile? existingChild; // NEW: Added to accept existing data
+  const _AddChildSheet({this.existingChild});
+  
   @override
   State<_AddChildSheet> createState() => _AddChildSheetState();
 }
 
 class _AddChildSheetState extends State<_AddChildSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _schoolController = TextEditingController();
-  final _pickupLocationController = TextEditingController(text: 'Front gate');
-  final _pickupTimeController = TextEditingController(text: '6:45 AM');
-  final _inviteCodeController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _schoolController;
+  late final TextEditingController _pickupLocationController;
+  late final TextEditingController _pickupTimeController;
+  late final TextEditingController _inviteCodeController;
 
-  // Added selection state
   bool _hasDriver = false;
+  
+  // NEW: Storing original values to detect changes
+  late String _originalName;
+  late String _originalSchool;
+  late String _originalPickupLocation;
+  late String _originalPickupTime;
+  late String _originalInviteCode;
+
+  bool get _isEditing => widget.existingChild != null;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Set originals
+    _originalName = widget.existingChild?.name ?? '';
+    _originalSchool = widget.existingChild?.school ?? '';
+    _originalPickupLocation = 'Front gate';
+    _originalPickupTime = '6:45 AM';
+    _originalInviteCode = '';
+
+    // Initialize controllers
+    _nameController = TextEditingController(text: _originalName);
+    _schoolController = TextEditingController(text: _originalSchool);
+    _pickupLocationController = TextEditingController(text: _originalPickupLocation);
+    _pickupTimeController = TextEditingController(text: _originalPickupTime);
+    _inviteCodeController = TextEditingController(text: _originalInviteCode);
+
+    // Add listeners to trigger highlight check
+    if (_isEditing) {
+      _nameController.addListener(_onFieldChanged);
+      _schoolController.addListener(_onFieldChanged);
+      _pickupLocationController.addListener(_onFieldChanged);
+      _pickupTimeController.addListener(_onFieldChanged);
+    }
+  }
+
+  void _onFieldChanged() {
+    setState(() {}); // Triggers a rebuild to apply highlight styling
+  }
 
   @override
   void dispose() {
@@ -467,6 +565,21 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     );
   }
 
+  // NEW: Helper method to apply highlighted decoration safely
+  InputDecoration _buildInputDecoration(String label, IconData icon, TextEditingController controller, String originalVal) {
+    final bool isChanged = _isEditing && controller.text.trim() != originalVal;
+    
+    return InputDecoration(
+      labelText: label, 
+      prefixIcon: Icon(icon, color: isChanged ? AppColors.accent : null),
+      filled: isChanged,
+      fillColor: isChanged ? AppColors.accent.withOpacity(0.08) : null,
+      enabledBorder: isChanged 
+        ? OutlineInputBorder(borderSide: BorderSide(color: AppColors.accent, width: 1.5))
+        : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -478,16 +591,20 @@ class _AddChildSheetState extends State<_AddChildSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Add a student', style: AppTypography.headline),
+              Text(_isEditing ? 'Edit student' : 'Add a student', style: AppTypography.headline),
               const SizedBox(height: 4),
-              Text('Create a child profile to track attendance and rides.',
-                  style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
+              Text(
+                _isEditing 
+                  ? 'Update details below. Changes will be highlighted.' 
+                  : 'Create a child profile to track attendance and rides.',
+                style: AppTypography.body.copyWith(color: AppColors.textSecondary)
+              ),
               const SizedBox(height: 20),
 
               // Student Name
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Student name', prefixIcon: Icon(Icons.child_care)),
+                decoration: _buildInputDecoration('Student name', Icons.child_care, _nameController, _originalName),
                 validator: (v) => v!.isEmpty ? 'Name is required' : null,
               ),
               const SizedBox(height: 16),
@@ -495,7 +612,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
               // School
               TextFormField(
                 controller: _schoolController,
-                decoration: const InputDecoration(labelText: 'School', prefixIcon: Icon(Icons.school_outlined)),
+                decoration: _buildInputDecoration('School', Icons.school_outlined, _schoolController, _originalSchool),
                 validator: (v) => v!.isEmpty ? 'School is required' : null,
               ),
               const SizedBox(height: 16),
@@ -534,16 +651,20 @@ class _AddChildSheetState extends State<_AddChildSheet> {
               // Pickup Details
               TextFormField(
                 controller: _pickupLocationController,
-                decoration: const InputDecoration(labelText: 'Pickup location', prefixIcon: Icon(Icons.place_outlined)),
+                decoration: _buildInputDecoration('Pickup location', Icons.place_outlined, _pickupLocationController, _originalPickupLocation),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _pickupTimeController,
-                decoration: const InputDecoration(labelText: 'Pickup time', prefixIcon: Icon(Icons.schedule_outlined)),
+                decoration: _buildInputDecoration('Pickup time', Icons.schedule_outlined, _pickupTimeController, _originalPickupTime),
               ),
 
               const SizedBox(height: 24),
-              GradientButton(label: 'Add student', onPressed: _submit, expanded: true),
+              GradientButton(
+                label: _isEditing ? 'Update profile' : 'Add student', 
+                onPressed: _submit, 
+                expanded: true
+              ),
               const SizedBox(height: 12),
             ],
           ),
@@ -561,11 +682,34 @@ class _EmptyStateCard extends StatelessWidget {
   Widget build(BuildContext context) => Center(child: Column(children: [Icon(icon), Text(title), Text(message), if (onAction != null) ElevatedButton(onPressed: onAction, child: Text(actionLabel!))]));
 }
 
+// NEW: Added PopupMenuButton for the three dots
 class _StudentListTile extends StatelessWidget {
-  const _StudentListTile({required this.child, required this.onTap});
-  final ChildProfile child; final VoidCallback onTap;
+  const _StudentListTile({required this.child, required this.onTap, required this.onEdit});
+  final ChildProfile child; 
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+
   @override
-  Widget build(BuildContext context) => ListTile(onTap: onTap, leading: CircleAvatar(child: Text(child.name[0])), title: Text(child.name), subtitle: Text(child.school));
+  Widget build(BuildContext context) => ListTile(
+    onTap: onTap, 
+    leading: CircleAvatar(child: Text(child.name.isNotEmpty ? child.name[0] : 'S')), 
+    title: Text(child.name), 
+    subtitle: Text(child.school),
+    trailing: PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert),
+      onSelected: (value) {
+        if (value == 'edit') {
+          onEdit();
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        const PopupMenuItem<String>(
+          value: 'edit',
+          child: Text('Edit profile'),
+        ),
+      ],
+    ),
+  );
 }
 
 class _CompactNotificationCard extends StatelessWidget {
