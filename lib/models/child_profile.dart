@@ -52,6 +52,12 @@ class ChildProfile {
     required this.paymentStatus,
     required this.avatarColor,
     this.linkedDriverId,
+    // NEW FIELDS BELOW
+    this.age,
+    this.dropLocation,
+    this.etaSchool,
+    this.emergencyContact,
+    this.description,
   });
 
   final String id;
@@ -64,6 +70,13 @@ class ChildProfile {
   final Color avatarColor;
   final String? linkedDriverId;
 
+  // NEW FIELDS BELOW
+  final int? age;
+  final String? dropLocation;
+  final String? etaSchool;
+  final String? emergencyContact;
+  final String? description;
+
   factory ChildProfile.fromJson(Map<String, dynamic> json) {
     final name = (json['child_name'] as String? ?? '').trim();
     return ChildProfile(
@@ -72,10 +85,21 @@ class ChildProfile {
       school: json['school'] as String? ?? 'Unknown school',
       pickupLocation: json['pickup_location'] as String? ?? 'Pickup spot',
       pickupTime: json['pickup_time'] as String? ?? '06:45 AM',
-      attendance: AttendanceStateApi.fromString(json['attendance_state'] as String? ?? 'coming'),
-      paymentStatus: PaymentStatusApi.fromString(json['payment_status'] as String? ?? 'paid'),
+      attendance: AttendanceStateApi.fromString(
+        json['attendance_state'] as String? ?? 'coming',
+      ),
+      paymentStatus: PaymentStatusApi.fromString(
+        json['payment_status'] as String? ?? 'paid',
+      ),
       avatarColor: _colorFromName(name),
-      linkedDriverId: json['linked_driver_id']
+      linkedDriverId: json['linked_driver_id'],
+
+      // NEW PARSING LOGIC BELOW
+      age: json['age'] != null ? int.tryParse(json['age'].toString()) : null,
+      dropLocation: json['drop_location'] as String?,
+      etaSchool: json['eta_school'] as String?,
+      emergencyContact: json['emergency_contact'] as String?,
+      description: json['description'] as String?,
     );
   }
 
@@ -83,6 +107,11 @@ class ChildProfile {
     AttendanceState? attendance,
     PaymentStatus? paymentStatus,
     String? linkedDriverId,
+    int? age,
+    String? dropLocation,
+    String? etaSchool,
+    String? emergencyContact,
+    String? description,
   }) {
     return ChildProfile(
       id: id,
@@ -94,6 +123,13 @@ class ChildProfile {
       paymentStatus: paymentStatus ?? this.paymentStatus,
       avatarColor: avatarColor,
       linkedDriverId: linkedDriverId ?? this.linkedDriverId,
+
+      // NEW COPY LOGIC BELOW
+      age: age ?? this.age,
+      dropLocation: dropLocation ?? this.dropLocation,
+      etaSchool: etaSchool ?? this.etaSchool,
+      emergencyContact: emergencyContact ?? this.emergencyContact,
+      description: description ?? this.description,
     );
   }
 

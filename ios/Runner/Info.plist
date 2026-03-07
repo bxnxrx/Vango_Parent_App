@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>GoogleMapsApiKey</key>
-	<string>AIzaSyB8vmSgG-G4YU62fTf6rsO6XvXdJqoNK7E</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>VanGo uses your location to show your child\'s van position relative to you and improve tracking visibility.</string>
 	<key>CFBundleDevelopmentRegion</key>
