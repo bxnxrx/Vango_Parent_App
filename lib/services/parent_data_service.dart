@@ -263,4 +263,12 @@ class ParentDataService {
     }
     throw StateError('Unexpected backend payload: ${payload.runtimeType}');
   }
+
+  Future<void> deleteChild(String childId) async {
+    await _backend.delete('/api/parents/children/$childId');
+  }
+  Future<Map<String, dynamic>> verifyInviteCode(String code) async {
+    final response = await _backend.get('/api/parents/verify-invite/$code');
+    return _expectMap(response);
+  }
 }

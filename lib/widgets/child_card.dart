@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:vango_parent_app/models/child_profile.dart';
+import 'package:vango_parent_app/models/child_profile.dart'; // Ensure Enums are imported
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 
 class ChildCard extends StatelessWidget {
-  final ChildProfile child;
-  final VoidCallback onToggle;
-  final VoidCallback onTap;
-
   const ChildCard({
     super.key,
     required this.child,
@@ -15,117 +11,122 @@ class ChildCard extends StatelessWidget {
     required this.onTap,
   });
 
+  final ChildProfile child;
+  final VoidCallback onToggle;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    // Converting switch expression to normal if-else statements (Student style)
-    String paymentLabel;
-    if (child.paymentStatus == PaymentStatus.overdue) {
-      paymentLabel = 'Overdue';
-    } else if (child.paymentStatus == PaymentStatus.due) {
-      paymentLabel = 'Due soon';
-    } else {
-      paymentLabel = 'Paid';
-    }
+    // FIX: Compare to Enums, not strings
+    final isPaid = child.paymentStatus == PaymentStatus.paid;
+    final isDue = child.paymentStatus == PaymentStatus.due;
+    final isOverdue = child.paymentStatus == PaymentStatus.overdue;
+    final isComing = child.attendance == AttendanceState.coming;
 
-    Color paymentColor;
-    if (child.paymentStatus == PaymentStatus.overdue) {
-      paymentColor = AppColors.danger;
-    } else if (child.paymentStatus == PaymentStatus.due) {
-      paymentColor = AppColors.warning;
+    Color statusColor;
+    if (isPaid) {
+      statusColor = AppColors.success;
+    } else if (isDue) {
+      statusColor = AppColors.warning;
     } else {
-      paymentColor = AppColors.success;
-    }
-
-    String attendanceLabel;
-    if (child.attendance == AttendanceState.coming) {
-      attendanceLabel = 'Coming';
-    } else {
-      attendanceLabel = 'Not coming';
+      statusColor = AppColors.danger;
     }
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 220,
-        padding: EdgeInsets.all(20),
-        margin: EdgeInsets.only(right: 16),
+        width: 180,
+        margin: const EdgeInsets.only(right: 16),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: AppColors.cardGradient,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.stroke.withOpacity(0.6)),
-          boxShadow: AppShadows.subtle,
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.stroke),
+          // FIX: withOpacity -> withValues
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.textPrimary.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              backgroundColor: child.avatarColor,
-              child: Text(
-                child.name.substring(0, 1),
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-            SizedBox(height: 12),
-            Text(child.name, style: AppTypography.title),
-            Text(
-              child.school,
-              style: AppTypography.body.copyWith(fontSize: 14),
-            ),
-            SizedBox(height: 12),
-
-            // Inline Badge Container manually
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: Text(
-                '${child.pickupTime} pickup',
-                style: AppTypography.label.copyWith(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-
-            SizedBox(height: 8),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: FilledButton.tonal(
-                    onPressed: onToggle,
-                    style: FilledButton.styleFrom(
-                      backgroundColor:
-                          child.attendance == AttendanceState.coming
-                          ? AppColors.accent.withOpacity(0.1)
-                          : AppColors.danger.withOpacity(0.1),
-                      padding: EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    child: Text(
-                      attendanceLabel,
-                      style: AppTypography.label.copyWith(
-                        color: AppColors.accent,
-                      ),
+                CircleAvatar(
+                  backgroundColor: child.avatarColor.withValues(alpha: 0.2),
+                  child: Text(
+                    child.name[0].toUpperCase(),
+                    style: TextStyle(
+                      color: child.avatarColor,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                SizedBox(width: 10),
-
-                // Another inline badge
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: paymentColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(40),
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    paymentLabel,
-                    style: AppTypography.label.copyWith(
-                      color: paymentColor,
-                      fontSize: 12,
+                    isPaid
+                        ? 'Paid'
+                        : isDue
+                        ? 'Due'
+                        : 'Overdue',
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              child.name,
+              style: AppTypography.title.copyWith(fontSize: 16),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              child.school,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  isComing ? 'Going' : 'Not Going',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isComing
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
+                  ),
+                ),
+                Switch(
+                  value: isComing,
+                  onChanged: (val) => onToggle(),
+                  activeColor: AppColors.accent,
+                  activeTrackColor: AppColors.accentLow,
                 ),
               ],
             ),

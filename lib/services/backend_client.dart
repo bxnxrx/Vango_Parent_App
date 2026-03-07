@@ -26,10 +26,17 @@ class BackendClient {
     };
   }
 
-  Future<dynamic> _send({required String method, required String path, Map<String, String>? queryParameters, Map<String, dynamic>? body}) async {
+  Future<dynamic> _send({
+    required String method,
+    required String path,
+    Map<String, String>? queryParameters,
+    Map<String, dynamic>? body,
+  }) async {
     AppConfig.ensure();
     final baseUri = Uri.parse('${AppConfig.backendBaseUrl}$path');
-    final uri = queryParameters == null ? baseUri : baseUri.replace(queryParameters: queryParameters);
+    final uri = queryParameters == null
+        ? baseUri
+        : baseUri.replace(queryParameters: queryParameters);
     final headers = await _headers();
     http.Response response;
 
@@ -38,13 +45,32 @@ class BackendClient {
         response = await _client.get(uri, headers: headers);
         break;
       case 'POST':
-        response = await _client.post(uri, headers: headers, body: jsonEncode(body ?? <String, dynamic>{}));
+        response = await _client.post(
+          uri,
+          headers: headers,
+          body: jsonEncode(body ?? <String, dynamic>{}),
+        );
         break;
       case 'PATCH':
-        response = await _client.patch(uri, headers: headers, body: jsonEncode(body ?? <String, dynamic>{}));
+        response = await _client.patch(
+          uri,
+          headers: headers,
+          body: jsonEncode(body ?? <String, dynamic>{}),
+        );
         break;
-        case 'PUT': // <-- ADD THIS NEW CASE
-        response = await _client.put(uri, headers: headers, body: jsonEncode(body ?? <String, dynamic>{}));
+      case 'PUT':
+        response = await _client.put(
+          uri,
+          headers: headers,
+          body: jsonEncode(body ?? <String, dynamic>{}),
+        );
+        break;
+      case 'DELETE':
+        response = await _client.delete(
+          uri,
+          headers: headers,
+          body: jsonEncode(body ?? <String, dynamic>{}),
+        );
         break;
       default:
         throw UnsupportedError('Unsupported method $method');
@@ -57,7 +83,9 @@ class BackendClient {
       return jsonDecode(response.body);
     }
 
-    debugPrint('Backend request to $path failed with ${response.statusCode}: ${response.body}');
+    debugPrint(
+      'Backend request to $path failed with ${response.statusCode}: ${response.body}',
+    );
 
     String errorMessage = 'Backend request failed (${response.statusCode})';
     try {
@@ -87,8 +115,14 @@ class BackendClient {
   Future<dynamic> patch(String path, Map<String, dynamic> body) {
     return _send(method: 'PATCH', path: path, body: body);
   }
+
   Future<dynamic> put(String path, Map<String, dynamic> body) {
     return _send(method: 'PUT', path: path, body: body);
+  }
+
+  // <-- ADDED PROPER DELETE WRAPPER
+  Future<dynamic> delete(String path) {
+    return _send(method: 'DELETE', path: path);
   }
 
   Future<void> ensureBackendHealthy() async {

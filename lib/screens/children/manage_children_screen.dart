@@ -1,13 +1,16 @@
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_place_picker_mb/google_maps_place_picker.dart';
 import 'package:flutter_google_maps_webservices/places.dart' as places;
-import 'package:google_api_headers/google_api_headers.dart'; // NATIVE API HEADERS
+import 'package:google_api_headers/google_api_headers.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
+import 'package:vango_parent_app/services/auth_service.dart'; // For SMS OTP
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
@@ -45,7 +48,53 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
     }
   }
 
+  Future<void> _deleteChild(ChildProfile child) async {
+    HapticFeedback.heavyImpact();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Student'),
+        content: Text(
+          'Are you sure you want to remove ${child.name}? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _loading = true);
+      try {
+        await _dataService.deleteChild(child.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${child.name} removed successfully.')),
+        );
+        _loadChildren();
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error removing student: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+        setState(() => _loading = false);
+      }
+    }
+  }
+
   Future<void> _openChildSheet({ChildProfile? existingChild}) async {
+    HapticFeedback.selectionClick();
     final request = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
@@ -60,9 +109,12 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
           padding: EdgeInsets.only(bottom: bottomInset),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.85,
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
             ),
-            child: _AddChildSheet(existingChild: existingChild),
+            child: _AddChildSheet(
+              existingChild: existingChild,
+              existingChildren: _children,
+            ),
           ),
         );
       },
@@ -71,7 +123,6 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
     if (request != null) {
       try {
         setState(() => _loading = true);
-
         final int? parsedAge = int.tryParse(request['age'].toString());
 
         if (existingChild == null) {
@@ -110,8 +161,8 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
             inviteCode: request['inviteCode'] ?? '',
           );
         }
-
         if (mounted) {
+          HapticFeedback.lightImpact();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('${request['fullName']} saved successfully!'),
@@ -121,6 +172,7 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
         }
       } catch (e) {
         if (mounted) {
+          HapticFeedback.heavyImpact();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error saving student: $e'),
@@ -182,12 +234,25 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
                     ),
                     title: Text(child.name, style: AppTypography.title),
                     subtitle: Text(child.school),
-                    trailing: IconButton(
-                      icon: const Icon(
-                        Icons.edit_outlined,
-                        color: AppColors.textSecondary,
-                      ),
-                      onPressed: () => _openChildSheet(existingChild: child),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            color: AppColors.accent,
+                          ),
+                          onPressed: () =>
+                              _openChildSheet(existingChild: child),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: AppColors.danger,
+                          ),
+                          onPressed: () => _deleteChild(child),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -220,6 +285,16 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
             'Add your children to start tracking their rides.',
             style: AppTypography.body.copyWith(color: AppColors.textSecondary),
           ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () => _openChildSheet(),
+            icon: const Icon(Icons.add),
+            label: const Text('Add First Student'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
         ],
       ),
     );
@@ -228,7 +303,8 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
 
 class _AddChildSheet extends StatefulWidget {
   final ChildProfile? existingChild;
-  const _AddChildSheet({this.existingChild});
+  final List<ChildProfile> existingChildren;
+  const _AddChildSheet({this.existingChild, required this.existingChildren});
 
   @override
   State<_AddChildSheet> createState() => _AddChildSheetState();
@@ -236,8 +312,11 @@ class _AddChildSheet extends StatefulWidget {
 
 class _AddChildSheetState extends State<_AddChildSheet> {
   final _formKey = GlobalKey<FormState>();
-
   static const platform = MethodChannel('com.vango.app/apikey');
+  String? _cachedApiKey;
+
+  final ParentDataService _dataService = ParentDataService.instance;
+  final AuthService _authService = AuthService.instance;
 
   late final TextEditingController _nameController;
   late final TextEditingController _ageController;
@@ -248,9 +327,19 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   late final TextEditingController _emergencyContactController;
   late final TextEditingController _inviteCodeController;
   late final TextEditingController _descriptionController;
+  late final TextEditingController _pickupTimeController;
+
+  String _parentPhone = '';
+  bool _useCustomEmergencyContact = false;
+  bool _isCustomContactVerified = false;
+  bool _isSendingOtp = false;
 
   bool _hasDriver = false;
   bool _isCalculatingRoute = false;
+
+  bool _isValidatingCode = false;
+  Map<String, dynamic>? _verifiedDriverDetails;
+  String? _inviteCodeError;
 
   double? _pickupLat;
   double? _pickupLng;
@@ -261,7 +350,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   String? _routeDuration;
   int? _routeDurationSeconds;
 
-  // Custom Time Selector Variables
   String _selectedHour = '07';
   String _selectedMinute = '00';
   String _selectedAmPm = 'AM';
@@ -274,25 +362,187 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     _nameController = TextEditingController(
       text: widget.existingChild?.name ?? '',
     );
-    _ageController = TextEditingController(text: '');
+    _ageController = TextEditingController(
+      text: widget.existingChild?.age?.toString() ?? '',
+    );
     _schoolController = TextEditingController(
       text: widget.existingChild?.school ?? '',
     );
-    _pickupLocationController = TextEditingController(text: '');
-    _dropLocationController = TextEditingController(text: '');
+    _pickupLocationController = TextEditingController(
+      text: widget.existingChild?.pickupLocation ?? '',
+    );
+    _dropLocationController = TextEditingController(
+      text: widget.existingChild?.dropLocation ?? '',
+    );
     _emergencyContactController = TextEditingController(text: '');
     _inviteCodeController = TextEditingController(text: '');
-    _descriptionController = TextEditingController(text: '');
+    _descriptionController = TextEditingController(
+      text: widget.existingChild?.description ?? '',
+    );
+    _pickupTimeController = TextEditingController(
+      text: widget.existingChild?.pickupTime ?? '',
+    );
 
-    // Initialize Time Selector values
+    _pickupLat = widget.existingChild?.pickupLat;
+    _pickupLng = widget.existingChild?.pickupLng;
+    _dropLat = widget.existingChild?.dropLat;
+    _dropLng = widget.existingChild?.dropLng;
+
     String initialEta = widget.existingChild?.etaSchool ?? '07:00 AM';
     _parseInitialEta(initialEta);
     _etaSchoolController = TextEditingController(text: initialEta);
 
-    // Watch ETA changes to trigger UI rebuild for departure time recalculation
-    _etaSchoolController.addListener(() {
-      setState(() {});
-    });
+    _fetchParentProfileForEmergencyContact();
+
+    if (_pickupLat != null && _dropLat != null) {
+      _calculateRoute();
+    }
+  }
+
+  Future<void> _fetchParentProfileForEmergencyContact() async {
+    try {
+      final profile = await _dataService.fetchProfile();
+      if (mounted) {
+        setState(() {
+          _parentPhone = profile['phone'] ?? '';
+
+          if (_isEditing &&
+              widget.existingChild!.emergencyContact != null &&
+              widget.existingChild!.emergencyContact != _parentPhone) {
+            _useCustomEmergencyContact = true;
+            _isCustomContactVerified = true;
+            _emergencyContactController.text =
+                widget.existingChild!.emergencyContact!;
+          } else {
+            _emergencyContactController.text = _parentPhone;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  // --- SMS OTP VERIFICATION FOR EMERGENCY CONTACT ---
+  Future<void> _verifyNewEmergencyContact() async {
+    final phone = _emergencyContactController.text.trim();
+    if (!RegExp(r'^(?:0|\+94)7\d{8}$').hasMatch(phone)) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid SL number to verify'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
+    HapticFeedback.selectionClick();
+    setState(() => _isSendingOtp = true);
+
+    try {
+      await _authService.requestPhoneOtp(phone);
+      if (!mounted) return;
+      setState(() => _isSendingOtp = false);
+
+      final otpController = TextEditingController();
+      final bool? isVerified = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (ctx) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Verify Emergency Contact',
+                style: AppTypography.title.copyWith(fontSize: 20),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'We sent a 6-digit code to $phone',
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: '6-Digit SMS Code',
+                  prefixIcon: Icon(Icons.security),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onPressed: () async {
+                    if (otpController.text.length != 6) return;
+                    HapticFeedback.lightImpact();
+                    try {
+                      await _authService.verifyPhoneOtp(
+                        phone: phone,
+                        token: otpController.text.trim(),
+                      );
+                      Navigator.pop(ctx, true);
+                    } catch (e) {
+                      HapticFeedback.heavyImpact();
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(
+                          content: Text('Invalid code entered.'),
+                          backgroundColor: AppColors.danger,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Confirm Code'),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      );
+
+      if (isVerified == true) {
+        HapticFeedback.mediumImpact();
+        setState(() => _isCustomContactVerified = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Emergency Contact Verified!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        HapticFeedback.heavyImpact();
+        setState(() => _isSendingOtp = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send OTP: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
   }
 
   void _parseInitialEta(String eta) {
@@ -304,24 +554,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         _selectedHour = match.group(1)!.padLeft(2, '0');
         _selectedMinute = match.group(2)?.padLeft(2, '0') ?? '00';
         _selectedAmPm = match.group(3)?.toUpperCase() ?? 'AM';
-
-        // Ensure minute is a valid dropdown selection
-        if (![
-          '00',
-          '05',
-          '10',
-          '15',
-          '20',
-          '25',
-          '30',
-          '35',
-          '40',
-          '45',
-          '50',
-          '55',
-        ].contains(_selectedMinute)) {
-          _selectedMinute = '00';
-        }
       }
     } catch (_) {}
   }
@@ -329,30 +561,258 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   void _updateEtaController() {
     _etaSchoolController.text =
         '$_selectedHour:$_selectedMinute $_selectedAmPm';
+    if (_pickupLat != null && _dropLat != null) _calculateRoute();
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _ageController.dispose();
-    _schoolController.dispose();
-    _pickupLocationController.dispose();
-    _dropLocationController.dispose();
-    _etaSchoolController.dispose();
-    _emergencyContactController.dispose();
-    _inviteCodeController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
+  Future<void> _selectTime(BuildContext context) async {
+    HapticFeedback.selectionClick();
+    int initialHour = int.parse(_selectedHour);
+    if (_selectedAmPm == 'PM' && initialHour < 12) initialHour += 12;
+    if (_selectedAmPm == 'AM' && initialHour == 12) initialHour = 0;
+    DateTime initialTime = DateTime(
+      2024,
+      1,
+      1,
+      initialHour,
+      int.parse(_selectedMinute),
+    );
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext builderContext) {
+        return SizedBox(
+          height: 280,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.stroke)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(builderContext),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                    Text(
+                      'Select Arrival Time',
+                      style: AppTypography.title.copyWith(fontSize: 16),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(builderContext),
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  initialDateTime: initialTime,
+                  onDateTimeChanged: (DateTime newDate) {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      int h = newDate.hour;
+                      _selectedAmPm = h >= 12 ? 'PM' : 'AM';
+                      if (h == 0) h = 12;
+                      if (h > 12) h -= 12;
+                      _selectedHour = h.toString().padLeft(2, '0');
+                      _selectedMinute = newDate.minute.toString().padLeft(
+                        2,
+                        '0',
+                      );
+                      _updateEtaController();
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // --- QR SCANNER ---
+  Future<void> _scanQRCode() async {
+    HapticFeedback.selectionClick();
+    try {
+      final String? scannedCode = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Scaffold(
+            appBar: AppBar(title: const Text('Scan Driver QR Code')),
+            body: MobileScanner(
+              onDetect: (capture) {
+                final List<Barcode> barcodes = capture.barcodes;
+                for (final barcode in barcodes) {
+                  if (barcode.rawValue != null) {
+                    HapticFeedback.heavyImpact();
+                    Navigator.pop(context, barcode.rawValue);
+                    break;
+                  }
+                }
+              },
+            ),
+          ),
+        ),
+      );
+
+      if (scannedCode != null && scannedCode.trim().isNotEmpty) {
+        setState(
+          () => _inviteCodeController.text = scannedCode.trim().toUpperCase(),
+        );
+        _verifyCode(); // Auto verify
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Camera access denied or unavailable. Please check permissions.',
+          ),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+    }
   }
 
   Future<String?> _getNativeApiKey() async {
+    if (_cachedApiKey != null) return _cachedApiKey;
     try {
-      final String apiKey = await platform.invokeMethod('getApiKey');
-      return apiKey;
-    } on PlatformException catch (e) {
-      debugPrint("Failed to get API key from Native channel: '${e.message}'.");
+      _cachedApiKey = await platform.invokeMethod('getApiKey');
+      return _cachedApiKey;
+    } catch (e) {
       return null;
     }
+  }
+
+  Future<List<String>> _searchSchools(String query) async {
+    if (query.isEmpty) return [];
+    final apiKey = await _getNativeApiKey();
+    if (apiKey == null) return [];
+
+    try {
+      final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$query&components=country:lk&types=establishment&key=$apiKey',
+      );
+      final headers = await const GoogleApiHeaders().getHeaders();
+      final response = await http.get(url, headers: headers);
+      final data = jsonDecode(response.body);
+
+      if (data['status'] == 'OK') {
+        final keywords = [
+          "school",
+          "college",
+          "university",
+          "campus",
+          "institute",
+          "academy",
+          "international",
+          "vidyalaya",
+          "vidyalayam",
+          "maha vidyalaya",
+          "balika",
+          "nursery",
+          "preschool",
+          "montessori",
+        ];
+        return (data['predictions'] as List)
+            .map<String>((p) => p['description'] as String)
+            .where(
+              (description) =>
+                  keywords.any((k) => description.toLowerCase().contains(k)),
+            )
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Autocomplete Error: $e');
+    }
+    return [];
+  }
+
+  Future<void> _verifyCode() async {
+    HapticFeedback.lightImpact();
+    final code = _inviteCodeController.text.trim();
+    if (code.isEmpty) return;
+
+    setState(() {
+      _isValidatingCode = true;
+      _verifiedDriverDetails = null;
+      _inviteCodeError = null;
+    });
+
+    try {
+      final result = await _dataService.verifyInviteCode(code);
+      if (mounted) {
+        setState(() {
+          _isValidatingCode = false;
+          if (result['valid'] == true) {
+            HapticFeedback.mediumImpact();
+            _verifiedDriverDetails = result;
+          } else {
+            HapticFeedback.heavyImpact();
+            _inviteCodeError = result['message'] ?? 'Invalid code';
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        HapticFeedback.heavyImpact();
+        setState(() {
+          _isValidatingCode = false;
+          _inviteCodeError = e.toString().replaceAll('Exception: ', '').trim();
+        });
+      }
+    }
+  }
+
+  Widget _buildDriverDetailRow(IconData icon, String label, String? value) {
+    if (value == null || value.trim().isEmpty || value == 'null null')
+      return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppColors.textSecondary),
+          const SizedBox(width: 8),
+          Text(
+            '$label: ',
+            style: AppTypography.body.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTypography.body.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String? _getSuggestedDepartureTime() {
@@ -372,16 +832,13 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       if (ampm == 'pm' && hour < 12) hour += 12;
       if (ampm == 'am' && hour == 12) hour = 0;
 
-      final now = DateTime.now();
       DateTime targetTime = DateTime(
-        now.year,
-        now.month,
-        now.day,
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
         hour,
         minute,
       );
-
-      // Calculate departure time by subtracting the live traffic duration
       DateTime leaveTime = targetTime.subtract(
         Duration(seconds: _routeDurationSeconds!),
       );
@@ -404,7 +861,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         _dropLat == null ||
         _dropLng == null)
       return;
-
     final apiKey = await _getNativeApiKey();
     if (apiKey == null || apiKey.isEmpty) return;
 
@@ -412,14 +868,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
 
     try {
       final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/directions/json?'
-        'origin=$_pickupLat,$_pickupLng&destination=$_dropLat,$_dropLng'
-        '&departure_time=now&key=$apiKey',
+        'https://maps.googleapis.com/maps/api/directions/json?origin=$_pickupLat,$_pickupLng&destination=$_dropLat,$_dropLng&departure_time=now&key=$apiKey',
       );
-
-      // Get Native App Headers (Bypasses HTTP Restrictions for Android/iOS)
       final headers = await const GoogleApiHeaders().getHeaders();
-
       final response = await http.get(url, headers: headers);
       final data = json.decode(response.body);
 
@@ -434,29 +885,23 @@ class _AddChildSheetState extends State<_AddChildSheet> {
             _routeDurationSeconds = leg['duration_in_traffic'] != null
                 ? leg['duration_in_traffic']['value']
                 : leg['duration']['value'];
+            _pickupTimeController.text = _getSuggestedDepartureTime() ?? '';
           });
-        }
-      } else {
-        if (mounted) {
-          final errorMessage = data['error_message'] ?? data['status'];
-          debugPrint("Google Maps API Error: $errorMessage");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Route Error: $errorMessage'),
-              backgroundColor: AppColors.danger,
-              duration: const Duration(seconds: 5),
-            ),
-          );
         }
       }
     } catch (e) {
-      debugPrint('Error fetching route: $e');
+      debugPrint('Error: $e');
     } finally {
       if (mounted) setState(() => _isCalculatingRoute = false);
     }
   }
 
-  Future<void> _pickLocation(bool isPickup) async {
+  Future<void> _pickLocation({
+    required TextEditingController controller,
+    bool isPickup = false,
+    bool isDrop = false,
+  }) async {
+    HapticFeedback.lightImpact();
     final apiKey = await _getNativeApiKey();
     if (apiKey == null || apiKey.isEmpty) return;
     if (!mounted) return;
@@ -471,23 +916,13 @@ class _AddChildSheetState extends State<_AddChildSheet> {
             colorScheme: const ColorScheme.light(
               primary: AppColors.accent,
               surface: AppColors.surface,
-              onSurface: AppColors.textPrimary,
             ),
             inputDecorationTheme: InputDecorationTheme(
               filled: true,
               fillColor: AppColors.surface,
-              hintStyle: const TextStyle(color: AppColors.textSecondary),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
                 borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
-                borderSide: const BorderSide(color: AppColors.accent, width: 2),
               ),
             ),
           ),
@@ -499,67 +934,163 @@ class _AddChildSheetState extends State<_AddChildSheet> {
             initialPosition: const LatLng(6.9271, 79.8612),
             useCurrentLocation: true,
             selectInitialPosition: true,
+
+            pinBuilder: (context, state) {
+              if (state == PinState.Preparing) return const SizedBox.shrink();
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.location_on,
+                    size: 68,
+                    color: AppColors.accent,
+                  ),
+                  Positioned(
+                    top: 10,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        size: 20,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+
             selectedPlaceWidgetBuilder:
                 (context, selectedPlace, state, isSearchBarFocused) {
                   if (isSearchBarFocused) return const SizedBox.shrink();
                   return Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
+                    bottom: 24,
+                    left: 20,
+                    right: 20,
                     child: Container(
-                      margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(32),
-                        boxShadow: AppShadows.subtle,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: const BoxDecoration(
-                              color: AppColors.accentLow,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.location_on,
-                              color: AppColors.accent,
-                              size: 32,
-                            ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.accentLow,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.person_pin_circle,
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isPickup
+                                          ? "Pickup Location"
+                                          : "Drop-off Location",
+                                      style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      selectedPlace?.formattedAddress ??
+                                          "Move map to adjust location",
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            selectedPlace?.formattedAddress ??
-                                "Drag map to select a location...",
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 20),
                           SizedBox(
                             width: double.infinity,
+                            height: 52,
                             child: FilledButton(
                               style: FilledButton.styleFrom(
                                 backgroundColor: AppColors.accent,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
                               onPressed:
                                   (state == SearchingState.Searching ||
                                       selectedPlace == null)
                                   ? null
-                                  : () => Navigator.of(
-                                      context,
-                                    ).pop(selectedPlace),
+                                  : () {
+                                      bool isSriLanka = false;
+                                      if (selectedPlace.addressComponents !=
+                                          null) {
+                                        for (var component
+                                            in selectedPlace
+                                                .addressComponents!) {
+                                          if (component.types.contains(
+                                                'country',
+                                              ) &&
+                                              (component.shortName == 'LK' ||
+                                                  component.longName ==
+                                                      'Sri Lanka')) {
+                                            isSriLanka = true;
+                                            break;
+                                          }
+                                        }
+                                      } else if (selectedPlace
+                                                  .formattedAddress !=
+                                              null &&
+                                          selectedPlace.formattedAddress!
+                                              .toLowerCase()
+                                              .contains("sri lanka")) {
+                                        isSriLanka = true;
+                                      }
+
+                                      if (!isSriLanka) {
+                                        HapticFeedback.heavyImpact();
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              "Sorry, we can't provide services for the selected region. Please select a location in Sri Lanka.",
+                                            ),
+                                            backgroundColor: AppColors.danger,
+                                            duration: Duration(seconds: 4),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      Navigator.of(context).pop(selectedPlace);
+                                    },
                               child: state == SearchingState.Searching
                                   ? const SizedBox(
                                       height: 20,
@@ -590,53 +1121,72 @@ class _AddChildSheetState extends State<_AddChildSheet> {
 
     if (!mounted || result == null) return;
 
-    bool isSriLanka = false;
-    if (result.addressComponents != null) {
-      for (var component in result.addressComponents!) {
-        if (component.types.contains('country') &&
-            (component.shortName == 'LK' ||
-                component.longName == 'Sri Lanka')) {
-          isSriLanka = true;
-          break;
-        }
-      }
-    } else if (result.formattedAddress != null &&
-        result.formattedAddress!.toLowerCase().contains("sri lanka")) {
-      isSriLanka = true;
-    }
-
-    if (!isSriLanka) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Sorry, we can't provide services for the selected region. Please select a location in Sri Lanka.",
-          ),
-          backgroundColor: AppColors.danger,
-          duration: Duration(seconds: 4),
-        ),
-      );
-      return;
-    }
-
     setState(() {
+      controller.text = result.formattedAddress ?? result.name ?? '';
       if (isPickup) {
-        _pickupLocationController.text = result.formattedAddress ?? '';
         _pickupLat = result.geometry?.location.lat;
         _pickupLng = result.geometry?.location.lng;
-      } else {
-        _dropLocationController.text = result.formattedAddress ?? '';
+      } else if (isDrop) {
         _dropLat = result.geometry?.location.lat;
         _dropLng = result.geometry?.location.lng;
       }
     });
 
-    if (_pickupLat != null && _dropLat != null) {
-      _calculateRoute();
-    }
+    if (_pickupLat != null && _dropLat != null) _calculateRoute();
   }
 
   void _submit() {
+    HapticFeedback.lightImpact();
     if (!_formKey.currentState!.validate()) return;
+
+    final emergencyContact = _useCustomEmergencyContact
+        ? _emergencyContactController.text.trim()
+        : _parentPhone;
+
+    // Reject form submission if new emergency contact is typed but not verified yet.
+    if (_useCustomEmergencyContact && !_isCustomContactVerified) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please tap Verify to confirm the new emergency contact number.',
+          ),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
+    if (_hasDriver && _verifiedDriverDetails == null) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please verify the driver invite code.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
+    if (!_isEditing) {
+      final isDuplicate = widget.existingChildren.any(
+        (c) =>
+            c.name.trim().toLowerCase() ==
+                _nameController.text.trim().toLowerCase() &&
+            c.school.trim().toLowerCase() ==
+                _schoolController.text.trim().toLowerCase(),
+      );
+      if (isDuplicate) {
+        HapticFeedback.heavyImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This student is already added to this school.'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+        return;
+      }
+    }
 
     Navigator.of(context).pop({
       'fullName': _nameController.text.trim(),
@@ -649,7 +1199,8 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       'dropLat': _dropLat,
       'dropLng': _dropLng,
       'etaSchool': _etaSchoolController.text.trim(),
-      'emergencyContact': _emergencyContactController.text.trim(),
+      'pickupTime': _pickupTimeController.text.trim(),
+      'emergencyContact': emergencyContact,
       'hasDriver': _hasDriver,
       'inviteCode': _hasDriver ? _inviteCodeController.text.trim() : null,
       'description': _descriptionController.text.trim(),
@@ -657,9 +1208,22 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final suggestedDeparture = _getSuggestedDepartureTime();
+  void dispose() {
+    _nameController.dispose();
+    _ageController.dispose();
+    _schoolController.dispose();
+    _pickupLocationController.dispose();
+    _dropLocationController.dispose();
+    _etaSchoolController.dispose();
+    _emergencyContactController.dispose();
+    _inviteCodeController.dispose();
+    _descriptionController.dispose();
+    _pickupTimeController.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Form(
@@ -689,33 +1253,159 @@ class _AddChildSheetState extends State<_AddChildSheet> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _nameController,
+                textCapitalization: TextCapitalization.words,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 decoration: const InputDecoration(
                   labelText: 'Student Full Name',
                   prefixIcon: Icon(Icons.person_outline),
                 ),
-                validator: (v) => v!.isEmpty ? 'Name is required' : null,
+                validator: (v) =>
+                    (v == null || v.isEmpty) ? 'Name is required' : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _ageController,
                 keyboardType: TextInputType.number,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 decoration: const InputDecoration(
-                  labelText: 'Age',
+                  labelText: 'Age (2-21)',
                   prefixIcon: Icon(Icons.cake_outlined),
                 ),
-                validator: (v) => v!.isEmpty ? 'Age is required' : null,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Age is required';
+                  final age = int.tryParse(v);
+                  if (age == null) return 'Must be a valid number';
+                  if (age < 2 || age > 21)
+                    return 'Age must be between 2 and 21';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+
+              Text(
+                'Emergency Contact Number',
+                style: AppTypography.title.copyWith(fontSize: 16),
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _emergencyContactController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Emergency Contact Number',
-                  prefixIcon: Icon(Icons.phone_outlined),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceStrong,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.stroke),
                 ),
-                validator: (v) =>
-                    v!.isEmpty ? 'Emergency contact is required' : null,
+                child: Column(
+                  children: [
+                    RadioListTile<bool>(
+                      title: Text(
+                        'Use Parent Profile Number\n($_parentPhone)',
+                        style: AppTypography.body,
+                      ),
+                      value: false,
+                      groupValue: _useCustomEmergencyContact,
+                      activeColor: AppColors.accent,
+                      onChanged: (val) {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _useCustomEmergencyContact = val!;
+                          _emergencyContactController.text = _parentPhone;
+                        });
+                      },
+                    ),
+                    RadioListTile<bool>(
+                      title: Text(
+                        'Use Another Number',
+                        style: AppTypography.body,
+                      ),
+                      value: true,
+                      groupValue: _useCustomEmergencyContact,
+                      activeColor: AppColors.accent,
+                      onChanged: (val) {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _useCustomEmergencyContact = val!;
+                          if (!_isCustomContactVerified)
+                            _emergencyContactController.clear();
+                        });
+                      },
+                    ),
+                  ],
+                ),
               ),
+
+              if (_useCustomEmergencyContact) ...[
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _emergencyContactController,
+                        keyboardType: TextInputType.phone,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        decoration: const InputDecoration(
+                          labelText: 'New Emergency Contact',
+                          hintText: '07XXXXXXXX',
+                          prefixIcon: Icon(Icons.phone_outlined),
+                        ),
+                        onChanged: (val) {
+                          if (_isCustomContactVerified)
+                            setState(() => _isCustomContactVerified = false);
+                        },
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Required';
+                          if (!RegExp(r'^(?:0|\+94)7\d{8}$').hasMatch(v.trim()))
+                            return 'Invalid SL number';
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      height: 56,
+                      child: FilledButton(
+                        onPressed: _isSendingOtp
+                            ? null
+                            : _verifyNewEmergencyContact,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _isCustomContactVerified
+                              ? AppColors.success
+                              : AppColors.accent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: _isSendingOtp
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(
+                                _isCustomContactVerified
+                                    ? Icons.check
+                                    : Icons.verified_user,
+                                color: Colors.white,
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (!_isCustomContactVerified)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 16),
+                    child: Text(
+                      'Tap Verify to confirm this number',
+                      style: TextStyle(
+                        color: AppColors.warning,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
 
               const SizedBox(height: 24),
               Text(
@@ -723,332 +1413,273 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                 style: AppTypography.title.copyWith(fontSize: 16),
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _schoolController,
-                decoration: const InputDecoration(
-                  labelText: 'School Name',
-                  prefixIcon: Icon(Icons.school_outlined),
-                ),
-                validator: (v) => v!.isEmpty ? 'School is required' : null,
-              ),
-              const SizedBox(height: 12),
 
+              Autocomplete<String>(
+                initialValue: TextEditingValue(text: _schoolController.text),
+                optionsBuilder: (TextEditingValue textEditingValue) async {
+                  if (textEditingValue.text.isEmpty)
+                    return const Iterable<String>.empty();
+                  return await _searchSchools(textEditingValue.text);
+                },
+                onSelected: (String selection) =>
+                    _schoolController.text = selection,
+                fieldViewBuilder:
+                    (context, controller, focusNode, onEditingComplete) {
+                      controller.addListener(
+                        () => _schoolController.text = controller.text,
+                      );
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        textCapitalization: TextCapitalization.words,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        decoration: const InputDecoration(
+                          labelText: 'School Name',
+                          hintText: 'Start typing school name...',
+                          prefixIcon: Icon(Icons.school_outlined),
+                        ),
+                        validator: (v) => (v == null || v.isEmpty)
+                            ? 'School is required'
+                            : null,
+                      );
+                    },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 8.0,
+                      borderRadius: BorderRadius.circular(16),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: 250,
+                          maxWidth: MediaQuery.of(context).size.width - 48,
+                        ),
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            final option = options.elementAt(index);
+                            return ListTile(
+                              leading: const Icon(
+                                Icons.school,
+                                color: AppColors.accent,
+                              ),
+                              title: Text(option),
+                              onTap: () => onSelected(option),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _pickupLocationController,
                 readOnly: true,
-                onTap: () => _pickLocation(true),
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                onTap: () => _pickLocation(
+                  controller: _pickupLocationController,
+                  isPickup: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Pickup Location',
                   hintText: 'Tap to set on Map',
                   prefixIcon: Icon(Icons.home_outlined),
                   suffixIcon: Icon(Icons.map_outlined, color: AppColors.accent),
                 ),
-                validator: (v) =>
-                    v!.isEmpty ? 'Pickup location is required' : null,
+                validator: (v) => (v == null || v.isEmpty)
+                    ? 'Pickup location is required'
+                    : null,
               ),
               const SizedBox(height: 12),
 
               TextFormField(
                 controller: _dropLocationController,
                 readOnly: true,
-                onTap: () => _pickLocation(false),
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                onTap: () => _pickLocation(
+                  controller: _dropLocationController,
+                  isDrop: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Drop Location',
                   hintText: 'Tap to set on Map',
                   prefixIcon: Icon(Icons.pin_drop_outlined),
                   suffixIcon: Icon(Icons.map_outlined, color: AppColors.accent),
                 ),
-                validator: (v) =>
-                    v!.isEmpty ? 'Drop location is required' : null,
+                validator: (v) => (v == null || v.isEmpty)
+                    ? 'Drop location is required'
+                    : null,
               ),
               const SizedBox(height: 16),
 
-              // --- CUSTOM MODERN TIME SELECTOR ---
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 8),
-                    child: Text(
-                      'Estimated Time Arriving at School',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+              TextFormField(
+                controller: _etaSchoolController,
+                readOnly: true,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                onTap: () => _selectTime(context),
+                decoration: const InputDecoration(
+                  labelText: 'Estimated Time Arriving at School',
+                  hintText: 'Tap to select time',
+                  prefixIcon: Icon(
+                    Icons.access_time_filled,
+                    color: AppColors.accent,
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.stroke),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.access_time, color: AppColors.accent),
-                        const SizedBox(width: 12),
-
-                        // Hour Dropdown
-                        Expanded(
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _selectedHour,
-                              icon: const Icon(
-                                Icons.arrow_drop_down,
-                                color: AppColors.textSecondary,
-                              ),
-                              isExpanded: true,
-                              items: List.generate(12, (index) {
-                                final hr = (index + 1).toString().padLeft(
-                                  2,
-                                  '0',
-                                );
-                                return DropdownMenuItem(
-                                  value: hr,
-                                  child: Text(hr, style: AppTypography.body),
-                                );
-                              }),
-                              onChanged: (val) {
-                                setState(() => _selectedHour = val!);
-                                _updateEtaController();
-                              },
-                            ),
-                          ),
-                        ),
-                        const Text(
-                          ':',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Minute Dropdown
-                        Expanded(
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _selectedMinute,
-                              icon: const Icon(
-                                Icons.arrow_drop_down,
-                                color: AppColors.textSecondary,
-                              ),
-                              isExpanded: true,
-                              items:
-                                  [
-                                    '00',
-                                    '05',
-                                    '10',
-                                    '15',
-                                    '20',
-                                    '25',
-                                    '30',
-                                    '35',
-                                    '40',
-                                    '45',
-                                    '50',
-                                    '55',
-                                  ].map((min) {
-                                    return DropdownMenuItem(
-                                      value: min,
-                                      child: Text(
-                                        min,
-                                        style: AppTypography.body,
-                                      ),
-                                    );
-                                  }).toList(),
-                              onChanged: (val) {
-                                setState(() => _selectedMinute = val!);
-                                _updateEtaController();
-                              },
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-
-                        // Custom AM/PM Segmented Toggle
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceStrong,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() => _selectedAmPm = 'AM');
-                                  _updateEtaController();
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 10,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _selectedAmPm == 'AM'
-                                        ? AppColors.accent
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: _selectedAmPm == 'AM'
-                                        ? AppShadows.subtle
-                                        : null,
-                                  ),
-                                  child: Text(
-                                    'AM',
-                                    style: TextStyle(
-                                      color: _selectedAmPm == 'AM'
-                                          ? Colors.white
-                                          : AppColors.textSecondary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() => _selectedAmPm = 'PM');
-                                  _updateEtaController();
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 10,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _selectedAmPm == 'PM'
-                                        ? AppColors.accent
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: _selectedAmPm == 'PM'
-                                        ? AppShadows.subtle
-                                        : null,
-                                  ),
-                                  child: Text(
-                                    'PM',
-                                    style: TextStyle(
-                                      color: _selectedAmPm == 'PM'
-                                          ? Colors.white
-                                          : AppColors.textSecondary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  suffixIcon: Icon(
+                    Icons.edit_calendar,
+                    color: AppColors.textSecondary,
                   ),
-                ],
+                ),
+                validator: (v) => (v == null || v.isEmpty)
+                    ? 'Arrival time is required'
+                    : null,
               ),
 
-              // --- MODERN ROUTE INFO CARD ---
               if (_isCalculatingRoute)
                 const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
+                  padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
                     child: CircularProgressIndicator(color: AppColors.accent),
                   ),
                 )
               else if (_routeDistance != null && _routeDuration != null)
                 Container(
-                  margin: const EdgeInsets.only(top: 16),
-                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(top: 24),
                   decoration: BoxDecoration(
-                    color: AppColors.accentLow.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppColors.accent.withValues(alpha: 0.2),
-                    ),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.stroke),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.route, color: AppColors.accent),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Distance:',
-                            style: AppTypography.body.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            _routeDistance!,
-                            style: AppTypography.body.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          const Icon(Icons.traffic, color: AppColors.warning),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Est. Travel Time:',
-                            style: AppTypography.body.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            _routeDuration!,
-                            style: AppTypography.body.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (suggestedDeparture != null) ...[
-                        const Divider(height: 24, color: AppColors.stroke),
-                        Row(
+                      // REMOVED iOS CRASHING STATIC MAP PREVIEW
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
                           children: [
-                            const Icon(
-                              Icons.departure_board,
-                              color: AppColors.success,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Suggested Departure:',
-                              style: AppTypography.body.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.success.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                suggestedDeparture,
-                                style: AppTypography.body.copyWith(
-                                  color: AppColors.success,
-                                  fontWeight: FontWeight.bold,
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.map_outlined,
+                                  color: AppColors.textSecondary,
+                                  size: 20,
                                 ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Distance',
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  _routeDistance!,
+                                  style: AppTypography.title.copyWith(
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(
+                                height: 1,
+                                color: AppColors.stroke,
                               ),
+                            ),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.hourglass_bottom_outlined,
+                                  color: AppColors.textSecondary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Traffic Delay',
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  _routeDuration!,
+                                  style: AppTypography.title.copyWith(
+                                    fontSize: 14,
+                                    color: AppColors.warning,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(
+                                height: 1,
+                                color: AppColors.stroke,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.directions_bus_filled_outlined,
+                                  color: AppColors.accent,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Suggested Leave By',
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentLow,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _getSuggestedDepartureTime() ?? '--:--',
+                                    style: AppTypography.body.copyWith(
+                                      color: AppColors.accent,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
+
+              if (_routeDistance != null) ...[
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _pickupTimeController,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm Pickup Time (Driver sees this)',
+                    hintText: 'e.g. 06:45 AM',
+                    prefixIcon: Icon(Icons.alarm_on, color: AppColors.success),
+                  ),
+                  validator: (v) => (v == null || v.isEmpty)
+                      ? 'Pickup time is required'
+                      : null,
+                ),
+              ],
 
               const SizedBox(height: 24),
               Container(
@@ -1067,7 +1698,10 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                   ),
                   value: _hasDriver,
                   activeThumbColor: AppColors.accent,
-                  onChanged: (val) => setState(() => _hasDriver = val),
+                  onChanged: (val) {
+                    HapticFeedback.lightImpact();
+                    setState(() => _hasDriver = val);
+                  },
                   secondary: Icon(
                     _hasDriver ? Icons.local_taxi : Icons.person_search,
                     color: AppColors.accent,
@@ -1076,24 +1710,132 @@ class _AddChildSheetState extends State<_AddChildSheet> {
               ),
               if (_hasDriver) ...[
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _inviteCodeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Driver Invite Code',
-                    prefixIcon: Icon(Icons.vpn_key_outlined),
-                  ),
-                  validator: (v) => _hasDriver && v!.isEmpty
-                      ? 'Code is required if you have a driver'
-                      : null,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _inviteCodeController,
+                        textCapitalization: TextCapitalization.characters,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        decoration: InputDecoration(
+                          labelText: 'Driver Invite Code',
+                          prefixIcon: const Icon(Icons.vpn_key_outlined),
+                          suffixIcon: IconButton(
+                            icon: const Icon(
+                              Icons.qr_code_scanner,
+                              color: AppColors.accent,
+                            ),
+                            onPressed: _scanQRCode,
+                            tooltip: 'Scan QR Code',
+                          ),
+                          errorText: _inviteCodeError,
+                        ),
+                        onChanged: (val) {
+                          if (_verifiedDriverDetails != null)
+                            setState(() => _verifiedDriverDetails = null);
+                          if (_inviteCodeError != null)
+                            setState(() => _inviteCodeError = null);
+                        },
+                        validator: (v) {
+                          if (!_hasDriver) return null;
+                          if (v == null || v.isEmpty) return 'Code is required';
+                          if (v.trim().length != 8)
+                            return 'Code must be exactly 8 characters';
+                          if (_verifiedDriverDetails == null)
+                            return 'Please verify the code first';
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      height: 56,
+                      child: FilledButton(
+                        onPressed: _isValidatingCode ? null : _verifyCode,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: _isValidatingCode
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Verify'),
+                      ),
+                    ),
+                  ],
                 ),
+
+                if (_verifiedDriverDetails != null)
+                  Container(
+                    margin: const EdgeInsets.only(top: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.success.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: AppColors.success,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Driver Found & Validated!',
+                              style: AppTypography.title.copyWith(
+                                color: AppColors.success,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(height: 1, color: AppColors.stroke),
+                        ),
+                        _buildDriverDetailRow(
+                          Icons.person_outline,
+                          'Name',
+                          _verifiedDriverDetails!['driverName'],
+                        ),
+                        _buildDriverDetailRow(
+                          Icons.directions_car_outlined,
+                          'Vehicle',
+                          '${_verifiedDriverDetails!['vehicleMake']} ${_verifiedDriverDetails!['vehicleModel']}',
+                        ),
+                        _buildDriverDetailRow(
+                          Icons.location_on_outlined,
+                          'Operating Area',
+                          '${_verifiedDriverDetails!['city'] ?? ''}, ${_verifiedDriverDetails!['district'] ?? ''}',
+                        ),
+                      ],
+                    ),
+                  ),
               ],
 
               const SizedBox(height: 24),
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 3,
+                textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
-                  labelText: 'Small Description / Special Notes',
+                  labelText: 'Small Description / Special Notes (Optional)',
                   hintText:
                       'Any allergies, special needs, or notes for the driver...',
                   alignLabelWithHint: true,
