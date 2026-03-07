@@ -47,6 +47,8 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to scan driver QR codes.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
