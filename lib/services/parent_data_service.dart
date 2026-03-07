@@ -26,16 +26,34 @@ class ParentDataService {
 
   Future<ChildProfile> createChild({
     required String childName,
+    int? age,
     required String school,
     required String pickupLocation,
+    double? pickupLat,
+    double? pickupLng,
+    required String dropLocation,
+    double? dropLat,
+    double? dropLng,
     required String inviteCode,
     String? pickupTime,
+    String? etaSchool,
+    required String emergencyContact,
+    String? description,
   }) async {
     final payload = _buildChildPayload(
       childName: childName,
+      age: age,
       school: school,
       pickupLocation: pickupLocation,
+      pickupLat: pickupLat,
+      pickupLng: pickupLng,
+      dropLocation: dropLocation,
+      dropLat: dropLat,
+      dropLng: dropLng,
       pickupTime: pickupTime,
+      etaSchool: etaSchool,
+      emergencyContact: emergencyContact,
+      description: description,
       inviteCode: inviteCode,
     );
     final response = _expectMap(
@@ -43,23 +61,42 @@ class ParentDataService {
     );
     return ChildProfile.fromJson(response);
   }
+
   Future<ChildProfile> updateChild({
     required String childId,
     required String childName,
+    int? age,
     required String school,
     required String pickupLocation,
+    double? pickupLat,
+    double? pickupLng,
+    required String dropLocation,
+    double? dropLat,
+    double? dropLng,
     required String inviteCode,
     String? pickupTime,
+    String? etaSchool,
+    required String emergencyContact,
+    String? description,
   }) async {
     final payload = _buildChildPayload(
       childName: childName,
+      age: age,
       school: school,
       pickupLocation: pickupLocation,
+      pickupLat: pickupLat,
+      pickupLng: pickupLng,
+      dropLocation: dropLocation,
+      dropLat: dropLat,
+      dropLng: dropLng,
       pickupTime: pickupTime,
+      etaSchool: etaSchool,
+      emergencyContact: emergencyContact,
+      description: description,
       inviteCode: inviteCode,
     );
     final response = _expectMap(
-      await _backend.put('/api/parents/children/$childId', payload), // <--- Changed to .put
+      await _backend.put('/api/parents/children/$childId', payload),
     );
     return ChildProfile.fromJson(response);
   }
@@ -69,8 +106,6 @@ class ParentDataService {
       'attendanceState': state.apiValue,
     });
   }
-  
-  
 
   Future<List<NotificationItem>> fetchNotifications() async {
     final response = await _backend.get('/api/parents/notifications');
@@ -187,19 +222,37 @@ class ParentDataService {
 
   Map<String, dynamic> _buildChildPayload({
     required String childName,
+    int? age,
     required String school,
     required String pickupLocation,
+    double? pickupLat,
+    double? pickupLng,
+    required String dropLocation,
+    double? dropLat,
+    double? dropLng,
     required String inviteCode,
     String? pickupTime,
+    String? etaSchool,
+    required String emergencyContact,
+    String? description,
   }) {
     final normalizedTime = (pickupTime ?? '').trim().isEmpty
         ? _defaultPickupTime
         : pickupTime!.trim();
     return {
       'childName': childName.trim(),
+      if (age != null) 'age': age,
       'school': school.trim(),
       'pickupLocation': pickupLocation.trim(),
+      if (pickupLat != null) 'pickupLat': pickupLat,
+      if (pickupLng != null) 'pickupLng': pickupLng,
+      'dropLocation': dropLocation.trim(),
+      if (dropLat != null) 'dropLat': dropLat,
+      if (dropLng != null) 'dropLng': dropLng,
       'pickupTime': normalizedTime,
+      if (etaSchool != null) 'etaSchool': etaSchool.trim(),
+      'emergencyContact': emergencyContact.trim(),
+      if (description != null) 'description': description.trim(),
       'inviteCode': inviteCode.trim(),
     };
   }
