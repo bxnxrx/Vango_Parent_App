@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +11,7 @@ import 'package:google_api_headers/google_api_headers.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
-import 'package:vango_parent_app/services/auth_service.dart'; // For SMS OTP
+import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
@@ -329,8 +330,10 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _pickupTimeController;
 
+  // --- NEW EMERGENCY CONTACT STATE LOGIC ---
   String _parentPhone = '';
-  bool _useCustomEmergencyContact = false;
+  List<String> _previouslyUsedNumbers = [];
+  String _selectedEmergencyOption = 'parent'; // 'parent', '+947XXXXX', 'new'
   bool _isCustomContactVerified = false;
   bool _isSendingOtp = false;
 
@@ -392,6 +395,14 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     _parseInitialEta(initialEta);
     _etaSchoolController = TextEditingController(text: initialEta);
 
+    // Extract all unique previously used numbers from existing children
+    _previouslyUsedNumbers = widget.existingChildren
+        .map((c) => c.emergencyContact)
+        .where((c) => c != null && c.isNotEmpty)
+        .map((c) => _normalizePhone(c!))
+        .toSet()
+        .toList();
+
     _fetchParentProfileForEmergencyContact();
 
     if (_pickupLat != null && _dropLat != null) {
@@ -399,37 +410,86 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     }
   }
 
+  // Standardize numbers format to catch duplicates
+  String _normalizePhone(String phone) {
+    String p = phone.trim();
+    if (p.startsWith('+94')) return p;
+    if (p.startsWith('07')) return '+94${p.substring(1)}';
+    if (p.startsWith('7')) return '+94$p';
+    return p;
+  }
+
   Future<void> _fetchParentProfileForEmergencyContact() async {
     try {
       final profile = await _dataService.fetchProfile();
       if (mounted) {
         setState(() {
-          _parentPhone = profile['phone'] ?? '';
+          _parentPhone = _normalizePhone(profile['phone'] ?? '');
+          _previouslyUsedNumbers.remove(
+            _parentPhone,
+          ); // Don't show profile number as a duplicate option
 
-          if (_isEditing &&
-              widget.existingChild!.emergencyContact != null &&
-              widget.existingChild!.emergencyContact != _parentPhone) {
-            _useCustomEmergencyContact = true;
-            _isCustomContactVerified = true;
-            _emergencyContactController.text =
-                widget.existingChild!.emergencyContact!;
+          if (_isEditing && widget.existingChild!.emergencyContact != null) {
+            final childContact = _normalizePhone(
+              widget.existingChild!.emergencyContact!,
+            );
+
+            if (childContact == _parentPhone) {
+              _selectedEmergencyOption = 'parent';
+            } else if (_previouslyUsedNumbers.contains(childContact)) {
+              _selectedEmergencyOption = childContact;
+            } else {
+              if (childContact.isNotEmpty) {
+                _previouslyUsedNumbers.add(childContact);
+                _selectedEmergencyOption = childContact;
+              }
+            }
           } else {
-            _emergencyContactController.text = _parentPhone;
+            _selectedEmergencyOption = 'parent';
           }
         });
       }
     } catch (_) {}
   }
 
-  // --- SMS OTP VERIFICATION FOR EMERGENCY CONTACT ---
   Future<void> _verifyNewEmergencyContact() async {
-    final phone = _emergencyContactController.text.trim();
-    if (!RegExp(r'^(?:0|\+94)7\d{8}$').hasMatch(phone)) {
+    final phoneInput = _emergencyContactController.text.trim();
+    if (!RegExp(r'^7\d{8}$').hasMatch(phoneInput)) {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid SL number to verify'),
+          content: Text('Enter a valid 9-digit number starting with 7'),
           backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
+    final formattedPhone = '+94$phoneInput';
+
+    // --- PREVENT DUPLICATING PARENT NUMBER ---
+    if (formattedPhone == _parentPhone) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This is your Parent Profile Number. Please select it from the options above.',
+          ),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    // --- PREVENT DUPLICATING PREVIOUSLY VERIFIED NUMBERS ---
+    if (_previouslyUsedNumbers.contains(formattedPhone)) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This number is already in your Previously Used list above.',
+          ),
+          backgroundColor: AppColors.warning,
         ),
       );
       return;
@@ -439,11 +499,10 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     setState(() => _isSendingOtp = true);
 
     try {
-      await _authService.requestPhoneOtp(phone);
+      await _authService.requestPhoneOtp(formattedPhone);
       if (!mounted) return;
       setState(() => _isSendingOtp = false);
 
-      final otpController = TextEditingController();
       final bool? isVerified = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
@@ -451,74 +510,8 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        builder: (ctx) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Verify Emergency Contact',
-                style: AppTypography.title.copyWith(fontSize: 20),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'We sent a 6-digit code to $phone',
-                style: AppTypography.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: otpController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: '6-Digit SMS Code',
-                  prefixIcon: Icon(Icons.security),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  onPressed: () async {
-                    if (otpController.text.length != 6) return;
-                    HapticFeedback.lightImpact();
-                    try {
-                      await _authService.verifyPhoneOtp(
-                        phone: phone,
-                        token: otpController.text.trim(),
-                      );
-                      Navigator.pop(ctx, true);
-                    } catch (e) {
-                      HapticFeedback.heavyImpact();
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                          content: Text('Invalid code entered.'),
-                          backgroundColor: AppColors.danger,
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Confirm Code'),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
+        builder: (ctx) =>
+            _OtpBottomSheet(phone: formattedPhone, authService: _authService),
       );
 
       if (isVerified == true) {
@@ -651,7 +644,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     );
   }
 
-  // --- QR SCANNER ---
   Future<void> _scanQRCode() async {
     HapticFeedback.selectionClick();
     try {
@@ -659,18 +651,81 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         context,
         MaterialPageRoute(
           builder: (context) => Scaffold(
-            appBar: AppBar(title: const Text('Scan Driver QR Code')),
-            body: MobileScanner(
-              onDetect: (capture) {
-                final List<Barcode> barcodes = capture.barcodes;
-                for (final barcode in barcodes) {
-                  if (barcode.rawValue != null) {
-                    HapticFeedback.heavyImpact();
-                    Navigator.pop(context, barcode.rawValue);
-                    break;
-                  }
-                }
-              },
+            backgroundColor: Colors.black,
+            appBar: AppBar(
+              title: const Text(
+                'Scan Driver QR Code',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.black,
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+            body: Stack(
+              children: [
+                MobileScanner(
+                  onDetect: (capture) {
+                    final List<Barcode> barcodes = capture.barcodes;
+                    for (final barcode in barcodes) {
+                      if (barcode.rawValue != null) {
+                        HapticFeedback.heavyImpact();
+                        Navigator.pop(context, barcode.rawValue);
+                        break;
+                      }
+                    }
+                  },
+                ),
+                ColorFiltered(
+                  colorFilter: const ColorFilter.mode(
+                    Colors.black54,
+                    BlendMode.srcOut,
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.black,
+                          backgroundBlendMode: BlendMode.dstOut,
+                        ),
+                      ),
+                      Center(
+                        child: Container(
+                          height: 250,
+                          width: 250,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Center(
+                  child: Container(
+                    height: 250,
+                    width: 250,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.accent, width: 4),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+                const Positioned(
+                  bottom: 100,
+                  left: 0,
+                  right: 0,
+                  child: Text(
+                    'Align QR code within the frame',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -680,14 +735,12 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         setState(
           () => _inviteCodeController.text = scannedCode.trim().toUpperCase(),
         );
-        _verifyCode(); // Auto verify
+        _verifyCode();
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Camera access denied or unavailable. Please check permissions.',
-          ),
+          content: Text('Camera access denied. Please check permissions.'),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -1139,22 +1192,26 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     HapticFeedback.lightImpact();
     if (!_formKey.currentState!.validate()) return;
 
-    final emergencyContact = _useCustomEmergencyContact
-        ? _emergencyContactController.text.trim()
-        : _parentPhone;
-
-    // Reject form submission if new emergency contact is typed but not verified yet.
-    if (_useCustomEmergencyContact && !_isCustomContactVerified) {
-      HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Please tap Verify to confirm the new emergency contact number.',
+    // --- GRAB THE CORRECT FINAL EMERGENCY NUMBER ---
+    String finalEmergencyContact = '';
+    if (_selectedEmergencyOption == 'parent') {
+      finalEmergencyContact = _parentPhone;
+    } else if (_selectedEmergencyOption == 'new') {
+      if (!_isCustomContactVerified) {
+        HapticFeedback.heavyImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Please tap Verify to confirm the new emergency contact number.',
+            ),
+            backgroundColor: AppColors.danger,
           ),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-      return;
+        );
+        return;
+      }
+      finalEmergencyContact = '+94${_emergencyContactController.text.trim()}';
+    } else {
+      finalEmergencyContact = _selectedEmergencyOption;
     }
 
     if (_hasDriver && _verifiedDriverDetails == null) {
@@ -1200,7 +1257,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       'dropLng': _dropLng,
       'etaSchool': _etaSchoolController.text.trim(),
       'pickupTime': _pickupTimeController.text.trim(),
-      'emergencyContact': emergencyContact,
+      'emergencyContact': finalEmergencyContact,
       'hasDriver': _hasDriver,
       'inviteCode': _hasDriver ? _inviteCodeController.text.trim() : null,
       'description': _descriptionController.text.trim(),
@@ -1295,34 +1352,49 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                 ),
                 child: Column(
                   children: [
-                    RadioListTile<bool>(
+                    RadioListTile<String>(
                       title: Text(
                         'Use Parent Profile Number\n($_parentPhone)',
                         style: AppTypography.body,
                       ),
-                      value: false,
-                      groupValue: _useCustomEmergencyContact,
+                      value: 'parent',
+                      groupValue: _selectedEmergencyOption,
                       activeColor: AppColors.accent,
                       onChanged: (val) {
                         HapticFeedback.selectionClick();
-                        setState(() {
-                          _useCustomEmergencyContact = val!;
-                          _emergencyContactController.text = _parentPhone;
-                        });
+                        setState(() => _selectedEmergencyOption = val!);
                       },
                     ),
-                    RadioListTile<bool>(
+
+                    // Show Previously Used Numbers
+                    ..._previouslyUsedNumbers.map(
+                      (phone) => RadioListTile<String>(
+                        title: Text(
+                          'Previously Used\n($phone)',
+                          style: AppTypography.body,
+                        ),
+                        value: phone,
+                        groupValue: _selectedEmergencyOption,
+                        activeColor: AppColors.accent,
+                        onChanged: (val) {
+                          HapticFeedback.selectionClick();
+                          setState(() => _selectedEmergencyOption = val!);
+                        },
+                      ),
+                    ),
+
+                    RadioListTile<String>(
                       title: Text(
-                        'Use Another Number',
+                        'Add a New Number',
                         style: AppTypography.body,
                       ),
-                      value: true,
-                      groupValue: _useCustomEmergencyContact,
+                      value: 'new',
+                      groupValue: _selectedEmergencyOption,
                       activeColor: AppColors.accent,
                       onChanged: (val) {
                         HapticFeedback.selectionClick();
                         setState(() {
-                          _useCustomEmergencyContact = val!;
+                          _selectedEmergencyOption = val!;
                           if (!_isCustomContactVerified)
                             _emergencyContactController.clear();
                         });
@@ -1332,7 +1404,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                 ),
               ),
 
-              if (_useCustomEmergencyContact) ...[
+              if (_selectedEmergencyOption == 'new') ...[
                 const SizedBox(height: 12),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1340,21 +1412,19 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                     Expanded(
                       child: TextFormField(
                         controller: _emergencyContactController,
+                        readOnly: _isCustomContactVerified,
                         keyboardType: TextInputType.phone,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
                         decoration: const InputDecoration(
                           labelText: 'New Emergency Contact',
-                          hintText: '07XXXXXXXX',
+                          hintText: '7XXXXXXXX',
+                          prefixText: '+94 ',
                           prefixIcon: Icon(Icons.phone_outlined),
                         ),
-                        onChanged: (val) {
-                          if (_isCustomContactVerified)
-                            setState(() => _isCustomContactVerified = false);
-                        },
                         validator: (v) {
                           if (v == null || v.isEmpty) return 'Required';
-                          if (!RegExp(r'^(?:0|\+94)7\d{8}$').hasMatch(v.trim()))
-                            return 'Invalid SL number';
+                          if (!RegExp(r'^7\d{8}$').hasMatch(v.trim()))
+                            return 'Invalid SL number (e.g. 712345678)';
                           return null;
                         },
                       ),
@@ -1363,13 +1433,23 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                     SizedBox(
                       height: 56,
                       child: FilledButton(
-                        onPressed: _isSendingOtp
-                            ? null
-                            : _verifyNewEmergencyContact,
+                        onPressed: _isCustomContactVerified
+                            ? () {
+                                HapticFeedback.selectionClick();
+                                setState(
+                                  () => _isCustomContactVerified = false,
+                                );
+                              }
+                            : (_isSendingOtp
+                                  ? null
+                                  : _verifyNewEmergencyContact),
                         style: FilledButton.styleFrom(
                           backgroundColor: _isCustomContactVerified
-                              ? AppColors.success
+                              ? AppColors.surfaceStrong
                               : AppColors.accent,
+                          foregroundColor: _isCustomContactVerified
+                              ? AppColors.textPrimary
+                              : Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -1385,9 +1465,8 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                               )
                             : Icon(
                                 _isCustomContactVerified
-                                    ? Icons.check
+                                    ? Icons.edit
                                     : Icons.verified_user,
-                                color: Colors.white,
                               ),
                       ),
                     ),
@@ -1557,7 +1636,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // REMOVED iOS CRASHING STATIC MAP PREVIEW
                       Padding(
                         padding: const EdgeInsets.all(20),
                         child: Column(
@@ -1856,6 +1934,182 @@ class _AddChildSheetState extends State<_AddChildSheet> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _OtpBottomSheet extends StatefulWidget {
+  final String phone;
+  final AuthService authService;
+
+  const _OtpBottomSheet({required this.phone, required this.authService});
+
+  @override
+  State<_OtpBottomSheet> createState() => _OtpBottomSheetState();
+}
+
+class _OtpBottomSheetState extends State<_OtpBottomSheet> {
+  final TextEditingController _otpController = TextEditingController();
+  bool _isVerifying = false;
+  String? _errorMessage;
+  int _countdown = 60;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    setState(() {
+      _countdown = 60;
+      _errorMessage = null;
+    });
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_countdown > 0) {
+        setState(() => _countdown--);
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _resendCode() async {
+    HapticFeedback.selectionClick();
+    setState(() => _errorMessage = null);
+    try {
+      await widget.authService.requestPhoneOtp(widget.phone);
+      _startTimer();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Code resent successfully!'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMessage = 'Failed to resend code');
+    }
+  }
+
+  Future<void> _verify() async {
+    if (_otpController.text.length != 6) return;
+    setState(() {
+      _isVerifying = true;
+      _errorMessage = null;
+    });
+    HapticFeedback.lightImpact();
+    try {
+      await widget.authService.verifyPhoneOtp(
+        phone: widget.phone,
+        token: _otpController.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      HapticFeedback.heavyImpact();
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+          _errorMessage = 'Invalid or expired code. Please try again.';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Verify Emergency Contact',
+            style: AppTypography.title.copyWith(fontSize: 20),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'We sent a 6-digit code to ${widget.phone}',
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 24),
+          TextField(
+            controller: _otpController,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            autofocus: true,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            onChanged: (val) {
+              if (val.length == 6 && !_isVerifying) {
+                _verify();
+              }
+            },
+            decoration: InputDecoration(
+              labelText: '6-Digit SMS Code',
+              prefixIcon: const Icon(Icons.security),
+              border: const OutlineInputBorder(),
+              errorText: _errorMessage,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: _countdown == 0 ? _resendCode : null,
+                child: Text(
+                  _countdown == 0 ? 'Resend Code' : 'Resend in ${_countdown}s',
+                  style: TextStyle(
+                    color: _countdown == 0
+                        ? AppColors.accent
+                        : AppColors.textSecondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              onPressed: _isVerifying ? null : _verify,
+              child: _isVerifying
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('Confirm Code'),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
