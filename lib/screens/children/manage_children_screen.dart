@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_place_picker_mb/google_maps_place_picker.dart';
 import 'package:flutter_google_maps_webservices/places.dart' as places;
@@ -15,7 +16,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
-import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
@@ -88,23 +88,32 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
     );
 
     if (confirm == true) {
-      setState(() => _loading = true);
+      setState(() {
+        _loading = true;
+      });
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
       try {
         await _dataService.deleteChild(child.id);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!mounted) {
+          return;
+        }
+        scaffoldMessenger.showSnackBar(
           SnackBar(content: Text('${child.name} removed successfully.')),
         );
         _loadChildren();
       } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!mounted) {
+          return;
+        }
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text('Error removing student: $e'),
             backgroundColor: AppColors.danger,
           ),
         );
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+        });
       }
     }
   }
@@ -136,7 +145,6 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
       },
     );
 
-    // If bottom sheet returns true, it successfully saved. Refresh the list.
     if (result == true) {
       _loadChildren();
     }
@@ -220,13 +228,9 @@ class _ManageChildrenScreenState extends State<ManageChildrenScreen> {
       itemBuilder: (context, index) {
         final child = _children[index];
 
-        // ENTERPRISE UPGRADE: Fetching Private Images with Authorization Headers
         ImageProvider? avatarImage;
         if (child.imageUrl != null && child.imageUrl!.isNotEmpty) {
-          avatarImage = NetworkImage(
-            _dataService.getSecureImageUrl(child.imageUrl!),
-            headers: _dataService.getSecureImageHeaders(),
-          );
+          avatarImage = CachedNetworkImageProvider(child.imageUrl!);
         }
 
         return Container(
@@ -427,7 +431,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   String? _cachedApiKey;
 
   final ParentDataService _dataService = ParentDataService.instance;
-  final AuthService _authService = AuthService.instance;
 
   late final TextEditingController _nameController;
   late final TextEditingController _ageController;
@@ -441,7 +444,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   late final TextEditingController _pickupTimeController;
 
   File? _selectedImage;
-  bool _isSaving = false; // Prevents double submission
+  bool _isSaving = false;
 
   String _parentPhone = '';
   List<String> _previouslyUsedNumbers = [];
@@ -516,7 +519,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
 
     _fetchParentProfileForEmergencyContact();
 
-    if (_pickupLat != null && _dropLat != null) _calculateRoute();
+    if (_pickupLat != null && _dropLat != null) {
+      _calculateRoute();
+    }
   }
 
   Future<void> _pickImage() async {
@@ -532,20 +537,29 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         setState(() => _selectedImage = File(image.path));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to pick image.'),
-          backgroundColor: AppColors.warning,
-        ),
-      );
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Failed to pick image.'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
     }
   }
 
   String _normalizePhone(String phone) {
     String p = phone.trim();
-    if (p.startsWith('+94')) return p;
-    if (p.startsWith('07')) return '+94${p.substring(1)}';
-    if (p.startsWith('7')) return '+94$p';
+    if (p.startsWith('+94')) {
+      return p;
+    }
+    if (p.startsWith('07')) {
+      return '+94${p.substring(1)}';
+    }
+    if (p.startsWith('7')) {
+      return '+94$p';
+    }
     return p;
   }
 
@@ -591,9 +605,11 @@ class _AddChildSheetState extends State<_AddChildSheet> {
 
   Future<void> _verifyNewEmergencyContact() async {
     final phoneInput = _emergencyContactController.text.trim();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     if (!RegExp(r'^7\d{8}$').hasMatch(phoneInput)) {
       HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Enter a valid 9-digit number starting with 7'),
           backgroundColor: AppColors.danger,
@@ -606,7 +622,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
 
     if (formattedPhone == _parentPhone) {
       HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text(
             'This is your Parent Profile Number. Please select it from the options above.',
@@ -619,7 +635,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
 
     if (_previouslyUsedNumbers.contains(formattedPhone)) {
       HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('This number is already in your list above.'),
           backgroundColor: AppColors.warning,
@@ -635,7 +651,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       String currentOtp = _generateOtp();
       await _invokeSendSmsFunction(formattedPhone, currentOtp);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _isSendingOtp = false);
 
       final bool? isVerified = await showModalBottomSheet<bool>(
@@ -659,18 +677,20 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       if (isVerified == true) {
         HapticFeedback.mediumImpact();
         setState(() => _isCustomContactVerified = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Emergency Contact Verified!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        if (mounted) {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Emergency Contact Verified!'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         HapticFeedback.heavyImpact();
         setState(() => _isSendingOtp = false);
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text('Failed to send OTP: $e'),
             backgroundColor: AppColors.danger,
@@ -696,15 +716,21 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   void _updateEtaController() {
     _etaSchoolController.text =
         '$_selectedHour:$_selectedMinute $_selectedAmPm';
-    if (_pickupLat != null && _dropLat != null) _calculateRoute();
+    if (_pickupLat != null && _dropLat != null) {
+      _calculateRoute();
+    }
   }
 
   Future<void> _selectTime(BuildContext context) async {
     HapticFeedback.selectionClick();
     FocusManager.instance.primaryFocus?.unfocus();
     int initialHour = int.parse(_selectedHour);
-    if (_selectedAmPm == 'PM' && initialHour < 12) initialHour += 12;
-    if (_selectedAmPm == 'AM' && initialHour == 12) initialHour = 0;
+    if (_selectedAmPm == 'PM' && initialHour < 12) {
+      initialHour += 12;
+    }
+    if (_selectedAmPm == 'AM' && initialHour == 12) {
+      initialHour = 0;
+    }
     DateTime initialTime = DateTime(
       2024,
       1,
@@ -768,8 +794,12 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                     setState(() {
                       int h = newDate.hour;
                       _selectedAmPm = h >= 12 ? 'PM' : 'AM';
-                      if (h == 0) h = 12;
-                      if (h > 12) h -= 12;
+                      if (h == 0) {
+                        h = 12;
+                      }
+                      if (h > 12) {
+                        h -= 12;
+                      }
                       _selectedHour = h.toString().padLeft(2, '0');
                       _selectedMinute = newDate.minute.toString().padLeft(
                         2,
@@ -790,6 +820,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   Future<void> _scanQRCode() async {
     HapticFeedback.selectionClick();
     FocusManager.instance.primaryFocus?.unfocus();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final String? scannedCode = await Navigator.push<String>(
         context,
@@ -882,17 +913,21 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         _verifyCode();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Camera access denied. Please check permissions.'),
-          backgroundColor: AppColors.warning,
-        ),
-      );
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Camera access denied. Please check permissions.'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
     }
   }
 
   Future<String?> _getNativeApiKey() async {
-    if (_cachedApiKey != null) return _cachedApiKey;
+    if (_cachedApiKey != null) {
+      return _cachedApiKey;
+    }
     try {
       _cachedApiKey = await platform.invokeMethod('getApiKey');
       return _cachedApiKey;
@@ -902,9 +937,13 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   }
 
   Future<List<String>> _searchSchools(String query) async {
-    if (query.isEmpty) return [];
+    if (query.isEmpty) {
+      return [];
+    }
     final apiKey = await _getNativeApiKey();
-    if (apiKey == null) return [];
+    if (apiKey == null) {
+      return [];
+    }
 
     try {
       final url = Uri.parse(
@@ -949,7 +988,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     HapticFeedback.lightImpact();
     FocusManager.instance.primaryFocus?.unfocus();
     final code = _inviteCodeController.text.trim();
-    if (code.isEmpty) return;
+    if (code.isEmpty) {
+      return;
+    }
 
     setState(() {
       _isValidatingCode = true;
@@ -983,8 +1024,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   }
 
   Widget _buildDriverDetailRow(IconData icon, String label, String? value) {
-    if (value == null || value.trim().isEmpty || value == 'null null')
+    if (value == null || value.trim().isEmpty || value == 'null null') {
       return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -1014,21 +1056,31 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   }
 
   String? _getSuggestedDepartureTime() {
-    if (_routeDurationSeconds == null) return null;
+    if (_routeDurationSeconds == null) {
+      return null;
+    }
     final text = _etaSchoolController.text.trim().toLowerCase();
-    if (text.isEmpty) return null;
+    if (text.isEmpty) {
+      return null;
+    }
 
     final regex = RegExp(r'(\d{1,2})[:.]?(\d{2})?\s*(am|pm)?');
     final match = regex.firstMatch(text);
-    if (match == null) return null;
+    if (match == null) {
+      return null;
+    }
 
     try {
       int hour = int.parse(match.group(1)!);
       int minute = match.group(2) != null ? int.parse(match.group(2)!) : 0;
       String? ampm = match.group(3);
 
-      if (ampm == 'pm' && hour < 12) hour += 12;
-      if (ampm == 'am' && hour == 12) hour = 0;
+      if (ampm == 'pm' && hour < 12) {
+        hour += 12;
+      }
+      if (ampm == 'am' && hour == 12) {
+        hour = 0;
+      }
 
       DateTime targetTime = DateTime(
         DateTime.now().year,
@@ -1044,8 +1096,12 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       int h = leaveTime.hour;
       int m = leaveTime.minute;
       String period = h >= 12 ? 'PM' : 'AM';
-      if (h == 0) h = 12;
-      if (h > 12) h -= 12;
+      if (h == 0) {
+        h = 12;
+      }
+      if (h > 12) {
+        h -= 12;
+      }
 
       return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')} $period';
     } catch (e) {
@@ -1057,10 +1113,13 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     if (_pickupLat == null ||
         _pickupLng == null ||
         _dropLat == null ||
-        _dropLng == null)
+        _dropLng == null) {
       return;
+    }
     final apiKey = await _getNativeApiKey();
-    if (apiKey == null || apiKey.isEmpty) return;
+    if (apiKey == null || apiKey.isEmpty) {
+      return;
+    }
 
     setState(() => _isCalculatingRoute = true);
 
@@ -1090,7 +1149,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     } catch (e) {
       debugPrint('Error: $e');
     } finally {
-      if (mounted) setState(() => _isCalculatingRoute = false);
+      if (mounted) {
+        setState(() => _isCalculatingRoute = false);
+      }
     }
   }
 
@@ -1101,9 +1162,16 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   }) async {
     HapticFeedback.lightImpact();
     FocusManager.instance.primaryFocus?.unfocus();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
     final apiKey = await _getNativeApiKey();
-    if (apiKey == null || apiKey.isEmpty) return;
-    if (!mounted) return;
+    if (apiKey == null || apiKey.isEmpty) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
 
     final PickResult? result = await Navigator.push(
       context,
@@ -1135,7 +1203,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
             selectInitialPosition: true,
 
             pinBuilder: (context, state) {
-              if (state == PinState.Preparing) return const SizedBox.shrink();
+              if (state == PinState.Preparing) {
+                return const SizedBox.shrink();
+              }
               return Stack(
                 alignment: Alignment.center,
                 children: [
@@ -1166,7 +1236,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
 
             selectedPlaceWidgetBuilder:
                 (context, selectedPlace, state, isSearchBarFocused) {
-                  if (isSearchBarFocused) return const SizedBox.shrink();
+                  if (isSearchBarFocused) {
+                    return const SizedBox.shrink();
+                  }
                   return Positioned(
                     bottom: 24,
                     left: 20,
@@ -1318,7 +1390,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       ),
     );
 
-    if (!mounted || result == null) return;
+    if (!mounted || result == null) {
+      return;
+    }
 
     setState(() {
       controller.text = result.formattedAddress ?? result.name ?? '';
@@ -1331,13 +1405,20 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       }
     });
 
-    if (_pickupLat != null && _dropLat != null) _calculateRoute();
+    if (_pickupLat != null && _dropLat != null) {
+      _calculateRoute();
+    }
   }
 
   Future<void> _submit() async {
     HapticFeedback.lightImpact();
     FocusManager.instance.primaryFocus?.unfocus();
-    if (!_formKey.currentState!.validate()) return;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     if (!_isEditing) {
       final isDuplicate = widget.existingChildren.any(
@@ -1349,7 +1430,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       );
       if (isDuplicate) {
         HapticFeedback.heavyImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           const SnackBar(
             content: Text('This student is already added to this school.'),
             backgroundColor: AppColors.danger,
@@ -1365,7 +1446,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     } else if (_selectedEmergencyOption == 'new') {
       if (!_isCustomContactVerified) {
         HapticFeedback.heavyImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           const SnackBar(
             content: Text(
               'Please tap Verify to confirm the new emergency contact number.',
@@ -1382,7 +1463,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
 
     if (_hasDriver && _verifiedDriverDetails == null) {
       HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Please verify the driver invite code.'),
           backgroundColor: AppColors.danger,
@@ -1394,7 +1475,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     setState(() => _isSaving = true);
 
     try {
-      // 1. Upload Image (If a new one was picked)
       String? finalImageUrl = widget.existingChild?.imageUrl;
       if (_selectedImage != null) {
         final uploadedPath = await _dataService.uploadChildPhoto(
@@ -1405,7 +1485,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         }
       }
 
-      // 2. Save Child via API
       if (!_isEditing) {
         await _dataService.createChild(
           childName: _nameController.text.trim(),
@@ -1424,7 +1503,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
           emergencyContact: finalEmergencyContact,
           description: _descriptionController.text.trim(),
           inviteCode: _hasDriver ? _inviteCodeController.text.trim() : '',
-          // imageUrl: finalImageUrl // Add this to your DataService payload
+          imageUrl: finalImageUrl,
         );
       } else {
         await _dataService.updateChild(
@@ -1445,24 +1524,24 @@ class _AddChildSheetState extends State<_AddChildSheet> {
           emergencyContact: finalEmergencyContact,
           description: _descriptionController.text.trim(),
           inviteCode: _hasDriver ? _inviteCodeController.text.trim() : '',
-          // imageUrl: finalImageUrl // Add this to your DataService payload
+          imageUrl: finalImageUrl,
         );
       }
 
       if (mounted) {
         HapticFeedback.lightImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text('${_nameController.text.trim()} saved successfully!'),
             backgroundColor: AppColors.success,
           ),
         );
-        Navigator.pop(context, true); // Close and trigger refresh
+        navigator.pop(true);
       }
     } catch (e) {
       if (mounted) {
         HapticFeedback.heavyImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text('Error saving: $e'),
             backgroundColor: AppColors.danger,
@@ -1470,8 +1549,35 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
+  }
+
+  // Helper widget to replace deprecated Radio properties without warnings
+  Widget _buildCustomRadio({
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: isSelected ? AppColors.accent : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 16),
+            Expanded(child: Text(title, style: AppTypography.body)),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -1481,9 +1587,8 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       currentAvatar = FileImage(_selectedImage!);
     } else if (widget.existingChild?.imageUrl != null &&
         widget.existingChild!.imageUrl!.isNotEmpty) {
-      currentAvatar = NetworkImage(
-        _dataService.getSecureImageUrl(widget.existingChild!.imageUrl!),
-        headers: _dataService.getSecureImageHeaders(),
+      currentAvatar = CachedNetworkImageProvider(
+        widget.existingChild!.imageUrl!,
       );
     }
 
@@ -1529,7 +1634,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Center(
+                const Center(
                   child: Text(
                     'Add Photo',
                     style: TextStyle(
@@ -1553,8 +1658,12 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                     labelText: 'Student Full Name',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Name is required' : null,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Name is required';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -1566,11 +1675,16 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                     prefixIcon: Icon(Icons.cake_outlined),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Age is required';
+                    if (v == null || v.isEmpty) {
+                      return 'Age is required';
+                    }
                     final age = int.tryParse(v);
-                    if (age == null) return 'Must be a valid number';
-                    if (age < 2 || age > 21)
+                    if (age == null) {
+                      return 'Must be a valid number';
+                    }
+                    if (age < 2 || age > 21) {
                       return 'Age must be between 2 and 21';
+                    }
                     return null;
                   },
                 ),
@@ -1589,50 +1703,34 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                   ),
                   child: Column(
                     children: [
-                      RadioListTile<String>(
-                        title: Text(
-                          'Use Parent Profile Number\n($_parentPhone)',
-                          style: AppTypography.body,
-                        ),
-                        value: 'parent',
-                        groupValue: _selectedEmergencyOption,
-                        activeColor: AppColors.accent,
-                        onChanged: (val) {
+                      _buildCustomRadio(
+                        title: 'Use Parent Profile Number\n($_parentPhone)',
+                        isSelected: _selectedEmergencyOption == 'parent',
+                        onTap: () {
                           HapticFeedback.selectionClick();
-                          setState(() => _selectedEmergencyOption = val!);
+                          setState(() => _selectedEmergencyOption = 'parent');
                         },
                       ),
-
                       ..._previouslyUsedNumbers.map(
-                        (phone) => RadioListTile<String>(
-                          title: Text(
-                            'Previously Used\n($phone)',
-                            style: AppTypography.body,
-                          ),
-                          value: phone,
-                          groupValue: _selectedEmergencyOption,
-                          activeColor: AppColors.accent,
-                          onChanged: (val) {
+                        (phone) => _buildCustomRadio(
+                          title: 'Previously Used\n($phone)',
+                          isSelected: _selectedEmergencyOption == phone,
+                          onTap: () {
                             HapticFeedback.selectionClick();
-                            setState(() => _selectedEmergencyOption = val!);
+                            setState(() => _selectedEmergencyOption = phone);
                           },
                         ),
                       ),
-
-                      RadioListTile<String>(
-                        title: Text(
-                          'Add a New Number',
-                          style: AppTypography.body,
-                        ),
-                        value: 'new',
-                        groupValue: _selectedEmergencyOption,
-                        activeColor: AppColors.accent,
-                        onChanged: (val) {
+                      _buildCustomRadio(
+                        title: 'Add a New Number',
+                        isSelected: _selectedEmergencyOption == 'new',
+                        onTap: () {
                           HapticFeedback.selectionClick();
                           setState(() {
-                            _selectedEmergencyOption = val!;
-                            if (!_isCustomContactVerified)
+                            _selectedEmergencyOption = 'new';
+                            if (!_isCustomContactVerified) {
                               _emergencyContactController.clear();
+                            }
                           });
                         },
                       ),
@@ -1658,9 +1756,12 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                             prefixIcon: Icon(Icons.phone_outlined),
                           ),
                           validator: (v) {
-                            if (v == null || v.isEmpty) return 'Required';
-                            if (!RegExp(r'^7\d{8}$').hasMatch(v.trim()))
+                            if (v == null || v.isEmpty) {
+                              return 'Required';
+                            }
+                            if (!RegExp(r'^7\d{8}$').hasMatch(v.trim())) {
                               return 'Invalid SL number (e.g. 712345678)';
+                            }
                             return null;
                           },
                         ),
@@ -1709,8 +1810,8 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                     ],
                   ),
                   if (!_isCustomContactVerified)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4, left: 16),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4, left: 16),
                       child: Text(
                         'Tap Verify to confirm this number',
                         style: TextStyle(
@@ -1732,8 +1833,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                 Autocomplete<String>(
                   initialValue: TextEditingValue(text: _schoolController.text),
                   optionsBuilder: (TextEditingValue textEditingValue) async {
-                    if (textEditingValue.text.isEmpty)
+                    if (textEditingValue.text.isEmpty) {
                       return const Iterable<String>.empty();
+                    }
                     return await _searchSchools(textEditingValue.text);
                   },
                   onSelected: (String selection) {
@@ -1755,9 +1857,12 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                             hintText: 'Start typing school name...',
                             prefixIcon: Icon(Icons.school_outlined),
                           ),
-                          validator: (v) => (v == null || v.isEmpty)
-                              ? 'School is required'
-                              : null,
+                          validator: (v) {
+                            if (v == null || v.isEmpty) {
+                              return 'School is required';
+                            }
+                            return null;
+                          },
                         );
                       },
                   optionsViewBuilder: (context, onSelected, options) {
@@ -1811,9 +1916,12 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                       color: AppColors.accent,
                     ),
                   ),
-                  validator: (v) => (v == null || v.isEmpty)
-                      ? 'Pickup location is required'
-                      : null,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Pickup location is required';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
 
@@ -1834,9 +1942,12 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                       color: AppColors.accent,
                     ),
                   ),
-                  validator: (v) => (v == null || v.isEmpty)
-                      ? 'Drop location is required'
-                      : null,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Drop location is required';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -1857,9 +1968,12 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  validator: (v) => (v == null || v.isEmpty)
-                      ? 'Arrival time is required'
-                      : null,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Arrival time is required';
+                    }
+                    return null;
+                  },
                 ),
 
                 if (_isCalculatingRoute)
@@ -2000,9 +2114,12 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                         color: AppColors.success,
                       ),
                     ),
-                    validator: (v) => (v == null || v.isEmpty)
-                        ? 'Pickup time is required'
-                        : null,
+                    validator: (v) {
+                      if (v == null || v.isEmpty) {
+                        return 'Pickup time is required';
+                      }
+                      return null;
+                    },
                   ),
                 ],
 
@@ -2057,19 +2174,26 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                             errorText: _inviteCodeError,
                           ),
                           onChanged: (val) {
-                            if (_verifiedDriverDetails != null)
+                            if (_verifiedDriverDetails != null) {
                               setState(() => _verifiedDriverDetails = null);
-                            if (_inviteCodeError != null)
+                            }
+                            if (_inviteCodeError != null) {
                               setState(() => _inviteCodeError = null);
+                            }
                           },
                           validator: (v) {
-                            if (!_hasDriver) return null;
-                            if (v == null || v.isEmpty)
+                            if (!_hasDriver) {
+                              return null;
+                            }
+                            if (v == null || v.isEmpty) {
                               return 'Code is required';
-                            if (v.trim().length != 8)
+                            }
+                            if (v.trim().length != 8) {
                               return 'Code must be exactly 8 characters';
-                            if (_verifiedDriverDetails == null)
+                            }
+                            if (_verifiedDriverDetails == null) {
                               return 'Please verify the code first';
+                            }
                             return null;
                           },
                         ),
@@ -2251,7 +2375,9 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
       String newOtp = await widget.onResend();
       setState(() => _currentOtp = newOtp);
       _startTimer();
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Code resent successfully!'),
@@ -2259,13 +2385,17 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _errorMessage = 'Failed to resend code');
     }
   }
 
   Future<void> _verify() async {
-    if (_otpController.text.length != 6) return;
+    if (_otpController.text.length != 6) {
+      return;
+    }
     setState(() {
       _isVerifying = true;
       _errorMessage = null;
@@ -2274,7 +2404,9 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
 
     await Future.delayed(const Duration(milliseconds: 500));
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     if (_otpController.text.trim() == _currentOtp) {
       Navigator.pop(context, true);

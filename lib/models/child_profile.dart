@@ -154,6 +154,7 @@ class ChildProfile {
     String? etaSchool,
     String? emergencyContact,
     String? description,
+    String? imageUrl,
   }) {
     return ChildProfile(
       id: id,
@@ -176,6 +177,7 @@ class ChildProfile {
       etaSchool: etaSchool ?? this.etaSchool,
       emergencyContact: emergencyContact ?? this.emergencyContact,
       description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 
