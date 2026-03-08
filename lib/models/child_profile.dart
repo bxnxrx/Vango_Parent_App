@@ -62,6 +62,7 @@ class ChildProfile {
     this.etaSchool,
     this.emergencyContact,
     this.description,
+    this.imageUrl,
   });
 
   final String id;
@@ -84,6 +85,7 @@ class ChildProfile {
   final String? etaSchool;
   final String? emergencyContact;
   final String? description;
+  final String? imageUrl;
 
   factory ChildProfile.fromJson(Map<String, dynamic> json) {
     final name =
@@ -135,6 +137,7 @@ class ChildProfile {
           json['emergency_contact'] as String? ??
           json['emergencyContact'] as String?,
       description: json['description'] as String?,
+      imageUrl: json['image_url'] as String?,
     );
   }
 
@@ -151,6 +154,7 @@ class ChildProfile {
     String? etaSchool,
     String? emergencyContact,
     String? description,
+    String? imageUrl,
   }) {
     return ChildProfile(
       id: id,
@@ -173,6 +177,7 @@ class ChildProfile {
       etaSchool: etaSchool ?? this.etaSchool,
       emergencyContact: emergencyContact ?? this.emergencyContact,
       description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 

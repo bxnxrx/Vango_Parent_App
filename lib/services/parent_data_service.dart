@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/models/driver_profile.dart';
 import 'package:vango_parent_app/models/message_thread.dart';
@@ -21,7 +24,67 @@ class ParentDataService {
 
   Future<List<ChildProfile>> fetchChildren() async {
     final response = await _backend.get('/api/parents/children');
-    return _mapList(response, ChildProfile.fromJson);
+
+    final List<dynamic> data = response is List
+        ? response
+        : (response['data'] ?? []);
+    final List<ChildProfile> children = data
+        .map((json) => ChildProfile.fromJson(json))
+        .toList();
+
+    await Future.wait(
+      children.map((child) async {
+        if (child.imageUrl != null &&
+            child.imageUrl!.isNotEmpty &&
+            !child.imageUrl!.startsWith('http')) {
+          try {
+            final signedUrl = await Supabase.instance.client.storage
+                .from('child-photos')
+                .createSignedUrl(child.imageUrl!, 60 * 60 * 24 * 7);
+
+            final index = children.indexOf(child);
+            if (index != -1) {
+              children[index] = child.copyWith(imageUrl: signedUrl);
+            }
+          } catch (e) {
+            debugPrint('Failed to sign url: $e');
+          }
+        }
+      }),
+    );
+
+    return children;
+  }
+
+  Future<String?> uploadChildPhoto(File imageFile) async {
+    try {
+      if (!await imageFile.exists()) {
+        throw Exception("Image file does not exist on device.");
+      }
+
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception("User not authenticated.");
+      }
+
+      final fileExt = imageFile.path.split('.').last.toLowerCase();
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final path = '$userId/$fileName';
+
+      await Supabase.instance.client.storage
+          .from('child-photos')
+          .upload(
+            path,
+            imageFile,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+      return path;
+    } on StorageException catch (e) {
+      throw Exception('Storage Error: ${e.message}');
+    } catch (e) {
+      throw Exception('Failed to upload photo: $e');
+    }
   }
 
   Future<ChildProfile> createChild({
@@ -39,6 +102,7 @@ class ParentDataService {
     String? etaSchool,
     required String emergencyContact,
     String? description,
+    String? imageUrl,
   }) async {
     final payload = _buildChildPayload(
       childName: childName,
@@ -55,6 +119,7 @@ class ParentDataService {
       emergencyContact: emergencyContact,
       description: description,
       inviteCode: inviteCode,
+      imageUrl: imageUrl,
     );
     final response = _expectMap(
       await _backend.post('/api/parents/children', payload),
@@ -78,6 +143,7 @@ class ParentDataService {
     String? etaSchool,
     required String emergencyContact,
     String? description,
+    String? imageUrl,
   }) async {
     final payload = _buildChildPayload(
       childName: childName,
@@ -94,6 +160,7 @@ class ParentDataService {
       emergencyContact: emergencyContact,
       description: description,
       inviteCode: inviteCode,
+      imageUrl: imageUrl,
     );
     final response = _expectMap(
       await _backend.put('/api/parents/children/$childId', payload),
@@ -191,10 +258,6 @@ class ParentDataService {
     });
   }
 
-  /// Creates a booking request for a vehicle with selected children.
-  /// [vehicleId] is the DriverProfile.id (vehicle id from finder).
-  /// [childIds] is the list of selected child ids.
-  /// [note] is an optional note from the parent.
   Future<Map<String, dynamic>> createBookingRequest({
     required String vehicleId,
     required List<String> childIds,
@@ -235,6 +298,7 @@ class ParentDataService {
     String? etaSchool,
     required String emergencyContact,
     String? description,
+    String? imageUrl,
   }) {
     final normalizedTime = (pickupTime ?? '').trim().isEmpty
         ? _defaultPickupTime
@@ -254,6 +318,7 @@ class ParentDataService {
       'emergencyContact': emergencyContact.trim(),
       if (description != null) 'description': description.trim(),
       'inviteCode': inviteCode.trim(),
+      if (imageUrl != null) 'image_url': imageUrl,
     };
   }
 
@@ -267,6 +332,7 @@ class ParentDataService {
   Future<void> deleteChild(String childId) async {
     await _backend.delete('/api/parents/children/$childId');
   }
+
   Future<Map<String, dynamic>> verifyInviteCode(String code) async {
     final response = await _backend.get('/api/parents/verify-invite/$code');
     return _expectMap(response);
