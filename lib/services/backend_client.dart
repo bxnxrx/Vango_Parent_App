@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -40,40 +42,64 @@ class BackendClient {
     final headers = await _headers();
     http.Response response;
 
-    switch (method) {
-      case 'GET':
-        response = await _client.get(uri, headers: headers);
-        break;
-      case 'POST':
-        response = await _client.post(
-          uri,
-          headers: headers,
-          body: jsonEncode(body ?? <String, dynamic>{}),
-        );
-        break;
-      case 'PATCH':
-        response = await _client.patch(
-          uri,
-          headers: headers,
-          body: jsonEncode(body ?? <String, dynamic>{}),
-        );
-        break;
-      case 'PUT':
-        response = await _client.put(
-          uri,
-          headers: headers,
-          body: jsonEncode(body ?? <String, dynamic>{}),
-        );
-        break;
-      case 'DELETE':
-        response = await _client.delete(
-          uri,
-          headers: headers,
-          body: jsonEncode(body ?? <String, dynamic>{}),
-        );
-        break;
-      default:
-        throw UnsupportedError('Unsupported method $method');
+    try {
+      // UPGRADE 1: 10-Second API Timeout
+      const timeoutDuration = Duration(seconds: 10);
+
+      switch (method) {
+        case 'GET':
+          response = await _client
+              .get(uri, headers: headers)
+              .timeout(timeoutDuration);
+          break;
+        case 'POST':
+          response = await _client
+              .post(
+                uri,
+                headers: headers,
+                body: jsonEncode(body ?? <String, dynamic>{}),
+              )
+              .timeout(timeoutDuration);
+          break;
+        case 'PATCH':
+          response = await _client
+              .patch(
+                uri,
+                headers: headers,
+                body: jsonEncode(body ?? <String, dynamic>{}),
+              )
+              .timeout(timeoutDuration);
+          break;
+        case 'PUT':
+          response = await _client
+              .put(
+                uri,
+                headers: headers,
+                body: jsonEncode(body ?? <String, dynamic>{}),
+              )
+              .timeout(timeoutDuration);
+          break;
+        case 'DELETE':
+          response = await _client
+              .delete(
+                uri,
+                headers: headers,
+                body: jsonEncode(body ?? <String, dynamic>{}),
+              )
+              .timeout(timeoutDuration);
+          break;
+        default:
+          throw UnsupportedError('Unsupported method $method');
+      }
+    } on TimeoutException {
+      throw Exception(
+        'Connection timed out. Please check your internet and try again.',
+      );
+    } on SocketException {
+      // UPGRADE 2: Offline Handling
+      throw Exception('No internet connection. Please check your network.');
+    } catch (e) {
+      throw Exception('Network request failed: $e');
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -120,7 +146,6 @@ class BackendClient {
     return _send(method: 'PUT', path: path, body: body);
   }
 
-  // <-- ADDED PROPER DELETE WRAPPER
   Future<dynamic> delete(String path) {
     return _send(method: 'DELETE', path: path);
   }

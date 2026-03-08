@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/models/driver_profile.dart';
 import 'package:vango_parent_app/models/message_thread.dart';
@@ -22,6 +24,52 @@ class ParentDataService {
   Future<List<ChildProfile>> fetchChildren() async {
     final response = await _backend.get('/api/parents/children');
     return _mapList(response, ChildProfile.fromJson);
+  }
+
+  // --- ENTERPRISE UPGRADE: SECURE IMAGE UPLOAD ---
+  Future<String?> uploadChildPhoto(File imageFile) async {
+    try {
+      if (!await imageFile.exists())
+        throw Exception("Image file does not exist on device.");
+
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) throw Exception("User not authenticated.");
+
+      final fileExt = imageFile.path.split('.').last.toLowerCase();
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final path = '$userId/$fileName';
+
+      // Upload to private bucket
+      await Supabase.instance.client.storage
+          .from('child-photos')
+          .upload(
+            path,
+            imageFile,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+      // Return the secure path, NOT the public URL
+      return path;
+    } on StorageException catch (e) {
+      throw Exception('Storage Error: ${e.message}');
+    } catch (e) {
+      throw Exception('Failed to upload photo: $e');
+    }
+  }
+
+  // --- HELPER: GET SECURE RENDER URL ---
+  String getSecureImageUrl(String path) {
+    // Generate the public URL format, but swap 'public' to 'authenticated'
+    final publicUrl = Supabase.instance.client.storage
+        .from('child-photos')
+        .getPublicUrl(path);
+    return publicUrl.replaceFirst('/object/public/', '/object/authenticated/');
+  }
+
+  // --- HELPER: GET AUTH HEADERS FOR IMAGE RENDER ---
+  Map<String, String> getSecureImageHeaders() {
+    final token = Supabase.instance.client.auth.currentSession?.accessToken;
+    return {'Authorization': 'Bearer $token'};
   }
 
   Future<ChildProfile> createChild({
@@ -235,6 +283,7 @@ class ParentDataService {
     String? etaSchool,
     required String emergencyContact,
     String? description,
+    String? imageUrl,
   }) {
     final normalizedTime = (pickupTime ?? '').trim().isEmpty
         ? _defaultPickupTime
@@ -254,6 +303,7 @@ class ParentDataService {
       'emergencyContact': emergencyContact.trim(),
       if (description != null) 'description': description.trim(),
       'inviteCode': inviteCode.trim(),
+      if (imageUrl != null) 'image_url': imageUrl,
     };
   }
 
@@ -267,6 +317,7 @@ class ParentDataService {
   Future<void> deleteChild(String childId) async {
     await _backend.delete('/api/parents/children/$childId');
   }
+
   Future<Map<String, dynamic>> verifyInviteCode(String code) async {
     final response = await _backend.get('/api/parents/verify-invite/$code');
     return _expectMap(response);
