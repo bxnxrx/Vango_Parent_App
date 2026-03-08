@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math'; // NEW: For generating OTP
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,9 +10,9 @@ import 'package:google_maps_place_picker_mb/google_maps_place_picker.dart';
 import 'package:flutter_google_maps_webservices/places.dart' as places;
 import 'package:google_api_headers/google_api_headers.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // NEW: For Edge Functions
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
-import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
@@ -317,7 +318,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   String? _cachedApiKey;
 
   final ParentDataService _dataService = ParentDataService.instance;
-  final AuthService _authService = AuthService.instance;
 
   late final TextEditingController _nameController;
   late final TextEditingController _ageController;
@@ -330,10 +330,9 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _pickupTimeController;
 
-  // --- NEW EMERGENCY CONTACT STATE LOGIC ---
   String _parentPhone = '';
   List<String> _previouslyUsedNumbers = [];
-  String _selectedEmergencyOption = 'parent'; // 'parent', '+947XXXXX', 'new'
+  String _selectedEmergencyOption = 'parent';
   bool _isCustomContactVerified = false;
   bool _isSendingOtp = false;
 
@@ -395,7 +394,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     _parseInitialEta(initialEta);
     _etaSchoolController = TextEditingController(text: initialEta);
 
-    // Extract all unique previously used numbers from existing children
     _previouslyUsedNumbers = widget.existingChildren
         .map((c) => c.emergencyContact)
         .where((c) => c != null && c.isNotEmpty)
@@ -410,7 +408,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     }
   }
 
-  // Standardize numbers format to catch duplicates
   String _normalizePhone(String phone) {
     String p = phone.trim();
     if (p.startsWith('+94')) return p;
@@ -425,9 +422,7 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       if (mounted) {
         setState(() {
           _parentPhone = _normalizePhone(profile['phone'] ?? '');
-          _previouslyUsedNumbers.remove(
-            _parentPhone,
-          ); // Don't show profile number as a duplicate option
+          _previouslyUsedNumbers.remove(_parentPhone);
 
           if (_isEditing && widget.existingChild!.emergencyContact != null) {
             final childContact = _normalizePhone(
@@ -452,6 +447,19 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     } catch (_) {}
   }
 
+  // --- LOCAL OTP GENERATOR ---
+  String _generateOtp() {
+    return (100000 + Random().nextInt(900000)).toString();
+  }
+
+  // --- TRIGGER EDGE FUNCTION ---
+  Future<void> _invokeSendSmsFunction(String phone, String otp) async {
+    await Supabase.instance.client.functions.invoke(
+      'send-sms',
+      body: {'phone': phone, 'otp': otp},
+    );
+  }
+
   Future<void> _verifyNewEmergencyContact() async {
     final phoneInput = _emergencyContactController.text.trim();
     if (!RegExp(r'^7\d{8}$').hasMatch(phoneInput)) {
@@ -467,7 +475,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
 
     final formattedPhone = '+94$phoneInput';
 
-    // --- PREVENT DUPLICATING PARENT NUMBER ---
     if (formattedPhone == _parentPhone) {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -481,14 +488,11 @@ class _AddChildSheetState extends State<_AddChildSheet> {
       return;
     }
 
-    // --- PREVENT DUPLICATING PREVIOUSLY VERIFIED NUMBERS ---
     if (_previouslyUsedNumbers.contains(formattedPhone)) {
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'This number is already in your Previously Used list above.',
-          ),
+          content: Text('This number is already in your list above.'),
           backgroundColor: AppColors.warning,
         ),
       );
@@ -499,10 +503,16 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     setState(() => _isSendingOtp = true);
 
     try {
-      await _authService.requestPhoneOtp(formattedPhone);
+      // 1. Generate Local OTP
+      String currentOtp = _generateOtp();
+
+      // 2. Call Custom Edge Function
+      await _invokeSendSmsFunction(formattedPhone, currentOtp);
+
       if (!mounted) return;
       setState(() => _isSendingOtp = false);
 
+      // 3. Show Verification Bottom Sheet
       final bool? isVerified = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
@@ -510,8 +520,16 @@ class _AddChildSheetState extends State<_AddChildSheet> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        builder: (ctx) =>
-            _OtpBottomSheet(phone: formattedPhone, authService: _authService),
+        builder: (ctx) => _OtpBottomSheet(
+          phone: formattedPhone,
+          initialOtp: currentOtp,
+          onResend: () async {
+            // Callback to generate new OTP and invoke function again
+            String newOtp = _generateOtp();
+            await _invokeSendSmsFunction(formattedPhone, newOtp);
+            return newOtp;
+          },
+        ),
       );
 
       if (isVerified == true) {
@@ -1192,7 +1210,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
     HapticFeedback.lightImpact();
     if (!_formKey.currentState!.validate()) return;
 
-    // --- GRAB THE CORRECT FINAL EMERGENCY NUMBER ---
     String finalEmergencyContact = '';
     if (_selectedEmergencyOption == 'parent') {
       finalEmergencyContact = _parentPhone;
@@ -1366,7 +1383,6 @@ class _AddChildSheetState extends State<_AddChildSheet> {
                       },
                     ),
 
-                    // Show Previously Used Numbers
                     ..._previouslyUsedNumbers.map(
                       (phone) => RadioListTile<String>(
                         title: Text(
@@ -1939,11 +1955,17 @@ class _AddChildSheetState extends State<_AddChildSheet> {
   }
 }
 
+// --- NEW ENHANCED LOCAL OTP BOTTOM SHEET W/ AUTO PASTE & RESEND TIMER ---
 class _OtpBottomSheet extends StatefulWidget {
   final String phone;
-  final AuthService authService;
+  final String initialOtp;
+  final Future<String> Function() onResend;
 
-  const _OtpBottomSheet({required this.phone, required this.authService});
+  const _OtpBottomSheet({
+    required this.phone,
+    required this.initialOtp,
+    required this.onResend,
+  });
 
   @override
   State<_OtpBottomSheet> createState() => _OtpBottomSheetState();
@@ -1951,6 +1973,7 @@ class _OtpBottomSheet extends StatefulWidget {
 
 class _OtpBottomSheetState extends State<_OtpBottomSheet> {
   final TextEditingController _otpController = TextEditingController();
+  late String _currentOtp;
   bool _isVerifying = false;
   String? _errorMessage;
   int _countdown = 60;
@@ -1959,6 +1982,7 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
   @override
   void initState() {
     super.initState();
+    _currentOtp = widget.initialOtp;
     _startTimer();
   }
 
@@ -1988,7 +2012,8 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
     HapticFeedback.selectionClick();
     setState(() => _errorMessage = null);
     try {
-      await widget.authService.requestPhoneOtp(widget.phone);
+      String newOtp = await widget.onResend();
+      setState(() => _currentOtp = newOtp);
       _startTimer();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2010,21 +2035,20 @@ class _OtpBottomSheetState extends State<_OtpBottomSheet> {
       _errorMessage = null;
     });
     HapticFeedback.lightImpact();
-    try {
-      await widget.authService.verifyPhoneOtp(
-        phone: widget.phone,
-        token: _otpController.text.trim(),
-      );
-      if (!mounted) return;
+
+    // Simulate brief network delay for UX
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (!mounted) return;
+
+    if (_otpController.text.trim() == _currentOtp) {
       Navigator.pop(context, true);
-    } catch (e) {
+    } else {
       HapticFeedback.heavyImpact();
-      if (mounted) {
-        setState(() {
-          _isVerifying = false;
-          _errorMessage = 'Invalid or expired code. Please try again.';
-        });
-      }
+      setState(() {
+        _isVerifying = false;
+        _errorMessage = 'Invalid code. Please try again.';
+      });
     }
   }
 
