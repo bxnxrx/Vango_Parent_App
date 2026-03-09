@@ -337,4 +337,33 @@ class ParentDataService {
     final response = await _backend.get('/api/parents/verify-invite/$code');
     return _expectMap(response);
   }
+
+  Future<void> updateFutureAttendance(
+    String childId,
+    List<String> dates,
+    AttendanceState status,
+  ) async {
+    await _backend.post(
+      '/api/parents/children/$childId/attendance-exceptions',
+      {'dates': dates, 'status': status.apiValue},
+    );
+  }
+
+  Future<Map<String, AttendanceState>> fetchFutureAttendance(
+    String childId,
+  ) async {
+    final response = await _backend.get(
+      '/api/parents/children/$childId/attendance-exceptions',
+    );
+
+    final Map<String, AttendanceState> plans = {};
+    if (response is List) {
+      for (var item in response) {
+        plans[item['exception_date']] = AttendanceStateApi.fromString(
+          item['status'],
+        );
+      }
+    }
+    return plans;
+  }
 }
