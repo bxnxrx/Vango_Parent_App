@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:vango_parent_app/screens/Attendance/Attendance.dart';
 import 'package:vango_parent_app/screens/finder/finder_screen.dart';
@@ -5,15 +6,13 @@ import 'package:vango_parent_app/screens/home/home_screen.dart';
 import 'package:vango_parent_app/screens/messages/messages_screen.dart';
 import 'package:vango_parent_app/screens/payments/payments_screen.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
-import 'package:vango_parent_app/theme/app_typography.dart'; // Make sure this import exists
-import 'package:supabase_flutter/supabase_flutter.dart'; // ✅ ADD THIS
+import 'package:vango_parent_app/theme/app_typography.dart'; 
+import 'package:supabase_flutter/supabase_flutter.dart'; 
 
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
     required this.onSignOut,
-    // Note: These parameters below are currently not used in your build logic
-    // but kept to avoid breaking your main.dart calls.
     required this.payments_screen,
     required this.Messages_screen,
     required this.home_screen,
@@ -33,8 +32,8 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _index = 0;
-  String _parentName = 'Parent'; // ✅ ADD THIS
-  String _userEmail = ''; // ✅ ADD THIS (optional)
+  String _parentName = 'Parent'; 
+  String _userEmail = ''; 
 
   @override
   void initState() {
@@ -43,14 +42,10 @@ class _AppShellState extends State<AppShell> {
   }
 
   Future<void> _loadUserEmail() async {
-    // First try Supabase auth directly
     final user = Supabase.instance.client.auth.currentUser;
-
-    final authEmail =
-        user?.email ?? user?.userMetadata?['email'] as String? ?? '';
+    final authEmail = user?.email ?? user?.userMetadata?['email'] as String? ?? '';
     final authPhone = user?.phone ?? '';
 
-    // Set whatever we have immediately
     if (authEmail.isNotEmpty) {
       setState(() => _userEmail = authEmail);
       return;
@@ -61,16 +56,12 @@ class _AppShellState extends State<AppShell> {
       return;
     }
 
-    // If both empty, fetch from your backend profile
-    // (which stores email during registration)
     try {
       final profileData = await Supabase.instance.client
           .from('parents')
           .select('email, phone')
           .eq('supabase_user_id', user?.id ?? '')
           .single();
-
-      debugPrint('👤 parents table data: $profileData');
 
       final dbEmail = profileData['email'] as String? ?? '';
       final dbPhone = profileData['phone'] as String? ?? '';
@@ -88,15 +79,103 @@ class _AppShellState extends State<AppShell> {
     setState(() => _index = index);
   }
 
+  void _showProfilePhoto(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 30),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    )
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    _parentName.isNotEmpty ? _parentName[0].toUpperCase() : 'P',
+                    style: const TextStyle(
+                      color: AppColors.accent,
+                      fontSize: 100,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                _parentName,
+                style: AppTypography.title.copyWith(color: Colors.white, fontSize: 24),
+              ),
+              Text(
+                _userEmail,
+                style: AppTypography.body.copyWith(color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmSignOut(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Sign Out', style: AppTypography.title),
+        content: Text('Are you sure you want to log out of your account?', style: AppTypography.body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.pop(context); 
+              Navigator.pop(context); 
+              widget.onSignOut();
+            },
+            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
       HomeScreen(
         onOpenMore: () => _scaffoldKey.currentState?.openDrawer(),
         onNameLoaded: (name) {
-          setState(
-            () => _parentName = name,
-          ); // ✅ setState triggers drawer rebuild
+          setState(() => _parentName = name); 
         },
       ),
       const FinderScreen(),
@@ -148,104 +227,151 @@ class _AppShellState extends State<AppShell> {
 
   Drawer _buildDrawer() {
     const Color brandColor = AppColors.accent;
-
+    
     return Drawer(
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topRight: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            UserAccountsDrawerHeader(
-              decoration: const BoxDecoration(
-                gradient: AppColors.buttonGradient,
-                borderRadius: BorderRadius.only(topRight: Radius.circular(30)),
-              ),
-              currentAccountPicture: Container(
+      backgroundColor: Colors.transparent,
+      elevation: 0, 
+      child: Stack(
+        children: [
+          ClipRRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  color: AppColors.background.withOpacity(0.7), 
+                  border: Border(
+                    right: BorderSide(color: Colors.white.withOpacity(0.2)),
+                  ),
                 ),
-                child: CircleAvatar(
-                  backgroundColor: Colors.white,
-                  child: Text(
-                    _parentName.isNotEmpty
-                        ? _parentName[0].toUpperCase()
-                        : 'P', // ✅
-                    style: const TextStyle(
-                      color: brandColor,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // --- COMPACT PROFILE BOX ---
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: GestureDetector(
+                    onTap: () => _showProfilePhoto(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.buttonGradient, 
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 65,
+                            height: 65,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white.withOpacity(0.4), width: 2),
+                            ),
+                            child: CircleAvatar(
+                              backgroundColor: Colors.white,
+                              child: Text(
+                                _parentName.isNotEmpty ? _parentName[0].toUpperCase() : 'P',
+                                style: const TextStyle(
+                                  color: brandColor,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _parentName,
+                            textAlign: TextAlign.center,
+                            style: AppTypography.title.copyWith(
+                              color: Colors.white, 
+                              fontSize: 18,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _userEmail.isNotEmpty ? _userEmail : 'Vango Parent',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.body.copyWith(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              accountName: Text(
-                _parentName, // ✅ real name from DB
-                style: AppTypography.title.copyWith(
-                  color: Colors.white,
-                  fontSize: 18,
+                // -----------------------------
+                const SizedBox(height: 12),
+                _buildDrawerItem(
+                  icon: Icons.home_rounded, 
+                  label: 'Home', 
+                  index: 0, 
                 ),
-              ),
-              accountEmail: Text(
-                _userEmail.isNotEmpty ? _userEmail : 'Vango Parent',
-                style: AppTypography.body.copyWith(color: Colors.white70),
-              ),
-            ),
-            const SizedBox(height: 10),
-            _buildDrawerItem(icon: Icons.home_rounded, label: 'Home', index: 0),
-            _buildDrawerItem(
-              icon: Icons.search_rounded,
-              label: 'Find Driver',
-              index: 1,
-            ),
-            _buildDrawerItem(
-              icon: Icons.chat_bubble_rounded,
-              label: 'Messages',
-              index: 2,
-            ),
-            _buildDrawerItem(
-              icon: Icons.account_balance_wallet_rounded,
-              label: 'Payments',
-              index: 3,
-            ),
-            _buildDrawerItem(
-              icon: Icons.verified_user_rounded,
-              label: 'Attendance',
-              index: 4,
-            ),
-            const Spacer(),
-            const Divider(indent: 20, endIndent: 20),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+                _buildDrawerItem(
+                  icon: Icons.search_rounded, 
+                  label: 'Find Driver', 
+                  index: 1, 
                 ),
-                tileColor: AppColors.danger.withOpacity(0.1),
-                leading: const Icon(
-                  Icons.logout_rounded,
-                  color: AppColors.danger,
+                _buildDrawerItem(
+                  icon: Icons.chat_bubble_outline_rounded, 
+                  label: 'Messages', 
+                  index: 2, 
                 ),
-                title: Text(
-                  'Sign out',
-                  style: AppTypography.title.copyWith(
-                    color: AppColors.danger,
-                    fontSize: 16,
+                _buildDrawerItem(
+                  icon: Icons.account_balance_wallet_rounded, 
+                  label: 'Payments', 
+                  index: 3, 
+                ),
+                _buildDrawerItem(
+                  icon: Icons.verified_user_rounded, 
+                  label: 'Attendance', 
+                  index: 4, 
+                ),
+                const Spacer(),
+                const Divider(indent: 20, endIndent: 20, color: Colors.white24),
+                
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: InkWell(
+                    onTap: () => _confirmSignOut(context),
+                    borderRadius: BorderRadius.circular(15),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.danger.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.logout, color: AppColors.danger),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Sign out',
+                            style: AppTypography.title.copyWith(
+                              color: AppColors.danger,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.danger.withOpacity(0.5)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                onTap: () {
-                  Navigator.pop(context);
-                  widget.onSignOut();
-                },
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -258,26 +384,41 @@ class _AppShellState extends State<AppShell> {
     final bool isSelected = _index == index;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: ListTile(
-        selected: isSelected,
-        selectedTileColor: AppColors.accent.withOpacity(0.1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        leading: Icon(
-          icon,
-          color: isSelected ? AppColors.accent : AppColors.textSecondary,
-        ),
-        title: Text(
-          label,
-          style: AppTypography.body.copyWith(
-            color: isSelected ? AppColors.accent : AppColors.textPrimary,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected 
+                ? AppColors.accent 
+                : Colors.transparent, 
+            width: 1,
           ),
+          color: isSelected ? AppColors.accent.withOpacity(0.08) : Colors.transparent,
         ),
-        onTap: () {
-          Navigator.pop(context);
-          _selectTab(index);
-        },
+        child: ListTile(
+          dense: true, // Makes the item rows slightly shorter
+          selected: isSelected,
+          selectedTileColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          leading: Icon(
+            icon,
+            color: isSelected ? AppColors.accent : AppColors.textSecondary,
+            size: 22,
+          ),
+          title: Text(
+            label,
+            style: AppTypography.body.copyWith(
+              color: isSelected ? AppColors.accent : AppColors.textPrimary,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              fontSize: 14,
+            ),
+          ),
+          onTap: () {
+            Navigator.pop(context);
+            _selectTab(index);
+          },
+        ),
       ),
     );
   }
