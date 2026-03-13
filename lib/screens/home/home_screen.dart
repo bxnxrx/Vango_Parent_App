@@ -14,6 +14,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:vango_parent_app/screens/notifications/notification_panel_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:badges/badges.dart' as badges;
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.onOpenMore, this.onNameLoaded});
@@ -465,6 +466,7 @@ class _LiveMapCard extends StatelessWidget {
 }
 
 // 👇 UPDATED: Pop-up perfectly matches the widget design!
+// 👇 UPDATED: Added Time formatting and display!
 class _LiveNotificationCard extends StatefulWidget {
   const _LiveNotificationCard({required this.alertData});
   final Map<String, dynamic> alertData;
@@ -474,7 +476,6 @@ class _LiveNotificationCard extends StatefulWidget {
 }
 
 class _LiveNotificationCardState extends State<_LiveNotificationCard> {
-  // Local state to hide the blue dot instantly on tap
   late bool _localIsRead;
 
   @override
@@ -502,9 +503,7 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
     }
   }
 
-  // Handle the tap and show the matching pop-up
-  void _handleTap(IconData iconData, Color iconColor, Color iconBgColor) {
-    // 1. Instantly hide the blue dot
+  void _handleTap(IconData iconData, Color iconColor, Color iconBgColor, String timeString) {
     if (!_localIsRead) {
       setState(() => _localIsRead = true);
       _markAsReadBackend();
@@ -515,12 +514,11 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
     final String type = widget.alertData['notification_type'] ?? '';
     final String? referenceId = widget.alertData['reference_id'];
 
-    // 2. Trigger a Custom Dialog that looks exactly like your widget!
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return Dialog(
-          backgroundColor: Colors.transparent, // Transparent so only our custom card shows
+          backgroundColor: Colors.transparent,
           elevation: 0,
           insetPadding: const EdgeInsets.symmetric(horizontal: 20),
           child: Container(
@@ -531,39 +529,40 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
               border: Border.all(color: Colors.grey.shade200),
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min, // Hugs the content tightly
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // The exact same Left Icon Circle
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle),
                       child: Icon(iconData, color: iconColor, size: 24),
                     ),
                     const SizedBox(width: 16),
-                    // The fully expanded text
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            title,
-                            style: AppTypography.title.copyWith(fontSize: 18, fontWeight: FontWeight.bold),
+                          // Added time to the pop-up as well!
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(title, style: AppTypography.title.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
+                              ),
+                              Text(timeString, style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                            ],
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            body,
-                            style: AppTypography.body.copyWith(fontSize: 15, color: Colors.grey.shade700),
-                          ),
+                          Text(body, style: AppTypography.body.copyWith(fontSize: 15, color: Colors.grey.shade700)),
                         ],
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
-                // Action Buttons below the text
                 if (type == 'EMERGENCY_ALERT' && referenceId != null)
                   SizedBox(
                     width: double.infinity,
@@ -574,7 +573,7 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () {
-                        Navigator.pop(dialogContext); // Close pop-up
+                        Navigator.pop(dialogContext);
                         Navigator.of(context).pushNamed('/emergency_status', arguments: {'emergencyId': referenceId});
                       },
                       child: const Text('View Live Map', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -601,17 +600,43 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
     );
   }
 
+  // 👇 HELPER FUNCTION TO FORMAT THE TIME BEAUTIFULLY 👇
+  String _formatTimestamp(String? timestamp) {
+    if (timestamp == null || timestamp.isEmpty) return '';
+    try {
+      final DateTime date = DateTime.parse(timestamp).toLocal();
+      final DateTime now = DateTime.now();
+      final Duration difference = now.difference(date);
+
+      if (difference.inMinutes < 1) {
+        return 'Just now';
+      } else if (difference.inMinutes < 60) {
+        return '${difference.inMinutes}m ago';
+      } else if (difference.inHours < 24 && now.day == date.day) {
+        return DateFormat('h:mm a').format(date); // e.g., "3:45 PM"
+      } else if (difference.inDays < 2) {
+        return 'Yesterday';
+      } else {
+        return DateFormat('MMM d').format(date); // e.g., "Oct 12"
+      }
+    } catch (e) {
+      return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isUnread = !_localIsRead; 
     final String title = widget.alertData['title'] ?? 'Notification';
     final String body = widget.alertData['message'] ?? '';
     
+    // 👇 Get the formatted time string
+    final String timeString = _formatTimestamp(widget.alertData['created_at']);
+    
     IconData iconData = Icons.notifications;
     Color iconColor = Colors.blueGrey;
     Color iconBgColor = Colors.blueGrey.withOpacity(0.1);
     
-    // Set colors to match your screenshot
     if (title.toLowerCase().contains('resolved') || widget.alertData['notification_type'] == 'EMERGENCY_RESOLVED') {
       iconData = Icons.check_circle;
       iconColor = Colors.green;
@@ -623,8 +648,7 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
     }
 
     return GestureDetector(
-      // Pass the colors to the handleTap so the popup matches exactly!
-      onTap: () => _handleTap(iconData, iconColor, iconBgColor),
+      onTap: () => _handleTap(iconData, iconColor, iconBgColor, timeString),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
@@ -646,21 +670,35 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: AppTypography.title.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                  // 👇 Title row now includes the time string pushed to the right
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: AppTypography.title.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        timeString,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade400, fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     body,
                     style: AppTypography.body.copyWith(fontSize: 14, color: Colors.grey.shade700),
                     maxLines: 1, 
-                    overflow: TextOverflow.ellipsis, // Keeps the main screen tidy
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            // The unread dot that vanishes on tap
             if (isUnread)
               Padding(
                 padding: const EdgeInsets.only(left: 8.0),

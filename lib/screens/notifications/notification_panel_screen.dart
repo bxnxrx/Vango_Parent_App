@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
+import 'package:intl/intl.dart';
 
 class NotificationPanelScreen extends StatefulWidget {
   const NotificationPanelScreen({super.key});
@@ -104,6 +105,7 @@ class _NotificationPanelScreenState extends State<NotificationPanelScreen> {
 }
 
 // Re-using your exact pop-up card design so it matches the home screen!
+// 👇 UPDATED: Added Time formatting to the Panel Screen!
 class _PanelNotificationCard extends StatefulWidget {
   const _PanelNotificationCard({required this.alertData});
   final Map<String, dynamic> alertData;
@@ -140,7 +142,7 @@ class _PanelNotificationCardState extends State<_PanelNotificationCard> {
     }
   }
 
-  void _handleTap(IconData iconData, Color iconColor, Color iconBgColor) {
+  void _handleTap(IconData iconData, Color iconColor, Color iconBgColor, String timeString) {
     if (!_localIsRead) {
       setState(() => _localIsRead = true);
       _markAsReadBackend();
@@ -181,7 +183,17 @@ class _PanelNotificationCardState extends State<_PanelNotificationCard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title, style: AppTypography.title.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
+                          // 👇 Time added to the Pop-up Dialog
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(title, style: AppTypography.title.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
+                              ),
+                              Text(timeString, style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
                           const SizedBox(height: 8),
                           Text(body, style: AppTypography.body.copyWith(fontSize: 15, color: Colors.grey.shade700)),
                         ],
@@ -227,11 +239,38 @@ class _PanelNotificationCardState extends State<_PanelNotificationCard> {
     );
   }
 
+  // 👇 Helper function to format time
+  String _formatTimestamp(String? timestamp) {
+    if (timestamp == null || timestamp.isEmpty) return '';
+    try {
+      final DateTime date = DateTime.parse(timestamp).toLocal();
+      final DateTime now = DateTime.now();
+      final Duration difference = now.difference(date);
+
+      if (difference.inMinutes < 1) {
+        return 'Just now';
+      } else if (difference.inMinutes < 60) {
+        return '${difference.inMinutes}m ago';
+      } else if (difference.inHours < 24 && now.day == date.day) {
+        return DateFormat('h:mm a').format(date);
+      } else if (difference.inDays < 2) {
+        return 'Yesterday';
+      } else {
+        return DateFormat('MMM d').format(date);
+      }
+    } catch (e) {
+      return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isUnread = !_localIsRead; 
     final String title = widget.alertData['title'] ?? 'Notification';
     final String body = widget.alertData['message'] ?? '';
+    
+    // 👇 Get the formatted time string
+    final String timeString = _formatTimestamp(widget.alertData['created_at']);
     
     IconData iconData = Icons.notifications;
     Color iconColor = Colors.blueGrey;
@@ -248,7 +287,7 @@ class _PanelNotificationCardState extends State<_PanelNotificationCard> {
     }
 
     return GestureDetector(
-      onTap: () => _handleTap(iconData, iconColor, iconBgColor),
+      onTap: () => _handleTap(iconData, iconColor, iconBgColor, timeString),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
@@ -270,7 +309,25 @@ class _PanelNotificationCardState extends State<_PanelNotificationCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTypography.title.copyWith(fontSize: 16, fontWeight: FontWeight.bold)),
+                  // 👇 Title row now includes the time string on the right
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: AppTypography.title.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        timeString,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade400, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     body,
