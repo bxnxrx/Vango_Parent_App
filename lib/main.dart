@@ -13,6 +13,7 @@ import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_theme.dart';
 import 'package:vango_parent_app/services/notification_service.dart';
 import 'package:vango_parent_app/services/device_service.dart';
+import 'package:vango_parent_app/services/theme_service.dart';
 
 // Make sure this path is correct
 
@@ -154,6 +155,7 @@ class _VanGoAppState extends State<VanGoApp> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final Widget home;
 
@@ -175,17 +177,28 @@ class _VanGoAppState extends State<VanGoApp> {
         break;
     }
 
-    return MaterialApp(
-      navigatorKey: _navigatorKey,
-      scaffoldMessengerKey: _messengerKey,
-      title: 'VanGo',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      home: home,
+    // --- WRAP WITH ValueListenableBuilder ---
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeService.instance.themeMode,
+      builder: (context, currentThemeMode, child) {
+        return MaterialApp(
+          navigatorKey: _navigatorKey,
+          scaffoldMessengerKey: _messengerKey,
+          title: 'VanGo',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
+          
+          // --- USE THE DYNAMIC THEME MODE ---
+          themeMode: currentThemeMode, 
+          
+          home: home,
+        );
+      },
     );
   }
 }
-
+  
 class ParentOfflineApp extends StatelessWidget {
   const ParentOfflineApp({super.key, required this.error});
 

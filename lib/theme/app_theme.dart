@@ -1,92 +1,96 @@
 ﻿import 'package:flutter/material.dart';
-
-import 'package:vango_parent_app/theme/app_colors.dart';
-import 'package:vango_parent_app/theme/app_typography.dart';
+// Note: adjust import paths to match your project
+import 'app_colors.dart';
+import 'app_typography.dart';
 
 class AppTheme {
+  // --- EXISTING LIGHT THEME ---
   static ThemeData light() {
-    // Base palette pulled from the shared color file.
+    // ... (Keep your existing light() method exactly as it is) ...
+    // Returning ThemeData(...)
+    return ThemeData(
+      useMaterial3: true,
+      scaffoldBackgroundColor: AppColors.background,
+      textTheme: AppTypography.textTheme(AppColors.textPrimary), // Passes dark text
+      // ... rest of your light theme properties
+    );
+  }
+
+  // --- NEW DARK THEME ---
+  static ThemeData dark() {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.accent,
-      background: AppColors.background,
-      primary: AppColors.accent,
-      secondary: AppColors.surface,
+      brightness: Brightness.dark,
+      seedColor: AppColors.darkAccent,
+      background: AppColors.darkBackground,
+      primary: AppColors.darkAccent,
+      secondary: AppColors.darkSurface,
     );
 
-    // Material 3 app bar styling keeps chrome minimal.
     const appBarTheme = AppBarTheme(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      foregroundColor: AppColors.textPrimary,
+      foregroundColor: AppColors.darkTextPrimary,
     );
 
-    // Navigation bar stays subtle behind bottom tabs.
     final navigationBarTheme = NavigationBarThemeData(
-      indicatorColor: AppColors.accent.withOpacity(0.08),
-      backgroundColor: AppColors.background,
+      indicatorColor: AppColors.darkAccent.withOpacity(0.15),
+      backgroundColor: AppColors.darkBackground,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       elevation: 0,
     );
 
-    // Rounded list tiles match the rest of the cards.
     final listTileTheme = ListTileThemeData(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-      tileColor: AppColors.surface,
-      iconColor: AppColors.accent,
+      tileColor: AppColors.darkSurface,
+      iconColor: AppColors.darkAccent,
     );
 
-    // Shared sheet look for modal bottom sheets.
     const bottomSheetTheme = BottomSheetThemeData(
-      backgroundColor: AppColors.surface,
-      modalBackgroundColor: AppColors.surface,
+      backgroundColor: AppColors.darkSurface,
+      modalBackgroundColor: AppColors.darkSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
     );
 
-    // Chip styling mirrors the cards and gradients.
     final chipTheme = ChipThemeData(
-      backgroundColor: AppColors.surfaceStrong,
-      selectedColor: AppColors.accent,
-      labelStyle: AppTypography.label,
+      backgroundColor: AppColors.darkSurfaceStrong,
+      selectedColor: AppColors.darkAccent,
+      labelStyle: AppTypography.label.copyWith(color: AppColors.darkTextPrimary),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
     );
 
-    // Floating action button palette sits on the accent color.
     const floatingActionButtonTheme = FloatingActionButtonThemeData(
-      backgroundColor: AppColors.accent,
+      backgroundColor: AppColors.darkAccent,
       foregroundColor: Colors.white,
     );
 
-    // Buttons use the gradient palette but stay easy to override.
     final elevatedButtonStyle = ElevatedButton.styleFrom(
-      backgroundColor: AppColors.accent,
+      backgroundColor: AppColors.darkAccent,
       foregroundColor: Colors.white,
       shape: const StadiumBorder(),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       textStyle: AppTypography.label.copyWith(fontSize: 16, color: Colors.white),
     );
 
-    // Forms share the same rounded outline treatment.
     final inputDecorationTheme = InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.darkSurface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(22),
-        borderSide: const BorderSide(color: AppColors.stroke),
+        borderSide: const BorderSide(color: AppColors.darkStroke),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(22),
-        borderSide: const BorderSide(color: AppColors.accent, width: 1.4),
+        borderSide: const BorderSide(color: AppColors.darkAccent, width: 1.4),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(22),
-        borderSide: const BorderSide(color: AppColors.stroke),
+        borderSide: const BorderSide(color: AppColors.darkStroke),
       ),
     );
 
-    // Card defaults keep spacing consistent across screens.
     final cardTheme = CardThemeData(
-      color: AppColors.surface,
+      color: AppColors.darkSurface,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       margin: EdgeInsets.zero,
@@ -95,11 +99,12 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: AppColors.background,
-      textTheme: AppTypography.textTheme(AppColors.textPrimary),
+      scaffoldBackgroundColor: AppColors.darkBackground,
+      // Pass the light text color so it shows up on dark backgrounds
+      textTheme: AppTypography.textTheme(AppColors.darkTextPrimary), 
       appBarTheme: appBarTheme,
-      dividerColor: AppColors.stroke,
-      dividerTheme: const DividerThemeData(color: AppColors.stroke, thickness: 1),
+      dividerColor: AppColors.darkStroke,
+      dividerTheme: const DividerThemeData(color: AppColors.darkStroke, thickness: 1),
       navigationBarTheme: navigationBarTheme,
       listTileTheme: listTileTheme,
       bottomSheetTheme: bottomSheetTheme,
@@ -111,4 +116,3 @@ class AppTheme {
     );
   }
 }
-

@@ -38,12 +38,17 @@ class _AddCardScreenState extends State<AddCardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic Background
       appBar: AppBar(
-        backgroundColor: AppColors.background,
-        title: const Text('Add Card'),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic Background
+        title: Text('Add Card', style: TextStyle(color: textColor)), // 👇 Dynamic Text
         centerTitle: true,
+        iconTheme: IconThemeData(color: textColor), // 👇 Dynamic Back Button
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -61,7 +66,7 @@ class _AddCardScreenState extends State<AddCardScreen> {
                 const SizedBox(height: 32),
                 Text(
                   'Credit Card Info',
-                  style: AppTypography.title.copyWith(fontSize: 16),
+                  style: AppTypography.title.copyWith(fontSize: 16, color: textColor), // 👇 Dynamic Text
                 ),
                 const SizedBox(height: 20),
                 const _InputLabel(label: 'Card Holder Name'),
@@ -168,8 +173,8 @@ class _AddCardScreenState extends State<AddCardScreen> {
                 FilledButton(
                   onPressed: _saveCard,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.surfaceStrong,
-                    foregroundColor: AppColors.textPrimary,
+                    backgroundColor: isDark ? AppColors.darkSurfaceStrong : AppColors.surfaceStrong, // 👇 Dynamic Button BG
+                    foregroundColor: textColor, // 👇 Dynamic Text Color
                     minimumSize: const Size.fromHeight(56),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -177,7 +182,7 @@ class _AddCardScreenState extends State<AddCardScreen> {
                   ),
                   child: Text(
                     'Save Card',
-                    style: AppTypography.title.copyWith(fontSize: 16),
+                    style: AppTypography.title.copyWith(fontSize: 16, color: textColor), // 👇 Dynamic Text
                   ),
                 ),
               ],
@@ -189,6 +194,7 @@ class _AddCardScreenState extends State<AddCardScreen> {
   }
 }
 
+// NOTE: The Credit Card preview intentionally stays as the vibrant brand gradient with white text in both modes!
 class _CardPreview extends StatelessWidget {
   const _CardPreview({required this.cardNumber, required this.expiryDate});
 
@@ -289,11 +295,13 @@ class _InputLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Text(
       label,
       style: AppTypography.body.copyWith(
         fontSize: 14,
-        color: AppColors.textSecondary,
+        color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary, // 👇 Dynamic Label Color
         fontWeight: FontWeight.w500,
       ),
     );
@@ -321,6 +329,10 @@ class _CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final hintColor = isDark ? AppColors.darkTextSecondary.withOpacity(0.5) : AppColors.textSecondary.withOpacity(0.5);
+
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
@@ -328,27 +340,27 @@ class _CustomTextField extends StatelessWidget {
       inputFormatters: inputFormatters,
       obscureText: obscureText,
       onChanged: onChanged,
-      style: AppTypography.body.copyWith(fontSize: 15),
+      style: AppTypography.body.copyWith(fontSize: 15, color: textColor), // 👇 Dynamic Input Text Color
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: AppTypography.body.copyWith(
           fontSize: 15,
-          color: AppColors.textSecondary.withOpacity(0.5),
+          color: hintColor, // 👇 Dynamic Hint Color
         ),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Fill Color
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.stroke),
+          borderSide: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.stroke),
+          borderSide: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.accent, width: 2),
+          borderSide: const BorderSide(color: AppColors.accent, width: 2), // Keep vibrant active border
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

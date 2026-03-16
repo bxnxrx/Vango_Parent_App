@@ -15,6 +15,7 @@ import 'package:vango_parent_app/screens/notifications/notification_panel_screen
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:intl/intl.dart';
+import 'package:vango_parent_app/services/theme_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.onOpenMore, this.onNameLoaded});
@@ -36,7 +37,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String _parentName = "Parent";
   String? _mapsApiKey; 
 
-  // 👇 NEW: Filter state for the notifications
   String _selectedFilter = 'All'; 
 
   @override
@@ -110,10 +110,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadDashboard(showSpinner: false); 
   }
 
-  // 👇 NEW: Helper function to determine if an alert is "Important" (Critical)
   bool _isImportantAlert(Map<String, dynamic> alert) {
     final title = (alert['title'] ?? '').toString().toLowerCase();
-    // These match your critical emergency types from the driver app
     return title.contains('breakdown') || 
            title.contains('accident') || 
            title.contains('medical') || 
@@ -127,9 +125,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final String userId = _supabase.auth.currentUser?.id ?? '';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Updated to dynamic background
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _supabase
             .from('notification_logs')
@@ -141,7 +141,6 @@ class _HomeScreenState extends State<HomeScreen> {
           final liveNotifications = snapshot.data ?? [];
           final unreadCount = liveNotifications.where((n) => n['is_read'] != true).length;
 
-          // 👇 NEW: Apply the selected filter
           final filteredNotifications = liveNotifications.where((alert) {
             if (_selectedFilter == 'All') return true;
             final isImportant = _isImportantAlert(alert);
@@ -196,20 +195,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         const SizedBox(height: 32),
                         
-                        // 👇 NEW: Filter UI next to Recent Alerts
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Recent Alerts', style: AppTypography.title.copyWith(fontSize: 20)),
+                            Text('Recent Alerts', style: AppTypography.title.copyWith(fontSize: 20, color: textColor)),
                             DropdownButton<String>(
                               value: _selectedFilter,
                               icon: const Icon(Icons.filter_list, size: 18),
-                              underline: const SizedBox(), // Removes the default line
+                              underline: const SizedBox(), 
                               style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 14),
+                              dropdownColor: Theme.of(context).colorScheme.surface,
                               items: ['All', 'Important', 'Situational'].map((String value) {
                                 return DropdownMenuItem<String>(
                                   value: value,
-                                  child: Text(value),
+                                  child: Text(value, style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary)),
                                 );
                               }).toList(),
                               onChanged: (newValue) {
@@ -223,12 +222,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 12),
                         
                         if (filteredNotifications.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Text("No alerts matching this filter."),
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text("No alerts matching this filter.", style: TextStyle(color: textColor)),
                           )
                         else
-                          // 👇 Changed to take(5)
                           ...filteredNotifications
                               .take(5) 
                               .map((alert) => _LiveNotificationCard(alertData: alert)),
@@ -246,14 +244,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   SliverAppBar _buildModernAppBar(int unreadCount) {
+    // 👇 Determine current theme to set app bar colors
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return SliverAppBar(
       floating: true,
       elevation: 0,
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic app bar background
       surfaceTintColor: Colors.transparent,
       leading: IconButton(
         onPressed: widget.onOpenMore,
-        icon: const Icon(Icons.grid_view_rounded, color: AppColors.textPrimary),
+        icon: Icon(Icons.grid_view_rounded, color: textColor),
       ),
       title: Row(
         children: [
@@ -276,13 +279,32 @@ class _HomeScreenState extends State<HomeScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Good Morning,', style: AppTypography.body.copyWith(fontSize: 12, color: AppColors.textSecondary)),
-              Text(_parentName, style: AppTypography.headline.copyWith(fontSize: 18)),
+              Text('Good Morning,', style: AppTypography.body.copyWith(fontSize: 12, color: textSecondary)),
+              Text(_parentName, style: AppTypography.headline.copyWith(fontSize: 18, color: textColor)),
             ],
           ),
         ],
       ),
       actions: [
+        ValueListenableBuilder<ThemeMode>(
+          valueListenable: ThemeService.instance.themeMode,
+          builder: (context, currentMode, child) {
+            final isDarkToggle = currentMode == ThemeMode.dark || 
+                (currentMode == ThemeMode.system && MediaQuery.of(context).platformBrightness == Brightness.dark);
+            
+            return IconButton(
+              icon: Icon(
+                isDarkToggle ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                color: textColor,
+              ),
+              onPressed: () {
+                ThemeService.instance.updateThemeMode(
+                  isDarkToggle ? ThemeMode.light : ThemeMode.dark,
+                );
+              },
+            );
+          },
+        ),
         IconButton(
           onPressed: () {
             Navigator.of(context).push(
@@ -298,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
               unreadCount.toString(),
               style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
             ),
-            child: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
+            child: Icon(Icons.notifications_outlined, color: textColor),
           ),
         ),
         const SizedBox(width: 8),
@@ -310,7 +332,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title, style: AppTypography.title.copyWith(fontSize: 20)),
+        Text(title, style: AppTypography.title.copyWith(fontSize: 20, color: Theme.of(context).textTheme.bodyLarge?.color)),
         TextButton(
           onPressed: onAction,
           style: TextButton.styleFrom(foregroundColor: AppColors.accent),
@@ -327,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          gradient: AppColors.buttonGradient,
+          gradient: AppColors.buttonGradient, // Keeps the beautiful dark gradient 
           borderRadius: BorderRadius.circular(32),
           boxShadow: AppShadows.subtle,
         ),
@@ -364,15 +386,15 @@ class _HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface, // 👇 Dynamic surface color
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.stroke, style: BorderStyle.solid),
+        border: Border.all(color: Theme.of(context).dividerColor, style: BorderStyle.solid), // 👇 Dynamic border
       ),
       child: Column(
         children: [
           const Icon(Icons.group_add_outlined, size: 48, color: AppColors.accent),
           const SizedBox(height: 16),
-          Text('No students added yet', style: AppTypography.title),
+          Text('No students added yet', style: AppTypography.title.copyWith(color: Theme.of(context).textTheme.bodyLarge?.color)),
           const SizedBox(height: 8),
           Text('Add a student to manage their rides', style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
           const SizedBox(height: 16),
@@ -395,14 +417,16 @@ class _LiveMapCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onExpand,
       child: Container(
         height: 280,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
-          color: AppColors.surfaceStrong,
-          border: Border.all(color: AppColors.stroke),
+          color: isDark ? AppColors.darkSurfaceStrong : AppColors.surfaceStrong, // 👇 Dynamic strong surface
+          border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic border
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(28),
@@ -420,31 +444,31 @@ class _LiveMapCard extends StatelessWidget {
                   ),
                 )
               else
-                const Center(
+                 Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.map_outlined, size: 48, color: AppColors.textSecondary),
-                      SizedBox(height: 8),
-                      Text("Loading Map...", style: TextStyle(color: AppColors.textSecondary)),
+                      Icon(Icons.map_outlined, size: 48, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                      const SizedBox(height: 8),
+                      Text("Loading Map...", style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
                     ],
                   ),
                 ),
               if (tripId == null && apiKey != null && apiKey!.isNotEmpty)
-                const Center(
-                  child: Text("Map Preview", style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, backgroundColor: Colors.white70)),
+                 Center(
+                  child: Text("Map Preview", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontWeight: FontWeight.bold, backgroundColor: Theme.of(context).colorScheme.surface.withOpacity(0.8))),
                 ),
               Positioned(
                 top: 16, left: 16,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), boxShadow: AppShadows.subtle),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(20), boxShadow: AppShadows.subtle),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)),
                       const SizedBox(width: 8),
-                      const Text("Live Tracking", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                      Text("Live Tracking", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
                     ],
                   ),
                 ),
@@ -453,7 +477,7 @@ class _LiveMapCard extends StatelessWidget {
                 bottom: 16, right: 16,
                 child: Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: AppColors.surface, shape: BoxShape.circle, boxShadow: AppShadows.subtle),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, shape: BoxShape.circle, boxShadow: AppShadows.subtle),
                   child: const Icon(Icons.fullscreen, color: AppColors.accent),
                 ),
               ),
@@ -465,8 +489,6 @@ class _LiveMapCard extends StatelessWidget {
   }
 }
 
-// 👇 UPDATED: Pop-up perfectly matches the widget design!
-// 👇 UPDATED: Added Time formatting and display!
 class _LiveNotificationCard extends StatefulWidget {
   const _LiveNotificationCard({required this.alertData});
   final Map<String, dynamic> alertData;
@@ -517,6 +539,8 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
         return Dialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -524,9 +548,9 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface, // 👇 Dynamic dialog background
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: Theme.of(context).dividerColor),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -544,19 +568,18 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Added time to the pop-up as well!
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
-                                child: Text(title, style: AppTypography.title.copyWith(fontSize: 18, fontWeight: FontWeight.bold)),
+                                child: Text(title, style: AppTypography.title.copyWith(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
                               ),
-                              Text(timeString, style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                              Text(timeString, style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade500, fontWeight: FontWeight.w500)),
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Text(body, style: AppTypography.body.copyWith(fontSize: 15, color: Colors.grey.shade700)),
+                          Text(body, style: AppTypography.body.copyWith(fontSize: 15, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700)),
                         ],
                       ),
                     ),
@@ -576,7 +599,7 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
                         Navigator.pop(dialogContext);
                         Navigator.of(context).pushNamed('/emergency_status', arguments: {'emergencyId': referenceId});
                       },
-                      child: const Text('View Live Map', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: const Text('View Live Map', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   )
                 else
@@ -586,10 +609,10 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        backgroundColor: Colors.grey.shade100,
+                        backgroundColor: isDark ? AppColors.darkSurfaceStrong : Colors.grey.shade100, // 👇 Dynamic button background
                       ),
                       onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('Close', style: TextStyle(color: Colors.blueGrey, fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: Text('Close', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : Colors.blueGrey, fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
               ],
@@ -600,7 +623,6 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
     );
   }
 
-  // 👇 HELPER FUNCTION TO FORMAT THE TIME BEAUTIFULLY 👇
   String _formatTimestamp(String? timestamp) {
     if (timestamp == null || timestamp.isEmpty) return '';
     try {
@@ -613,11 +635,11 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
       } else if (difference.inMinutes < 60) {
         return '${difference.inMinutes}m ago';
       } else if (difference.inHours < 24 && now.day == date.day) {
-        return DateFormat('h:mm a').format(date); // e.g., "3:45 PM"
+        return DateFormat('h:mm a').format(date); 
       } else if (difference.inDays < 2) {
         return 'Yesterday';
       } else {
-        return DateFormat('MMM d').format(date); // e.g., "Oct 12"
+        return DateFormat('MMM d').format(date); 
       }
     } catch (e) {
       return '';
@@ -629,9 +651,8 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
     final bool isUnread = !_localIsRead; 
     final String title = widget.alertData['title'] ?? 'Notification';
     final String body = widget.alertData['message'] ?? '';
-    
-    // 👇 Get the formatted time string
     final String timeString = _formatTimestamp(widget.alertData['created_at']);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     IconData iconData = Icons.notifications;
     Color iconColor = Colors.blueGrey;
@@ -653,9 +674,9 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface, // 👇 Dynamic card background
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -670,14 +691,13 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 👇 Title row now includes the time string pushed to the right
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
                           title,
-                          style: AppTypography.title.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: AppTypography.title.copyWith(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -685,14 +705,14 @@ class _LiveNotificationCardState extends State<_LiveNotificationCard> {
                       const SizedBox(width: 8),
                       Text(
                         timeString,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade400, fontWeight: FontWeight.w500),
+                        style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade500, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     body,
-                    style: AppTypography.body.copyWith(fontSize: 14, color: Colors.grey.shade700),
+                    style: AppTypography.body.copyWith(fontSize: 14, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
                     maxLines: 1, 
                     overflow: TextOverflow.ellipsis,
                   ),
