@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/models/driver_profile.dart';
 import 'package:vango_parent_app/models/message_thread.dart';
@@ -16,7 +18,152 @@ class ParentDataService {
   final BackendClient _backend = BackendClient.instance;
   static const String _defaultPickupTime = '06:45 AM';
 
-  /// Fetches the parent's profile data (including full_name)
+  // --- 6️⃣ 5-MINUTE CACHE SYSTEM ---
+  final Map<String, Map<String, dynamic>> _attendanceCache = {};
+  final Map<String, DateTime> _cacheTimestamps = {};
+
+  void clearAttendanceCache(String childId) {
+    _attendanceCache.remove(childId);
+    _cacheTimestamps.remove(childId);
+  }
+
+  // --- 4️⃣ OFFLINE ATTENDANCE QUEUE ---
+  Future<void> _queueOfflineAction(Map<String, dynamic> action) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> queue = prefs.getStringList('offline_attendance_queue') ?? [];
+    queue.add(jsonEncode(action));
+    // FIXED: Changed setString to setStringList
+    await prefs.setStringList('offline_attendance_queue', queue);
+  }
+
+  Future<void> syncOfflineQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> queue = prefs.getStringList('offline_attendance_queue') ?? [];
+    if (queue.isEmpty) return;
+
+    List<String> failed = [];
+    for (String item in queue) {
+      try {
+        final action = jsonDecode(item);
+        if (action['type'] == 'today') {
+          await updateAttendance(
+            action['childId'],
+            AttendanceStateApi.fromString(action['status']),
+          );
+        } else {
+          await updateFutureAttendance(
+            action['childId'],
+            List<String>.from(action['dates']),
+            AttendanceStateApi.fromString(action['status']),
+          );
+        }
+      } catch (e) {
+        // Keep in queue if it's a network error. Drop it if it's a hard rejection (like a deadline error).
+        if (e.toString().toLowerCase().contains('internet') ||
+            e.toString().toLowerCase().contains('timed out')) {
+          failed.add(item);
+        }
+      }
+    }
+    // FIXED: Changed setString to setStringList
+    await prefs.setStringList('offline_attendance_queue', failed);
+  }
+
+  // --- ATTENDANCE METHODS ---
+  Future<void> updateAttendance(String childId, AttendanceState state) async {
+    try {
+      await _backend.patch('/api/parents/children/$childId/attendance', {
+        'attendanceState': state.apiValue,
+      });
+    } catch (e) {
+      if (e.toString().toLowerCase().contains('internet') ||
+          e.toString().toLowerCase().contains('timed out')) {
+        await _queueOfflineAction({
+          'type': 'today',
+          'childId': childId,
+          'status': state.apiValue,
+        });
+        throw Exception('Saved offline');
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> updateFutureAttendance(
+    String childId,
+    List<String> dates,
+    AttendanceState status,
+  ) async {
+    try {
+      await _backend.post(
+        '/api/parents/children/$childId/attendance-exceptions',
+        {'dates': dates, 'status': status.apiValue},
+      );
+      clearAttendanceCache(childId);
+    } catch (e) {
+      if (e.toString().toLowerCase().contains('internet') ||
+          e.toString().toLowerCase().contains('timed out')) {
+        await _queueOfflineAction({
+          'type': 'future',
+          'childId': childId,
+          'dates': dates,
+          'status': status.apiValue,
+        });
+        throw Exception('Saved offline');
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchFutureAttendance(String childId) async {
+    // Sync any pending offline actions before fetching
+    await syncOfflineQueue();
+
+    final now = DateTime.now();
+    if (_attendanceCache.containsKey(childId) &&
+        _cacheTimestamps.containsKey(childId)) {
+      if (now.difference(_cacheTimestamps[childId]!).inMinutes < 5) {
+        return _attendanceCache[childId]!;
+      }
+    }
+
+    final response = await _backend.get(
+      '/api/parents/children/$childId/attendance-exceptions',
+    );
+
+    final Map<String, dynamic> plans = {};
+    if (response is List) {
+      for (var item in response) {
+        plans[item['exception_date']] = {
+          'state': AttendanceStateApi.fromString(item['status']),
+          'updated_at': item['updated_at'],
+        };
+      }
+    }
+
+    _attendanceCache[childId] = plans;
+    _cacheTimestamps[childId] = now;
+
+    return plans;
+  }
+
+  // --- HELPER FOR URGENT CALLS ---
+  Future<String?> getDriverPhoneForChild(String childId) async {
+    try {
+      final response = await _backend.get('/api/parents/link-status');
+      if (response['linked'] == true) {
+        final links = response['childLinks'] as List;
+        for (var link in links) {
+          if (link['childId'] == childId) {
+            return link['driver']['phone'];
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // --- REST OF EXISTING METHODS ---
   Future<Map<String, dynamic>> fetchProfile() async {
     final response = await _backend.get('/api/parents/profile');
     return _expectMap(response);
@@ -166,12 +313,6 @@ class ParentDataService {
       await _backend.put('/api/parents/children/$childId', payload),
     );
     return ChildProfile.fromJson(response);
-  }
-
-  Future<void> updateAttendance(String childId, AttendanceState state) async {
-    await _backend.patch('/api/parents/children/$childId/attendance', {
-      'attendanceState': state.apiValue,
-    });
   }
 
   Future<List<NotificationItem>> fetchNotifications() async {
