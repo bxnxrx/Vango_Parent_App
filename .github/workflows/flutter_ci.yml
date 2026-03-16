@@ -1,0 +1,55 @@
+name: Flutter CI/CD Pipeline
+
+# This section defines when the pipeline will run
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # This allows you to trigger the workflow manually from the GitHub UI
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repository code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Set up Java (Required for Android builds)
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 3. Set up the Flutter environment
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      # 4. Install dependencies
+      - name: Install Dependencies
+        run: flutter pub get
+
+      # 5. Check for formatting and syntax errors
+      - name: Analyze Code
+        run: flutter analyze
+
+      # 6. Run unit tests (Uncomment if you have written tests)
+      # - name: Run Tests
+      #   run: flutter test
+
+      # 7. Build the Android APK
+      - name: Build APK
+        run: flutter build apk --release
+
+      # 8. Upload the built APK as an artifact so you can download it
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 90 # Saves the build output logs and files for 90 days
