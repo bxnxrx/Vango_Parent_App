@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:vango_parent_app/screens/Attendance/Attendance.dart';
+import 'package:vango_parent_app/screens/Attendance/attendance_screen.dart';
 import 'package:vango_parent_app/screens/finder/finder_screen.dart';
 import 'package:vango_parent_app/screens/home/home_screen.dart';
 import 'package:vango_parent_app/screens/messages/messages_screen.dart';
