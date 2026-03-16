@@ -36,15 +36,20 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Scaffold(
-      backgroundColor: AppColors.overlay,
+      backgroundColor: isDark ? Colors.black54 : AppColors.overlay, // 👇 Dynamic Overlay Background
       body: Center(
         child: Container(
           margin: const EdgeInsets.all(40),
           padding: const EdgeInsets.all(40),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface Color
             borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -91,12 +96,12 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
                           width: 70,
                           height: 70,
                           decoration: const BoxDecoration(
-                            color: AppColors.accent,
+                            color: AppColors.accent, // Keep checkmark brand colored
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.check,
-                            color: Colors.white,
+                            color: Colors.white, // Keep icon white
                             size: 40,
                           ),
                         ),
@@ -112,6 +117,7 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
                 style: AppTypography.headline.copyWith(
                   fontSize: 22,
                   height: 1.3,
+                  color: textColor, // 👇 Dynamic Text Color
                 ),
               ),
               const SizedBox(height: 12),
@@ -120,7 +126,7 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
                 textAlign: TextAlign.center,
                 style: AppTypography.body.copyWith(
                   fontSize: 14,
-                  color: AppColors.textSecondary,
+                  color: secondaryTextColor, // 👇 Dynamic Secondary Text Color
                   height: 1.5,
                 ),
               ),
@@ -130,8 +136,8 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.textPrimary,
-                  foregroundColor: AppColors.surface,
+                  backgroundColor: textColor, // 👇 Dynamic Background (Inverts in dark mode)
+                  foregroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Text (Inverts in dark mode)
                   minimumSize: const Size(double.infinity, 56),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -139,7 +145,10 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
                 ),
                 child: Text(
                   'Go Home',
-                  style: AppTypography.title.copyWith(fontSize: 16, color: Colors.white),
+                  style: AppTypography.title.copyWith(
+                    fontSize: 16, 
+                    color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Text
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -154,7 +163,7 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
                   'Track your Order',
                   style: AppTypography.title.copyWith(
                     fontSize: 16,
-                    color: AppColors.textPrimary,
+                    color: textColor, // 👇 Dynamic Text Color
                   ),
                 ),
               ),

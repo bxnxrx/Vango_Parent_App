@@ -183,56 +183,63 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   void _showCallDriverDialog(bool isToday) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.lock_clock, color: AppColors.warning),
-            const SizedBox(width: 8),
-            Text("Deadline Passed", style: AppTypography.title),
-          ],
-        ),
-        content: Text(
-          "Attendance changes are allowed until 9 PM the previous day to ensure driver routing stability.\n\nFor urgent last-minute changes, please contact the driver directly.",
-          style: AppTypography.body.copyWith(height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              "Cancel",
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final textColor = Theme.of(ctx).textTheme.bodyLarge?.color;
+        final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
+        return AlertDialog(
+          backgroundColor: Theme.of(ctx).colorScheme.surface, // 👇 Dynamic Dialog Background
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Theme.of(ctx).dividerColor)), // 👇 Dynamic Border
+          title: Row(
+            children: [
+              const Icon(Icons.lock_clock, color: AppColors.warning),
+              const SizedBox(width: 8),
+              Text("Deadline Passed", style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text Color
+            ],
           ),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          content: Text(
+            "Attendance changes are allowed until 9 PM the previous day to ensure driver routing stability.\n\nFor urgent last-minute changes, please contact the driver directly.",
+            style: AppTypography.body.copyWith(height: 1.5, color: secondaryTextColor), // 👇 Dynamic Secondary Text Color
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                "Cancel",
+                style: TextStyle(color: secondaryTextColor),
               ),
             ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final phone = await _dataService.getDriverPhoneForChild(
-                _selectedChild!.id,
-              );
-              if (phone != null && phone.isNotEmpty) {
-                final Uri launchUri = Uri(scheme: 'tel', path: phone);
-                await launchUrl(launchUri);
-              } else {
-                if (mounted)
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Driver phone number not found.'),
-                    ),
-                  );
-              }
-            },
-            icon: const Icon(Icons.call),
-            label: const Text("Call Driver"),
-          ),
-        ],
-      ),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final phone = await _dataService.getDriverPhoneForChild(
+                  _selectedChild!.id,
+                );
+                if (phone != null && phone.isNotEmpty) {
+                  final Uri launchUri = Uri(scheme: 'tel', path: phone);
+                  await launchUrl(launchUri);
+                } else {
+                  if (mounted)
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Driver phone number not found.'),
+                      ),
+                    );
+                }
+              },
+              icon: const Icon(Icons.call, color: Colors.white),
+              label: const Text("Call Driver", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -247,8 +254,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         return ScaleTransition(
           scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
           child: AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Dialog BG
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
+              side: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -270,7 +279,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   message,
                   textAlign: TextAlign.center,
                   style: AppTypography.body.copyWith(
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary, // 👇 Dynamic Text
                   ),
                 ),
               ],
@@ -481,11 +490,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Modal Background
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final textColor = Theme.of(ctx).textTheme.bodyLarge?.color;
+        final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             return Padding(
@@ -499,17 +512,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Set Weekly Recurring", style: AppTypography.headline),
+                  Text("Set Weekly Recurring", style: AppTypography.headline.copyWith(color: textColor)), // 👇 Dynamic Text Color
                   const SizedBox(height: 8),
                   Text(
                     "Applies to the next 4 weeks (max 30 days limit). Automatically skips holidays.",
                     style: AppTypography.body.copyWith(
-                      color: AppColors.textSecondary,
+                      color: secondaryTextColor, // 👇 Dynamic Secondary Text
                     ),
                   ),
                   const SizedBox(height: 24),
 
-                  Text("Select Day", style: AppTypography.title),
+                  Text("Select Day", style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -521,10 +534,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         label: Text(weekdays[index]),
                         selected: isSelected,
                         selectedColor: AppColors.accent.withValues(alpha: 0.2),
+                        backgroundColor: isDark ? AppColors.darkSurfaceStrong : AppColors.surfaceStrong, // 👇 Dynamic Chip BG
+                        side: BorderSide(color: isSelected ? AppColors.accent : Colors.transparent),
                         labelStyle: TextStyle(
                           color: isSelected
                               ? AppColors.accent
-                              : AppColors.textPrimary,
+                              : textColor, // 👇 Dynamic Unselected Text
                           fontWeight: isSelected
                               ? FontWeight.bold
                               : FontWeight.normal,
@@ -536,14 +551,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
 
                   const SizedBox(height: 24),
-                  Text("Set Status", style: AppTypography.title),
+                  Text("Set Status", style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: RadioListTile<AttendanceState>(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Not Going'),
+                          title: Text('Not Going', style: TextStyle(color: textColor)), // 👇 Dynamic Text
                           value: AttendanceState.notComing,
                           groupValue: selectedState,
                           activeColor: AppColors.danger,
@@ -554,7 +569,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       Expanded(
                         child: RadioListTile<AttendanceState>(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Going'),
+                          title: Text('Going', style: TextStyle(color: textColor)), // 👇 Dynamic Text
                           value: AttendanceState.coming,
                           groupValue: selectedState,
                           activeColor: AppColors.success,
@@ -612,85 +627,93 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("Set Attendance", style: AppTypography.title),
-        content: Text("Mark ${dates.length} selected day(s) as:"),
-        actionsAlignment: MainAxisAlignment.spaceEvenly,
-        actions: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final textColor = Theme.of(ctx).textTheme.bodyLarge?.color;
+        
+        return AlertDialog(
+          backgroundColor: Theme.of(ctx).colorScheme.surface, // 👇 Dynamic Dialog Background
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Theme.of(ctx).dividerColor)),
+          title: Text("Set Attendance", style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
+          content: Text("Mark ${dates.length} selected day(s) as:", style: TextStyle(color: textColor)), // 👇 Dynamic Text
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
+          actions: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _updateFutureDates(dates, AttendanceState.coming);
+                  },
+                  icon: const Icon(Icons.check_circle, size: 18, color: Colors.white),
+                  label: const Text(
+                    "Coming (Green)",
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _updateFutureDates(dates, AttendanceState.coming);
-                },
-                icon: const Icon(Icons.check_circle, size: 18),
-                label: const Text(
-                  "Coming (Green)",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.danger,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.danger,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _updateFutureDates(dates, AttendanceState.notComing);
+                  },
+                  icon: const Icon(Icons.cancel, size: 18, color: Colors.white),
+                  label: const Text(
+                    "Not Coming (Red)",
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _updateFutureDates(dates, AttendanceState.notComing);
-                },
-                icon: const Icon(Icons.cancel, size: 18),
-                label: const Text(
-                  "Not Coming (Red)",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: canMarkPending
-                      ? AppColors.warning
-                      : AppColors.stroke,
-                  foregroundColor: canMarkPending
-                      ? Colors.white
-                      : AppColors.textSecondary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: canMarkPending
+                        ? AppColors.warning
+                        : Theme.of(ctx).dividerColor,
+                    foregroundColor: canMarkPending
+                        ? Colors.white
+                        : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: canMarkPending
+                      ? () {
+                          Navigator.pop(ctx);
+                          _updateFutureDates(dates, AttendanceState.pending);
+                        }
+                      : null,
+                  icon: const Icon(Icons.help_outline, size: 18),
+                  label: Text(
+                    canMarkPending
+                        ? "Pending (Yellow)"
+                        : "Pending (Disabled < 7 days)",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                onPressed: canMarkPending
-                    ? () {
-                        Navigator.pop(context);
-                        _updateFutureDates(dates, AttendanceState.pending);
-                      }
-                    : null,
-                icon: const Icon(Icons.help_outline, size: 18),
-                label: Text(
-                  canMarkPending
-                      ? "Pending (Yellow)"
-                      : "Pending (Disabled < 7 days)",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            ),
+          ],
+        );
+      }
     );
   }
 
+  // 👇 ADDED BuildContext parameter so we can dynamically fetch theme colors
   Widget _buildCalendarCell(
+    BuildContext context,
     DateTime day, {
     bool isToday = false,
     bool isSelected = false,
@@ -713,7 +736,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     Color bgColor = Colors.transparent;
-    Color textColor = AppColors.textPrimary;
+    // 👇 Dynamic Base Text Color
+    Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textPrimary; 
     Widget? icon;
 
     if (state == AttendanceState.coming) {
@@ -728,8 +752,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     if (isWeekend || isHoliday) {
-      bgColor = AppColors.stroke.withValues(alpha: 0.2);
-      textColor = AppColors.textSecondary;
+      bgColor = Theme.of(context).dividerColor.withValues(alpha: 0.2); // 👇 Dynamic Empty Background
+      textColor = Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary; // 👇 Dynamic Empty Text
       if (isPoya) {
         icon = const Icon(
           Icons.brightness_3,
@@ -777,7 +801,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  Widget _buildLegendItem(Color color, String label, {IconData? icon}) {
+  Widget _buildLegendItem(BuildContext context, Color color, String label, {IconData? icon}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         Container(
@@ -795,7 +820,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           label,
           style: AppTypography.body.copyWith(
             fontSize: 11,
-            color: AppColors.textSecondary,
+            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary, // 👇 Dynamic Legend Text
           ),
         ),
       ],
@@ -804,20 +829,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     if (_isLoading && _selectedChild == null) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: _AttendanceSkeleton(),
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic Scaffold
+        body: const _AttendanceSkeleton(),
       );
     }
 
     if (_linkedChildren.isEmpty) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic Scaffold
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: Text('Attendance', style: AppTypography.title),
+          title: Text('Attendance', style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
           centerTitle: true,
         ),
         body: Center(
@@ -828,8 +857,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(24),
-                  decoration: const BoxDecoration(
-                    color: AppColors.accentLow,
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkSurfaceStrong : AppColors.accentLow, // 👇 Dynamic Icon BG
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -839,13 +868,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text('No Driver Linked', style: AppTypography.headline),
+                Text('No Driver Linked', style: AppTypography.headline.copyWith(color: textColor)), // 👇 Dynamic Text
                 const SizedBox(height: 12),
                 Text(
                   'To manage daily and future attendance, you must first assign a driver to your child.',
                   textAlign: TextAlign.center,
                   style: AppTypography.body.copyWith(
-                    color: AppColors.textSecondary,
+                    color: secondaryTextColor, // 👇 Dynamic Secondary Text
                     height: 1.5,
                   ),
                 ),
@@ -857,11 +886,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic Scaffold
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Attendance', style: AppTypography.title),
+        title: Text('Attendance', style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
         centerTitle: true,
       ),
       body: Column(
@@ -884,7 +913,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         children: [
                           Text(
                             "Today's Ride",
-                            style: AppTypography.title.copyWith(fontSize: 18),
+                            style: AppTypography.title.copyWith(fontSize: 18, color: textColor), // 👇 Dynamic Text
                           ),
                           const SizedBox(height: 12),
                           _buildTodayCard(),
@@ -892,24 +921,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           const SizedBox(height: 32),
                           Text(
                             'Plan Calendar',
-                            style: AppTypography.title.copyWith(fontSize: 18),
+                            style: AppTypography.title.copyWith(fontSize: 18, color: textColor), // 👇 Dynamic Text
                           ),
                           const SizedBox(height: 12),
 
                           Container(
                             padding: const EdgeInsets.only(bottom: 12),
                             decoration: BoxDecoration(
-                              color: AppColors.surface,
+                              color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: AppColors.stroke),
+                              border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
                               boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.textPrimary.withValues(
-                                    alpha: 0.05,
+                                if (!isDark) // 👇 Shadows only in light mode
+                                  BoxShadow(
+                                    color: AppColors.textPrimary.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
                               ],
                             ),
                             child: Column(
@@ -927,8 +955,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   headerStyle: HeaderStyle(
                                     formatButtonVisible: false,
                                     titleCentered: true,
-                                    titleTextStyle: AppTypography.title
-                                        .copyWith(fontSize: 16),
+                                    titleTextStyle: AppTypography.title.copyWith(fontSize: 16, color: textColor), // 👇 Dynamic Header Text
+                                    leftChevronIcon: Icon(Icons.chevron_left, color: textColor),
+                                    rightChevronIcon: Icon(Icons.chevron_right, color: textColor),
                                   ),
                                   selectedDayPredicate: (day) => _selectedDays
                                       .any((d) => isSameDay(d, day)),
@@ -995,12 +1024,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   calendarBuilders: CalendarBuilders(
                                     defaultBuilder:
                                         (context, day, focusedDay) =>
-                                            _buildCalendarCell(day),
+                                            _buildCalendarCell(context, day), // 👇 Passes Context
                                     todayBuilder: (context, day, focusedDay) =>
-                                        _buildCalendarCell(day, isToday: true),
+                                        _buildCalendarCell(context, day, isToday: true), // 👇 Passes Context
                                     selectedBuilder:
                                         (context, day, focusedDay) =>
                                             _buildCalendarCell(
+                                              context, // 👇 Passes Context
                                               day,
                                               isSelected: true,
                                             ),
@@ -1010,14 +1040,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   ),
                                 ),
 
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                     vertical: 8,
                                   ),
                                   child: Divider(
                                     height: 1,
-                                    color: AppColors.stroke,
+                                    color: Theme.of(context).dividerColor, // 👇 Dynamic Divider
                                   ),
                                 ),
 
@@ -1026,19 +1056,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                       MainAxisAlignment.spaceEvenly,
                                   children: [
                                     _buildLegendItem(
+                                      context, // 👇 Pass Context
                                       AppColors.success,
                                       'Coming',
                                     ),
                                     _buildLegendItem(
+                                      context, // 👇 Pass Context
                                       AppColors.danger,
                                       'Not Coming',
                                     ),
                                     _buildLegendItem(
+                                      context, // 👇 Pass Context
                                       AppColors.warning,
                                       'Pending',
                                     ),
                                     _buildLegendItem(
-                                      AppColors.textSecondary,
+                                      context, // 👇 Pass Context
+                                      secondaryTextColor,
                                       'Holiday',
                                       icon: Icons.brightness_3,
                                     ),
@@ -1082,6 +1116,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                         color: AppColors.success,
                                       ),
                                     ),
+                                    style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.success.withOpacity(0.5))),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -1100,6 +1135,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                         color: AppColors.danger,
                                       ),
                                     ),
+                                    style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.danger.withOpacity(0.5))),
                                   ),
                                 ),
                               ],
@@ -1110,10 +1146,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                               child: OutlinedButton.icon(
                                 onPressed: _showRecurringSetup,
                                 style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                    color: AppColors.accent,
+                                  side: BorderSide(
+                                    color: isDark ? AppColors.darkAccent : AppColors.accent, // 👇 Dynamic Border
                                   ),
-                                  foregroundColor: AppColors.accent,
+                                  foregroundColor: isDark ? AppColors.darkAccent : AppColors.accent, // 👇 Dynamic Text
                                 ),
                                 icon: const Icon(Icons.repeat),
                                 label: const Text(
@@ -1126,7 +1162,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           const SizedBox(height: 32),
                           Text(
                             'Audit History',
-                            style: AppTypography.title.copyWith(fontSize: 18),
+                            style: AppTypography.title.copyWith(fontSize: 18, color: textColor), // 👇 Dynamic Text
                           ),
                           const SizedBox(height: 12),
                           _buildHistoryList(),
@@ -1143,6 +1179,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildChildSelector() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     if (_linkedChildren.length <= 1) return const SizedBox.shrink();
 
     return Container(
@@ -1203,8 +1243,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           ? FontWeight.bold
                           : FontWeight.normal,
                       color: isSelected
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
+                          ? textColor // 👇 Dynamic Text
+                          : secondaryTextColor, // 👇 Dynamic Text
                     ),
                   ),
                 ],
@@ -1217,6 +1257,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildTodayCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     ImageProvider? currentAvatar;
     if (_selectedChild!.imageUrl != null &&
         _selectedChild!.imageUrl!.isNotEmpty) {
@@ -1226,15 +1269,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.stroke),
+        border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
         boxShadow: [
-          BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+          if (!isDark) // 👇 Shadows only in light mode
+            BoxShadow(
+              color: AppColors.textPrimary.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
         ],
       ),
       child: Row(
@@ -1274,9 +1318,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           fontWeight: FontWeight.bold,
                           color:
                               _selectedChild!.attendance ==
-                                  AttendanceState.coming
-                              ? AppColors.success
-                              : AppColors.danger,
+                                      AttendanceState.coming
+                                  ? AppColors.success
+                                  : AppColors.danger,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1285,7 +1329,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       Text(
                         'Attendance changes allowed until 9 PM previous day',
                         style: AppTypography.body.copyWith(
-                          color: AppColors.textSecondary,
+                          color: secondaryTextColor, // 👇 Dynamic Secondary Text
                           fontSize: 11,
                         ),
                         maxLines: 2,
@@ -1317,6 +1361,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               activeTrackColor: AppColors.success.withValues(alpha: 0.5),
               inactiveThumbColor: AppColors.danger,
               inactiveTrackColor: AppColors.danger.withValues(alpha: 0.2),
+              trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
               onChanged: _toggleToday,
             ),
         ],
@@ -1325,6 +1370,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildHistoryList() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     final pastKeys =
@@ -1336,24 +1385,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface Color
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.stroke, style: BorderStyle.solid),
+          border: Border.all(color: Theme.of(context).dividerColor, style: BorderStyle.solid), // 👇 Dynamic Border
         ),
         child: Column(
           children: [
-            const Icon(Icons.history, color: AppColors.textSecondary, size: 32),
+            Icon(Icons.history, color: secondaryTextColor, size: 32), // 👇 Dynamic Icon
             const SizedBox(height: 12),
             Text(
               'No history records found.',
               style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
+                color: secondaryTextColor, // 👇 Dynamic Text
               ),
             ),
             Text(
               'Default daily attendance is "Going".',
               style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
+                color: secondaryTextColor, // 👇 Dynamic Text
                 fontSize: 12,
               ),
             ),
@@ -1382,9 +1431,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface Color
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.stroke.withValues(alpha: 0.5)),
+            border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
           ),
           child: Row(
             children: [
@@ -1420,7 +1469,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   children: [
                     Text(
                       DateFormat('MMMM d, yyyy').format(dateObj),
-                      style: AppTypography.title.copyWith(fontSize: 15),
+                      style: AppTypography.title.copyWith(fontSize: 15, color: textColor), // 👇 Dynamic Text
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -1432,7 +1481,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           timeAgo,
                       style: AppTypography.body.copyWith(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: secondaryTextColor, // 👇 Dynamic Secondary Text
                       ),
                     ),
                   ],
@@ -1451,9 +1500,11 @@ class _AttendanceSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Shimmer.fromColors(
-      baseColor: AppColors.stroke.withValues(alpha: 0.5),
-      highlightColor: AppColors.surfaceStrong,
+      baseColor: isDark ? Colors.grey.shade800 : AppColors.stroke.withValues(alpha: 0.5), // 👇 Dynamic Shimmer Base
+      highlightColor: isDark ? Colors.grey.shade700 : AppColors.surfaceStrong, // 👇 Dynamic Shimmer Highlight
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(

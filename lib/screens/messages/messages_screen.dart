@@ -60,7 +60,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic background
       body: _buildBody(),
     );
   }
@@ -74,6 +74,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
       return _ErrorState(error: _error!, onRetry: _loadThreads);
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return CustomScrollView(
       slivers: [
         // 1. Modern Sticky App Bar WITH Side Nav Trigger
@@ -81,15 +85,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
           floating: true,
           pinned: true,
           expandedHeight: 80.0,
-          backgroundColor: AppColors.background,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic app bar background
           elevation: 0,
-          // --- Added leading icon for Side Nav ---
           leading: IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary),
+            icon: Icon(Icons.menu_rounded, color: textColor), // 👇 Dynamic icon color
             onPressed: widget.onOpenDrawer,
           ),
           flexibleSpace: FlexibleSpaceBar(
-            // titlePadding adjusted so text doesn't hide behind menu icon
             titlePadding: const EdgeInsets.only(left: 56, bottom: 16, right: 20),
             centerTitle: false,
             title: Column(
@@ -98,13 +100,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
               children: [
                 Text(
                   'Messages', 
-                  style: AppTypography.headline.copyWith(fontSize: 20)
+                  style: AppTypography.headline.copyWith(fontSize: 20, color: textColor) // 👇 Dynamic text color
                 ),
                 Text(
                   '${_threads.length} conversations',
                   style: AppTypography.body.copyWith(
                     fontSize: 10, 
-                    color: AppColors.textSecondary
+                    color: secondaryTextColor // 👇 Dynamic secondary text color
                   ),
                 ),
               ],
@@ -117,15 +119,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: TextField(
+              style: TextStyle(color: textColor), // 👇 Ensure typed text is visible
               decoration: InputDecoration(
                 hintText: 'Search conversations...',
-                prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+                hintStyle: TextStyle(color: secondaryTextColor), // 👇 Dynamic hint color
+                prefixIcon: Icon(Icons.search, size: 20, color: secondaryTextColor),
                 filled: true,
-                fillColor: AppColors.surface,
+                fillColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic surface color
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: Theme.of(context).dividerColor), // 👇 Add dynamic border
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Theme.of(context).dividerColor), // 👇 Add dynamic border
                 ),
               ),
             ),
@@ -158,7 +166,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 }
 
-// --- Supporting Widgets (Remaining the same but included for completeness) ---
+// --- Supporting Widgets ---
 
 class CustomMessageTile extends StatelessWidget {
   final MessageThread thread;
@@ -168,30 +176,36 @@ class CustomMessageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surface, // 👇 Dynamic surface color
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor), // 👇 Add dynamic border for dark mode
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+            if (!isDark) // 👇 Only show shadow in light mode, dark mode uses the border
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
           ],
         ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 28,
-              backgroundColor: AppColors.accent.withOpacity(0.1),
+              backgroundColor: isDark ? AppColors.darkAccent.withOpacity(0.2) : AppColors.accent.withOpacity(0.1),
               child: Text(
                 thread.name.substring(0, 1).toUpperCase(),
-                style: AppTypography.title.copyWith(color: AppColors.accent),
+                style: AppTypography.title.copyWith(color: isDark ? AppColors.darkAccent : AppColors.accent),
               ),
             ),
             const SizedBox(width: 16),
@@ -202,9 +216,9 @@ class CustomMessageTile extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(thread.name, style: AppTypography.title),
+                      Text(thread.name, style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic text color
                       Text('12:45 PM', 
-                          style: AppTypography.label.copyWith(fontSize: 10)),
+                          style: AppTypography.label.copyWith(fontSize: 10, color: secondaryTextColor)),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -213,7 +227,7 @@ class CustomMessageTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.body.copyWith(
-                      color: AppColors.textSecondary,
+                      color: secondaryTextColor, // 👇 Dynamic secondary text color
                       fontSize: 13,
                     ),
                   ),
@@ -232,16 +246,20 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.chat_bubble_outline, size: 64, color: AppColors.textSecondary.withOpacity(0.5)),
+          Icon(Icons.chat_bubble_outline, size: 64, color: secondaryTextColor.withOpacity(0.5)),
           const SizedBox(height: 16),
-          Text('No conversations yet', style: AppTypography.title),
+          Text('No conversations yet', style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic text color
           Text(
             'Your route updates will appear here.',
-            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+            style: AppTypography.body.copyWith(color: secondaryTextColor), // 👇 Dynamic secondary text color
           ),
         ],
       ),
@@ -257,6 +275,8 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -265,9 +285,9 @@ class _ErrorState extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
             const SizedBox(height: 16),
-            Text('Connection Error', style: AppTypography.title),
+            Text('Connection Error', style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic text color
             const SizedBox(height: 8),
-            Text(error, textAlign: TextAlign.center, style: AppTypography.body),
+            Text(error, textAlign: TextAlign.center, style: AppTypography.body.copyWith(color: textColor)), // 👇 Dynamic text color
             const SizedBox(height: 24),
             GradientButton(label: 'Retry Loading', onPressed: onRetry),
           ],

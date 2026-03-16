@@ -102,7 +102,7 @@ class _FinderScreenState extends State<FinderScreen> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface Background
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
@@ -129,84 +129,90 @@ class _FinderScreenState extends State<FinderScreen> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface Background
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    image: DecorationImage(
-                      image: NetworkImage(service.vehicleImageUrl),
-                      fit: BoxFit.cover,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+        final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      image: DecorationImage(
+                        image: NetworkImage(service.vehicleImageUrl),
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        service.name,
-                        style: AppTypography.headline.copyWith(fontSize: 20),
-                      ),
-                      Text(
-                        '${service.vehicleType} - ${service.seats} seats',
-                        style: AppTypography.body.copyWith(
-                          color: AppColors.textSecondary,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          service.name,
+                          style: AppTypography.headline.copyWith(fontSize: 20, color: textColor), // 👇 Dynamic Text
                         ),
-                      ),
-                    ],
+                        Text(
+                          '${service.vehicleType} - ${service.seats} seats',
+                          style: AppTypography.body.copyWith(
+                            color: secondaryTextColor, // 👇 Dynamic Secondary Text
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            _InfoRow(icon: Icons.person, label: 'Driver', value: service.name),
-            _InfoRow(
-              icon: Icons.phone,
-              label: 'Phone',
-              value: service.phone.isNotEmpty ? service.phone : 'Not available',
-            ),
-            _InfoRow(icon: Icons.route, label: 'Route', value: service.route),
-            _InfoRow(
-              icon: Icons.star,
-              label: 'Rating',
-              value: '${service.rating}/5.0',
-            ),
-            _InfoRow(
-              icon: Icons.payments,
-              label: 'Monthly fee',
-              value: 'Rs. ${service.price}',
-            ),
-            const SizedBox(height: 24),
-            GradientButton(
-              label: 'Book Now',
-              expanded: true,
-              onPressed: () {
-                Navigator.pop(context);
-                _showConfirmBookingSheet(service);
-              },
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
+                ],
+              ),
+              _InfoRow(icon: Icons.person, label: 'Driver', value: service.name),
+              _InfoRow(
+                icon: Icons.phone,
+                label: 'Phone',
+                value: service.phone.isNotEmpty ? service.phone : 'Not available',
+              ),
+              _InfoRow(icon: Icons.route, label: 'Route', value: service.route),
+              _InfoRow(
+                icon: Icons.star,
+                label: 'Rating',
+                value: '${service.rating}/5.0',
+              ),
+              _InfoRow(
+                icon: Icons.payments,
+                label: 'Monthly fee',
+                value: 'Rs. ${service.price}',
+              ),
+              const SizedBox(height: 24),
+              GradientButton(
+                label: 'Book Now',
+                expanded: true,
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showConfirmBookingSheet(service);
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -215,7 +221,7 @@ class _FinderScreenState extends State<FinderScreen> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
@@ -236,125 +242,146 @@ class _FinderScreenState extends State<FinderScreen> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.flag, color: AppColors.danger),
-                const SizedBox(width: 8),
-                Text(
-                  'Report Driver',
-                  style: AppTypography.headline.copyWith(
-                    fontSize: 20,
-                    color: AppColors.danger,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+        final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.flag, color: AppColors.danger),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Report Driver',
+                    style: AppTypography.headline.copyWith(
+                      fontSize: 20,
+                      color: AppColors.danger,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Reporting ${service.name}. Please describe the issue.',
+                style: AppTypography.body.copyWith(
+                  color: secondaryTextColor, // 👇 Dynamic Secondary Text
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: reportController,
+                maxLines: 4,
+                style: TextStyle(color: textColor), // 👇 Dynamic Input Text
+                decoration: InputDecoration(
+                  hintText: 'Describe the issue...',
+                  hintStyle: TextStyle(color: secondaryTextColor), // 👇 Dynamic Hint
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Fill
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Reporting ${service.name}. Please describe the issue.',
-              style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
               ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: reportController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'Describe the issue...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            GradientButton(
-              label: 'Submit Report',
-              expanded: true,
-              onPressed: () async {
-                if (reportController.text.trim().length < 5) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Please describe the issue (min 5 characters)',
+              const SizedBox(height: 24),
+              GradientButton(
+                label: 'Submit Report',
+                expanded: true,
+                onPressed: () async {
+                  if (reportController.text.trim().length < 5) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Please describe the issue (min 5 characters)',
+                        ),
                       ),
-                    ),
-                  );
-                  return;
-                }
-                try {
-                  await ParentDataService.instance.submitDriverReport(
-                    driverId: service.id,
-                    reason: reportController.text.trim(),
-                  );
-                  if (!context.mounted) return;
-                  Navigator.pop(context);
-                  await showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      title: const Row(
-                        children: [
-                          Icon(Icons.check_circle, color: AppColors.success),
-                          SizedBox(width: 8),
-                          Text('Report Recorded'),
+                    );
+                    return;
+                  }
+                  try {
+                    await ParentDataService.instance.submitDriverReport(
+                      driverId: service.id,
+                      reason: reportController.text.trim(),
+                    );
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    await showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Dialog
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
+                        ),
+                        title: Row(
+                          children: [
+                            const Icon(Icons.check_circle, color: AppColors.success),
+                            const SizedBox(width: 8),
+                            Text('Report Recorded', style: TextStyle(color: textColor)), // 👇 Dynamic Text
+                          ],
+                        ),
+                        content: Text(
+                          'Your report has been submitted successfully. We will review it and take appropriate action.',
+                          style: TextStyle(color: secondaryTextColor), // 👇 Dynamic Text
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('OK'),
+                          ),
                         ],
                       ),
-                      content: const Text(
-                        'Your report has been submitted successfully. We will review it and take appropriate action.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('OK'),
-                        ),
-                      ],
-                    ),
-                  );
-                } catch (e) {
-                  if (!context.mounted) return;
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to submit report: $e')),
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to submit report: $e')),
+                    );
+                  }
+                },
               ),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel', style: TextStyle(color: secondaryTextColor)), // 👇 Dynamic Cancel Color
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final List<DriverProfile> services = _getVisibleServices();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
     if (_loading) return const Center(child: CircularProgressIndicator());
 
@@ -363,13 +390,13 @@ class _FinderScreenState extends State<FinderScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.wifi_off,
               size: 48,
-              color: AppColors.textSecondary,
+              color: secondaryTextColor, // 👇 Dynamic Error Icon
             ),
             const SizedBox(height: 12),
-            Text('Unable to load services', style: AppTypography.title),
+            Text('Unable to load services', style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
             const SizedBox(height: 16),
             GradientButton(label: 'Try again', onPressed: _loadServices),
           ],
@@ -378,12 +405,12 @@ class _FinderScreenState extends State<FinderScreen> {
     }
 
     return Container(
-      color: AppColors.background,
+      color: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic BG
       child: CustomScrollView(
         slivers: [
           SliverAppBar(
             floating: true,
-            backgroundColor: AppColors.background,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic AppBar
             elevation: 0,
             automaticallyImplyLeading: false,
             leading: IconButton(
@@ -391,7 +418,7 @@ class _FinderScreenState extends State<FinderScreen> {
                 Navigator.canPop(context)
                     ? Icons.arrow_back_ios_new
                     : Icons.menu,
-                color: AppColors.accent,
+                color: textColor, // 👇 Dynamic Leading Icon
                 size: Navigator.canPop(context) ? 20 : 24,
               ),
               onPressed: () {
@@ -407,13 +434,13 @@ class _FinderScreenState extends State<FinderScreen> {
               children: [
                 Text(
                   'Find a service',
-                  style: AppTypography.headline.copyWith(fontSize: 20),
+                  style: AppTypography.headline.copyWith(fontSize: 20, color: textColor), // 👇 Dynamic Text
                 ),
                 Text(
                   '${services.length} available near you',
                   style: AppTypography.body.copyWith(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: secondaryTextColor, // 👇 Dynamic Secondary Text
                   ),
                 ),
               ],
@@ -444,24 +471,25 @@ class _FinderScreenState extends State<FinderScreen> {
                     children: [
                       Text(
                         'Available services',
-                        style: AppTypography.title.copyWith(fontSize: 18),
+                        style: AppTypography.title.copyWith(fontSize: 18, color: textColor), // 👇 Dynamic Text
                       ),
                       DropdownButton<String>(
                         value: _sortBy,
                         underline: const SizedBox.shrink(),
-                        icon: const Icon(Icons.swap_vert, size: 18),
-                        items: const [
+                        icon: Icon(Icons.swap_vert, size: 18, color: textColor), // 👇 Dynamic Icon
+                        dropdownColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Dropdown Menu BG
+                        items: [
                           DropdownMenuItem(
                             value: 'rating',
-                            child: Text('Rating'),
+                            child: Text('Rating', style: TextStyle(color: textColor)), // 👇 Dynamic Text
                           ),
                           DropdownMenuItem(
                             value: 'price',
-                            child: Text('Price'),
+                            child: Text('Price', style: TextStyle(color: textColor)), // 👇 Dynamic Text
                           ),
                           DropdownMenuItem(
                             value: 'distance',
-                            child: Text('Distance'),
+                            child: Text('Distance', style: TextStyle(color: textColor)), // 👇 Dynamic Text
                           ),
                         ],
                         onChanged: _updateSortBy,
@@ -535,6 +563,10 @@ class _ConfirmBookingSheetState extends State<_ConfirmBookingSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Padding(
       padding: EdgeInsets.only(
         left: 24,
@@ -553,13 +585,13 @@ class _ConfirmBookingSheetState extends State<_ConfirmBookingSheet> {
             children: [
               Text(
                 'Confirm Booking',
-                style: AppTypography.headline.copyWith(fontSize: 22),
+                style: AppTypography.headline.copyWith(fontSize: 22, color: textColor), // 👇 Dynamic Text
               ),
               const SizedBox(height: 8),
               Text(
                 'You are about to request a service from ${widget.service.name}.',
                 style: AppTypography.body.copyWith(
-                  color: AppColors.textSecondary,
+                  color: secondaryTextColor, // 👇 Dynamic Text
                 ),
               ),
               const SizedBox(height: 24),
@@ -598,7 +630,7 @@ class _ConfirmBookingSheetState extends State<_ConfirmBookingSheet> {
                   const SizedBox(width: 8),
                   Text(
                     'Select children for this service',
-                    style: AppTypography.title.copyWith(fontSize: 15),
+                    style: AppTypography.title.copyWith(fontSize: 15, color: textColor), // 👇 Dynamic Text
                   ),
                 ],
               ),
@@ -614,7 +646,7 @@ class _ConfirmBookingSheetState extends State<_ConfirmBookingSheet> {
                   child: Text(
                     'No children found. Add a child first.',
                     style: AppTypography.body.copyWith(
-                      color: AppColors.textSecondary,
+                      color: secondaryTextColor, // 👇 Dynamic Text
                     ),
                   ),
                 )
@@ -650,21 +682,24 @@ class _ConfirmBookingSheetState extends State<_ConfirmBookingSheet> {
                           await showDialog(
                             context: context,
                             builder: (context) => AlertDialog(
+                              backgroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Dialog
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
                               ),
-                              title: const Row(
+                              title: Row(
                                 children: [
-                                  Icon(
+                                  const Icon(
                                     Icons.check_circle,
                                     color: AppColors.success,
                                   ),
-                                  SizedBox(width: 8),
-                                  Text('Booking Requested'),
+                                  const SizedBox(width: 8),
+                                  Text('Booking Requested', style: TextStyle(color: textColor)), // 👇 Dynamic Text
                                 ],
                               ),
                               content: Text(
                                 'Your booking request for $selectedNames has been sent to ${widget.service.name}. You will be notified once confirmed.',
+                                style: TextStyle(color: secondaryTextColor), // 👇 Dynamic Text
                               ),
                               actions: [
                                 TextButton(
@@ -708,7 +743,7 @@ class _ConfirmBookingSheetState extends State<_ConfirmBookingSheet> {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: Text('Cancel', style: TextStyle(color: secondaryTextColor)), // 👇 Dynamic Cancel Text
                 ),
               ),
               const SizedBox(height: 8),
@@ -756,6 +791,10 @@ class _ChildSelectionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -764,10 +803,10 @@ class _ChildSelectionTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? AppColors.accent.withOpacity(0.08)
-              : AppColors.surface,
+              : Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface Background
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? AppColors.accent : AppColors.stroke,
+            color: selected ? AppColors.accent : Theme.of(context).dividerColor, // 👇 Dynamic Border
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -778,7 +817,7 @@ class _ChildSelectionTile extends StatelessWidget {
               backgroundColor: AppColors.accent.withOpacity(0.15),
               child: Text(
                 child.name.isNotEmpty ? child.name[0].toUpperCase() : '?',
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppColors.accent,
                   fontWeight: FontWeight.bold,
                 ),
@@ -791,13 +830,13 @@ class _ChildSelectionTile extends StatelessWidget {
                 children: [
                   Text(
                     child.name,
-                    style: AppTypography.title.copyWith(fontSize: 14),
+                    style: AppTypography.title.copyWith(fontSize: 14, color: textColor), // 👇 Dynamic Text
                   ),
                   Text(
                     child.school,
                     style: AppTypography.body.copyWith(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: secondaryTextColor, // 👇 Dynamic Secondary Text
                     ),
                   ),
                 ],
@@ -805,7 +844,7 @@ class _ChildSelectionTile extends StatelessWidget {
             ),
             Icon(
               selected ? Icons.check_circle : Icons.circle_outlined,
-              color: selected ? AppColors.accent : AppColors.textSecondary,
+              color: selected ? AppColors.accent : secondaryTextColor, // 👇 Dynamic Icon Outline Color
             ),
           ],
         ),
@@ -845,6 +884,10 @@ class _LocationPickerSheetState extends State<_LocationPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Padding(
       padding: EdgeInsets.only(
         left: 24,
@@ -858,22 +901,30 @@ class _LocationPickerSheetState extends State<_LocationPickerSheet> {
         children: [
           Text(
             widget.title,
-            style: AppTypography.headline.copyWith(fontSize: 22),
+            style: AppTypography.headline.copyWith(fontSize: 22, color: textColor), // 👇 Dynamic Text
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _controller,
             autofocus: true,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
+            style: TextStyle(color: textColor), // 👇 Dynamic Input Text
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.search, color: secondaryTextColor), // 👇 Dynamic Prefix Icon
               hintText: 'Search address',
+              hintStyle: TextStyle(color: secondaryTextColor), // 👇 Dynamic Hint Color
+              filled: true,
+              fillColor: isDark ? AppColors.darkSurfaceStrong : AppColors.surface, // 👇 Dynamic Input Background
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
           const SizedBox(height: 20),
           for (final loc in widget.recentLocations)
             ListTile(
-              leading: const Icon(Icons.history),
-              title: Text(loc),
+              leading: Icon(Icons.history, color: secondaryTextColor), // 👇 Dynamic Icon Color
+              title: Text(loc, style: TextStyle(color: textColor)), // 👇 Dynamic List Text
               onTap: () => Navigator.pop(context, loc),
             ),
           const SizedBox(height: 12),
@@ -904,13 +955,13 @@ class _RouteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: AppColors.surface,
+      color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Card Background
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppColors.stroke),
+          border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
         ),
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -924,8 +975,8 @@ class _RouteCard extends StatelessWidget {
             const SizedBox(height: 8),
             TextButton.icon(
               onPressed: onSwap,
-              icon: const Icon(Icons.swap_vert, size: 18),
-              label: const Text('Swap'),
+              icon: Icon(Icons.swap_vert, size: 18, color: Theme.of(context).textTheme.bodyLarge?.color), // 👇 Dynamic Swap Icon
+              label: Text('Swap', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)), // 👇 Dynamic Swap Text
             ),
             const SizedBox(height: 8),
             _LocationRow(
@@ -965,7 +1016,10 @@ class _LocationRow extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: AppTypography.title.copyWith(fontSize: 15),
+                style: AppTypography.title.copyWith(
+                  fontSize: 15, 
+                  color: Theme.of(context).textTheme.bodyLarge?.color // 👇 Dynamic Text Color
+                ), 
               ),
             ),
           ],
@@ -1016,20 +1070,24 @@ class _FilterChip extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           gradient: selected ? AppColors.buttonGradient : null,
-          color: selected ? null : AppColors.surface,
+          color: selected ? null : Theme.of(context).colorScheme.surface, // 👇 Dynamic Chip BG
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.stroke),
+          border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : AppColors.textPrimary,
+            color: selected 
+              ? Colors.white 
+              : Theme.of(context).textTheme.bodyLarge?.color, // 👇 Dynamic Text
           ),
         ),
       ),
@@ -1043,15 +1101,25 @@ class _ServiceCard extends StatelessWidget {
   final VoidCallback onBook;
   @override
   Widget build(BuildContext context) {
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Card(
+      color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Card Color
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
+      ),
       child: Column(
         children: [
           ListTile(
-            leading: CircleAvatar(child: Text(service.name[0])),
-            title: Text(service.name),
-            subtitle: Text(service.vehicleType),
+            leading: CircleAvatar(
+              backgroundColor: AppColors.accent.withOpacity(0.1),
+              child: Text(service.name[0], style: const TextStyle(color: AppColors.accent)),
+            ),
+            title: Text(service.name, style: TextStyle(color: textColor)), // 👇 Dynamic Text
+            subtitle: Text(service.vehicleType, style: TextStyle(color: secondaryTextColor)), // 👇 Dynamic Secondary Text
             trailing: Text(
               'Rs. ${service.price}',
               style: const TextStyle(
@@ -1065,9 +1133,17 @@ class _ServiceCard extends StatelessWidget {
             child: Row(
               children: [
                 const Icon(Icons.star, size: 16, color: Colors.orange),
-                Text(' ${service.rating}'),
+                Text(' ${service.rating}', style: TextStyle(color: secondaryTextColor)), // 👇 Dynamic Secondary Text
                 const Spacer(),
-                ElevatedButton(onPressed: onBook, child: const Text('Details')),
+                ElevatedButton(
+                  onPressed: onBook,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent.withOpacity(0.1),
+                    foregroundColor: AppColors.accent,
+                    elevation: 0,
+                  ),
+                  child: const Text('Details'),
+                ),
               ],
             ),
           ),
@@ -1088,10 +1164,14 @@ class _InfoRow extends StatelessWidget {
   final String value;
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return ListTile(
-      leading: Icon(icon),
-      title: Text(label),
-      subtitle: Text(value),
+      leading: Icon(icon, color: AppColors.accent), // 👇 Add some brand color to the icons
+      title: Text(label, style: TextStyle(color: secondaryTextColor, fontSize: 12)), // 👇 Dynamic Secondary Text
+      subtitle: Text(value, style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w500)), // 👇 Dynamic Main Text
     );
   }
 }

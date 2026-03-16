@@ -8,7 +8,6 @@ import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
 import 'package:vango_parent_app/widgets/payment_card.dart';
 
-
 class PaymentsScreen extends StatefulWidget {
   const PaymentsScreen({super.key});
 
@@ -21,7 +20,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   List<PaymentRecord> _transactions = const <PaymentRecord>[];
   bool _loadingTransactions = true;
   String? _transactionsError;
-  // Removing const from list definition
+  
   final List<_PaymentMethod> _methods = [
     _PaymentMethod(
       name: 'Mastercard',
@@ -90,82 +89,93 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       context: context,
       barrierDismissible: false,
       barrierColor: AppColors.overlay,
-      builder: (context) => Center(
-        child: Container(
-          margin: EdgeInsets.all(40),
-          padding: EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.check_circle,
-                  color: AppColors.accent,
-                  size: 50,
-                ),
-              ),
-              SizedBox(height: 24),
-              Text(
-                'Payment Successful!',
-                style: AppTypography.headline.copyWith(fontSize: 20),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Your payment of Rs. ${_total.toStringAsFixed(0)} has been processed',
-                textAlign: TextAlign.center,
-                style: AppTypography.body.copyWith(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              SizedBox(height: 24),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  minimumSize: Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+        final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
+        return Center(
+          child: Container(
+            margin: EdgeInsets.all(40),
+            padding: EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface, // 👇 Dynamic dialog background
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Theme.of(context).dividerColor), // 👇 Add dynamic border
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: AppColors.accent,
+                    size: 50,
                   ),
                 ),
-                child: Text('Done'),
-              ),
-            ],
+                SizedBox(height: 24),
+                Text(
+                  'Payment Successful!',
+                  style: AppTypography.headline.copyWith(fontSize: 20, color: textColor), // 👇 Dynamic text color
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Your payment of Rs. ${_total.toStringAsFixed(0)} has been processed',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.body.copyWith(
+                    fontSize: 14,
+                    color: secondaryTextColor, // 👇 Dynamic secondary text color
+                  ),
+                ),
+                SizedBox(height: 24),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    minimumSize: Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text('Done', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return CustomScrollView(
       slivers: [
         SliverAppBar(
           floating: true,
-          backgroundColor: AppColors.background,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic app bar background
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Payment method',
-                style: AppTypography.headline.copyWith(fontSize: 20),
+                style: AppTypography.headline.copyWith(fontSize: 20, color: textColor), // 👇 Dynamic text color
               ),
               Text(
                 'Secure checkout powered by EduRide',
                 style: AppTypography.body.copyWith(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: secondaryTextColor, // 👇 Dynamic secondary text color
                 ),
               ),
             ],
@@ -209,9 +219,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   children: [
                     Text(
                       'Recent transactions',
-                      style: AppTypography.title.copyWith(fontSize: 18),
+                      style: AppTypography.title.copyWith(fontSize: 18, color: textColor), // 👇 Dynamic text color
                     ),
-                    TextButton(onPressed: () {}, child: Text('View all')),
+                    TextButton(onPressed: () {}, child: Text('View all', style: TextStyle(color: AppColors.accent))),
                   ],
                 ),
               ],
@@ -232,13 +242,13 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.receipt_long, size: 48, color: AppColors.textSecondary),
+                    Icon(Icons.receipt_long, size: 48, color: secondaryTextColor),
                     const SizedBox(height: 8),
-                    Text('Unable to load transactions', style: AppTypography.title),
+                    Text('Unable to load transactions', style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic text color
                     const SizedBox(height: 8),
                     Text(
                       _transactionsError!,
-                      style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+                      style: AppTypography.body.copyWith(color: secondaryTextColor), // 👇 Dynamic secondary text color
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
@@ -249,9 +259,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             ),
           )
         else if (_transactions.isEmpty)
-          const SliverFillRemaining(
+          SliverFillRemaining(
             hasScrollBody: false,
-            child: Center(child: Text('No transactions yet')),
+            child: Center(child: Text('No transactions yet', style: TextStyle(color: textColor))), // 👇 Dynamic text color
           )
         else
           SliverPadding(
@@ -287,16 +297,24 @@ class _PaymentMethodsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface, // 👇 Dynamic surface color
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.stroke),
-        boxShadow: AppShadows.subtle,
+        border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic border
+        boxShadow: [
+          if (!isDark) // 👇 Shadow only in light mode
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 12),
+            ),
+        ],
       ),
       child: Column(
         children: [
-          // Using a for loop instead of map
           for (var i = 0; i < methods.length; i++) ...[
             _PaymentMethodTile(
               method: methods[i],
@@ -304,9 +322,9 @@ class _PaymentMethodsCard extends StatelessWidget {
               onTap: () => onSelect(i),
             ),
             if (i != methods.length - 1)
-              Divider(height: 1, indent: 76, endIndent: 20),
+              Divider(height: 1, indent: 76, endIndent: 20, color: Theme.of(context).dividerColor), // 👇 Dynamic divider
           ],
-          Divider(height: 1, indent: 0, endIndent: 0),
+          Divider(height: 1, indent: 0, endIndent: 0, color: Theme.of(context).dividerColor), // 👇 Dynamic divider
           Padding(
             padding: EdgeInsets.all(20),
             child: GradientButton(
@@ -340,19 +358,23 @@ class _PaymentMethodTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return ListTile(
       onTap: onTap,
       contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       leading: _PaymentBrandIcon(brand: method.brand),
       title: Text(
         method.name,
-        style: AppTypography.title.copyWith(fontSize: 16),
+        style: AppTypography.title.copyWith(fontSize: 16, color: textColor), // 👇 Dynamic text color
       ),
       subtitle: Text(
         '${method.masked} • ${method.detail}',
         style: AppTypography.body.copyWith(
           fontSize: 13,
-          color: AppColors.textSecondary,
+          color: secondaryTextColor, // 👇 Dynamic secondary text color
         ),
       ),
       trailing: AnimatedContainer(
@@ -362,7 +384,7 @@ class _PaymentMethodTile extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: selected ? AppColors.accent : AppColors.stroke,
+            color: selected ? AppColors.accent : Theme.of(context).dividerColor, // 👇 Dynamic unselected border
             width: 2,
           ),
           color: selected ? AppColors.accent : Colors.transparent,
@@ -380,12 +402,16 @@ class _DeliveryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface, // 👇 Dynamic surface color
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.stroke),
+        border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic border
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,19 +436,19 @@ class _DeliveryCard extends StatelessWidget {
                   children: [
                     Text(
                       'Pickup location',
-                      style: AppTypography.title.copyWith(fontSize: 16),
+                      style: AppTypography.title.copyWith(fontSize: 16, color: textColor), // 👇 Dynamic text color
                     ),
                     Text(
                       'A3/4 Jawhra, Colombo 06',
                       style: AppTypography.body.copyWith(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: secondaryTextColor, // 👇 Dynamic secondary text color
                       ),
                     ),
                   ],
                 ),
               ),
-              IconButton(onPressed: () {}, icon: Icon(Icons.chevron_right)),
+              IconButton(onPressed: () {}, icon: Icon(Icons.chevron_right, color: secondaryTextColor)), // 👇 Dynamic icon color
             ],
           ),
         ],
@@ -448,7 +474,8 @@ class _OrderSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Standard function for text style
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+
     TextStyle valueStyle(bool accent) {
       if (accent) {
         return AppTypography.body.copyWith(
@@ -459,7 +486,7 @@ class _OrderSummaryCard extends StatelessWidget {
       } else {
         return AppTypography.body.copyWith(
           fontSize: 14,
-          color: AppColors.textPrimary,
+          color: textColor, // 👇 Dynamic text color
           fontWeight: FontWeight.w500,
         );
       }
@@ -468,9 +495,9 @@ class _OrderSummaryCard extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).colorScheme.surface, // 👇 Dynamic surface color
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.stroke),
+        border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic border
       ),
       child: Column(
         children: [
@@ -490,7 +517,7 @@ class _OrderSummaryCard extends StatelessWidget {
             style: valueStyle(false),
           ),
           _SummaryRow(label: 'Tax', value: tax, style: valueStyle(false)),
-          Divider(height: 32),
+          Divider(height: 32, color: Theme.of(context).dividerColor), // 👇 Dynamic divider
           _SummaryRow(
             label: 'Total amount',
             value: total,
@@ -515,6 +542,9 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -523,7 +553,7 @@ class _SummaryRow extends StatelessWidget {
             label,
             style: AppTypography.body.copyWith(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: secondaryTextColor, // 👇 Dynamic secondary text color
             ),
           ),
           Spacer(),
@@ -557,18 +587,18 @@ class _PaymentBrandIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     IconData icon;
     Color color;
 
-    // Using if-else instead of switch
     if (brand == _PaymentBrand.paypal) {
       icon = Icons.account_balance_wallet;
       color = Color(0xFF003087);
     } else if (brand == _PaymentBrand.apple) {
       icon = Icons.phone_iphone;
-      color = Colors.black87;
+      color = isDark ? Colors.white : Colors.black87; // 👇 Make Apple icon white in dark mode
     } else {
-      // mastercard
       icon = Icons.credit_card;
       color = Color(0xFFEA5B0C);
     }
@@ -577,7 +607,7 @@ class _PaymentBrandIcon extends StatelessWidget {
       width: 46,
       height: 46,
       decoration: BoxDecoration(
-        color: AppColors.surfaceStrong,
+        color: isDark ? AppColors.darkSurfaceStrong : AppColors.surfaceStrong, // 👇 Dynamic icon background
         borderRadius: BorderRadius.circular(16),
       ),
       child: Icon(icon, color: color),
