@@ -322,7 +322,7 @@ class _EmptyState extends StatelessWidget {
           Icon(
             Icons.chat_bubble_outline,
             size: 64,
-            color: secondaryTextColor.withOpacity(0.5),
+            color: secondaryTextColor.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
