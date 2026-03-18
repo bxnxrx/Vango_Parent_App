@@ -133,6 +133,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   bool _isLoading = false;
   bool _isPasswordVisible = false;
 
+  // ANIMATION POLISH: Button Press State
+  bool _isSubmitPressed = false;
+
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _phoneController = TextEditingController(
     text: '+94',
@@ -172,18 +175,25 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   String _parseError(dynamic error) {
     if (error is AuthException) {
       final msg = error.message.toLowerCase();
-      if (msg.contains('invalid login') || msg.contains('invalid credentials'))
+      if (msg.contains('invalid login') ||
+          msg.contains('invalid credentials')) {
         return _t('err_invalid_creds');
+      }
       if (msg.contains('already registered') ||
-          msg.contains('user already exists'))
+          msg.contains('user already exists')) {
         return _t('err_user_exists');
+      }
       if (msg.contains('rate limit') ||
           msg.contains('too many requests') ||
-          msg.contains('over_email_send_rate_limit'))
+          msg.contains('over_email_send_rate_limit')) {
         return _t('err_too_many_req');
-      if (msg.contains('not confirmed') || msg.contains('unverified'))
+      }
+      if (msg.contains('not confirmed') || msg.contains('unverified')) {
         return _t('err_unverified');
-      if (msg.contains('password should be')) return _t('err_pass_min');
+      }
+      if (msg.contains('password should be')) {
+        return _t('err_pass_min');
+      }
     }
 
     final errStr = error.toString().toLowerCase();
@@ -194,14 +204,14 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       return _t('err_network');
     }
 
-    // Strict fallback prevents raw backend exceptions from leaking to the UI
     return _t('err_generic');
   }
 
   void _showMessage(String message, {bool isError = true}) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    // WCAG AAA Compliant contrast colors
     final bgColor = isError ? const Color(0xFFB3261E) : const Color(0xFF2E7D32);
     final icon = isError
         ? Icons.error_outline_rounded
@@ -243,12 +253,16 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   // --- MICRO-INTERACTION: TAB DELAY ---
 
   void _switchTab(bool toPhone) async {
-    if (_isPhoneLogin == toPhone || _isLoading) return;
+    if (_isPhoneLogin == toPhone || _isLoading) {
+      return;
+    }
 
     HapticFeedback.selectionClick();
     await Future.delayed(const Duration(milliseconds: 120));
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     setState(() {
       _isPhoneLogin = toPhone;
@@ -259,41 +273,54 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   // --- VALIDATORS ---
 
   String? _validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) return _t('err_phone_req');
+    if (value == null || value.trim().isEmpty) {
+      return _t('err_phone_req');
+    }
     final cleanPhone = value.replaceAll(' ', '');
     final phoneRegex = RegExp(r'^\+94[0-9]{9}$');
-    if (!phoneRegex.hasMatch(cleanPhone)) return _t('err_phone_inv');
+    if (!phoneRegex.hasMatch(cleanPhone)) {
+      return _t('err_phone_inv');
+    }
     return null;
   }
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return _t('err_email_req');
+    if (value == null || value.trim().isEmpty) {
+      return _t('err_email_req');
+    }
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value.trim())) return _t('err_email_inv');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return _t('err_email_inv');
+    }
     return null;
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return _t('err_pass_req');
-    if (value.length < 8) return _t('err_pass_min');
+    if (value == null || value.isEmpty) {
+      return _t('err_pass_req');
+    }
+    if (value.length < 8) {
+      return _t('err_pass_min');
+    }
     return null;
   }
 
   // --- ACTIONS ---
 
   Future<void> _handlePhoneLogin() async {
-    // ✅ MEMORY LOCK: Prevents double-tap issues
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
 
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.lightImpact();
       return;
     }
 
-    _isLoading = true; // Lock before rendering UI change
+    _isLoading = true;
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
-    setState(() {}); // Show loading spinner
+    setState(() {});
 
     final phone = _phoneController.text.trim().replaceAll(' ', '');
 
@@ -307,23 +334,26 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     } catch (e) {
       _showMessage(_parseError(e), isError: true);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _handleEmailLogin() async {
-    // ✅ MEMORY LOCK: Prevents double-tap issues
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
 
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.lightImpact();
       return;
     }
 
-    _isLoading = true; // Lock before rendering UI change
+    _isLoading = true;
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
-    setState(() {}); // Show loading spinner
+    setState(() {});
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -356,13 +386,16 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     } catch (e) {
       _showMessage(_parseError(e), isError: true);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _handleForgotPassword() async {
-    // ✅ MEMORY LOCK: Prevents double-tap issues
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
 
     final email = _emailController.text.trim();
     final emailError = _validateEmail(email);
@@ -373,20 +406,24 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       return;
     }
 
-    _isLoading = true; // Lock before rendering UI change
+    _isLoading = true;
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
-    setState(() {}); // Show loading spinner
+    setState(() {});
 
     try {
       await AuthService.instance.requestPasswordReset(email);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       final successMsg = _t('reset_sent').replaceAll('@email', email);
       _showMessage(successMsg, isError: false);
 
       await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -396,7 +433,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     } catch (e) {
       _showMessage(_parseError(e), isError: true);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -404,13 +443,14 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     Future<void> Function() method,
     String provider,
   ) async {
-    // ✅ MEMORY LOCK: Prevents concurrent native popup crashes
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
 
-    _isLoading = true; // Lock before rendering UI change
+    _isLoading = true;
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
-    setState(() {}); // Show loading spinner
+    setState(() {});
 
     try {
       FirebaseAnalytics.instance.logEvent(
@@ -422,7 +462,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     } catch (e) {
       _showMessage(_parseError(e), isError: true);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -476,9 +518,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
+            color: Colors.white.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -524,7 +566,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
           backgroundColor: bgColor,
-          // ✅ PHYSICAL LOCK: Prevents double-taps on the screen entirely when loading
           body: AbsorbPointer(
             absorbing: _isLoading,
             child: Center(
@@ -580,7 +621,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                                 style: AppTypography.headline
                                                     .copyWith(
                                                       color: Colors.white
-                                                          .withOpacity(0.9),
+                                                          .withValues(
+                                                            alpha: 0.9,
+                                                          ),
                                                       fontSize: 24,
                                                       fontWeight:
                                                           FontWeight.w500,
@@ -620,8 +663,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                         borderRadius: BorderRadius.circular(32),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              isDark ? 0.5 : 0.15,
+                                            color: Colors.black.withValues(
+                                              alpha: isDark ? 0.5 : 0.15,
                                             ),
                                             blurRadius: 30,
                                             offset: const Offset(0, 15),
@@ -713,44 +756,77 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                             const SizedBox(height: 24),
 
                                             // MAIN SUBMIT BUTTON
-                                            SizedBox(
-                                              width: double.infinity,
-                                              height: 56,
-                                              child: ElevatedButton(
-                                                onPressed: _isLoading
-                                                    ? null
-                                                    : (_isPhoneLogin
-                                                          ? _handlePhoneLogin
-                                                          : _handleEmailLogin),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: accentColor,
-                                                  foregroundColor: Colors.white,
-                                                  elevation: 0,
-                                                  textStyle: AppTypography.title
-                                                      .copyWith(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.bold,
+                                            Listener(
+                                              onPointerDown: (_) {
+                                                if (!_isLoading) {
+                                                  setState(
+                                                    () =>
+                                                        _isSubmitPressed = true,
+                                                  );
+                                                }
+                                              },
+                                              onPointerUp: (_) {
+                                                if (!_isLoading) {
+                                                  setState(
+                                                    () => _isSubmitPressed =
+                                                        false,
+                                                  );
+                                                }
+                                              },
+                                              child: AnimatedScale(
+                                                scale: _isSubmitPressed
+                                                    ? 0.96
+                                                    : 1.0,
+                                                duration: const Duration(
+                                                  milliseconds: 100,
+                                                ),
+                                                curve: Curves.easeInOut,
+                                                child: SizedBox(
+                                                  width: double.infinity,
+                                                  height: 56,
+                                                  child: ElevatedButton(
+                                                    onPressed: _isLoading
+                                                        ? null
+                                                        : (_isPhoneLogin
+                                                              ? _handlePhoneLogin
+                                                              : _handleEmailLogin),
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor:
+                                                          accentColor,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      elevation: 0,
+                                                      textStyle: AppTypography
+                                                          .title
+                                                          .copyWith(
+                                                            fontSize: 16,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              20,
+                                                            ),
                                                       ),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          20,
-                                                        ),
+                                                    ),
+                                                    child: _isLoading
+                                                        ? const SizedBox(
+                                                            width: 24,
+                                                            height: 24,
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  strokeWidth:
+                                                                      3,
+                                                                ),
+                                                          )
+                                                        : Text(
+                                                            _t('continue_btn'),
+                                                          ),
                                                   ),
                                                 ),
-                                                child: _isLoading
-                                                    ? const SizedBox(
-                                                        width: 24,
-                                                        height: 24,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                              color:
-                                                                  Colors.white,
-                                                              strokeWidth: 3,
-                                                            ),
-                                                      )
-                                                    : Text(_t('continue_btn')),
                                               ),
                                             ),
 
@@ -902,6 +978,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         hint: _t('phone_hint'),
         icon: Icons.phone_android_rounded,
         inputType: TextInputType.phone,
+        autofillHints: const [AutofillHints.telephoneNumber],
         activeColor: activeColor,
         isDark: isDark,
         validator: _validatePhone,
@@ -919,6 +996,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           hint: _t('email_hint'),
           icon: Icons.email_outlined,
           inputType: TextInputType.emailAddress,
+          autofillHints: const [AutofillHints.email],
           activeColor: activeColor,
           isDark: isDark,
           validator: _validateEmail,
@@ -930,6 +1008,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           hint: _t('pass_hint'),
           icon: Icons.lock_outline_rounded,
           isPassword: true,
+          autofillHints: const [AutofillHints.password],
           activeColor: activeColor,
           isDark: isDark,
           validator: _validatePassword,
@@ -941,7 +1020,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              overlayColor: activeColor.withOpacity(0.1),
+              overlayColor: activeColor.withValues(alpha: 0.1),
               foregroundColor: isDark
                   ? AppColors.darkTextSecondary
                   : AppColors.textSecondary,
@@ -963,6 +1042,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     required String label,
     required String hint,
     required IconData icon,
+    Iterable<String>? autofillHints,
     TextInputType inputType = TextInputType.text,
     bool isPassword = false,
     required Color activeColor,
@@ -982,6 +1062,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       keyboardType: inputType,
       textInputAction: isPassword ? TextInputAction.done : TextInputAction.next,
       obscureText: isPassword && !_isPasswordVisible,
+      autofillHints: autofillHints,
       validator: validator,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       style: AppTypography.body.copyWith(
@@ -1087,7 +1168,7 @@ class _ToggleTab extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
