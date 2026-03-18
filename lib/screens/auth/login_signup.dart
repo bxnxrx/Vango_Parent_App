@@ -479,7 +479,15 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   // --- UI COMPONENTS ---
 
-  Widget _buildLanguageSelector() {
+  Widget _buildLanguageSelector(bool isDark) {
+    final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
+    final selectedTextColor = isDark
+        ? Colors.white
+        : const Color(0xFF2D325A);
+    final unselectedTextColor = isDark
+        ? AppColors.darkTextSecondary
+        : Colors.grey.shade700;
+
     return Theme(
       data: Theme.of(context).copyWith(
         splashColor: Colors.transparent,
@@ -494,7 +502,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
             parameters: {'lang': newValue.name},
           );
         },
-        color: AppColors.darkSurface,
+        color: menuBgColor, // ✅ FIX: Dynamic Background Color
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 8,
         offset: const Offset(0, 45),
@@ -507,8 +515,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                 _getLanguageName(lang),
                 style: AppTypography.body.copyWith(
                   color: isSelected
-                      ? Colors.white
-                      : AppColors.darkTextSecondary,
+                      ? selectedTextColor
+                      : unselectedTextColor, // ✅ FIX: Dynamic Text Color
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                 ),
               ),
@@ -643,7 +651,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                               ),
                                             ],
                                           ),
-                                          _buildLanguageSelector(),
+                                          _buildLanguageSelector(isDark),
                                         ],
                                       ),
                                     ),
