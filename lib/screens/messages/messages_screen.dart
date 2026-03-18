@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/screens/messages/chat_screen.dart';
+import 'package:intl/intl.dart';
 
+// ---------------------------------------------------------------------------
+// Data holder returned by the FutureBuilder for each chat tile.
+// ---------------------------------------------------------------------------
+class _ChatTileInfo {
+  final String driverName;
+  final String? childName;
+
+  const _ChatTileInfo({required this.driverName, this.childName});
+}
+
+// ---------------------------------------------------------------------------
+// MessagesScreen
+// ---------------------------------------------------------------------------
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key, required this.onOpenDrawer});
   final VoidCallback onOpenDrawer;
@@ -14,9 +29,54 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  // 1. GET THE REAL LOGGED-IN USER ID
-  final String currentUserId = Supabase.instance.client.auth.currentUser!.id;
+  // Current parent's Supabase Auth ID.
+  final String _currentUserId =
+      Supabase.instance.client.auth.currentUser!.id;
 
+  // In-memory cache so FutureBuilders don't re-fire on every stream event.
+  final Map<String, Future<_ChatTileInfo>> _infoCache = {};
+
+  // -------------------------------------------------------------------------
+  // Fetch driver + child info from Supabase for a given driver auth ID.
+  // -------------------------------------------------------------------------
+  Future<_ChatTileInfo> _fetchChatTileInfo(String driverAuthId) {
+    return _infoCache.putIfAbsent(driverAuthId, () async {
+      try {
+        // 1. Get driver record using supabase_user_id.
+        final driverRow = await Supabase.instance.client
+            .from('drivers')
+            .select('id, first_name, last_name')
+            .eq('supabase_user_id', driverAuthId)
+            .maybeSingle();
+
+        if (driverRow == null) {
+          return const _ChatTileInfo(driverName: 'VanGo Driver');
+        }
+
+        final driverName =
+            '${driverRow['first_name']} ${driverRow['last_name']}';
+        final driverDbId = driverRow['id'];
+
+        // 2. Find a child linked to this driver that belongs to this parent.
+        final childRow = await Supabase.instance.client
+            .from('children')
+            .select('child_name')
+            .eq('parent_id', _currentUserId)
+            .eq('linked_driver_id', driverDbId)
+            .maybeSingle();
+
+        final childName = childRow?['child_name'] as String?;
+
+        return _ChatTileInfo(driverName: driverName, childName: childName);
+      } catch (_) {
+        return const _ChatTileInfo(driverName: 'VanGo Driver');
+      }
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Navigate into the ChatScreen.
+  // -------------------------------------------------------------------------
   void _openChat(String chatId, String driverName) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -25,39 +85,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 
-  // 2. FETCH REAL DRIVER NAME FROM SUPABASE
-  Future<String> _getDriverName(String driverAuthId) async {
-    try {
-      final response = await Supabase.instance.client
-          .from('drivers')
-          .select('first_name, last_name')
-          .eq('supabase_user_id', driverAuthId)
-          .maybeSingle();
-
-      if (response != null) {
-        return "${response['first_name']} ${response['last_name']}";
-      }
-      return "VanGo Driver";
-    } catch (e) {
-      return "VanGo Driver";
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final secondaryTextColor = isDark
-        ? AppColors.darkTextSecondary
-        : AppColors.textSecondary;
+    final secondaryTextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
     return Scaffold(
-      backgroundColor: Theme.of(
-        context,
-      ).scaffoldBackgroundColor, // Dynamic background
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
-          // 1. Modern Sticky App Bar WITH Side Nav Trigger
+          // ── App Bar ───────────────────────────────────────────────────────
           SliverAppBar(
             floating: true,
             pinned: true,
@@ -98,7 +137,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
           ),
 
-          // 2. Search Bar (Added from the incoming branch UI)
+          // ── Search Bar ────────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -132,68 +171,110 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
           ),
 
-          // 3. STREAM REAL CHATS
+          // ── Chat List (real-time Firestore stream) ─────────────────────────
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('chats')
-                .where('users', arrayContains: currentUserId)
+                .where('users', arrayContains: _currentUserId)
                 .snapshots(),
             builder: (context, snapshot) {
+              // Error
               if (snapshot.hasError) {
                 return SliverFillRemaining(
                   child: Center(
                     child: Text(
-                      "Error loading chats: ${snapshot.error}",
-                      style: TextStyle(color: textColor),
+                      'Error loading chats.\nPlease try again later.',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.body.copyWith(
+                        color: AppColors.danger,
+                      ),
                     ),
                   ),
                 );
               }
 
+              // Initial load
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (_, __) => const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: _ShimmerTile(),
+                      ),
+                      childCount: 4,
+                    ),
+                  ),
                 );
               }
 
+              // Empty
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return const SliverFillRemaining(child: _EmptyState());
               }
 
-              final chatDocs = snapshot.data!.docs;
+              // Sort docs by lastMessageTime descending (most recent first)
+              final chatDocs = snapshot.data!.docs.toList()
+                ..sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aTs = aData['lastMessageTime'] as Timestamp?;
+                  final bTs = bData['lastMessageTime'] as Timestamp?;
+                  if (aTs == null && bTs == null) return 0;
+                  if (aTs == null) return 1;
+                  if (bTs == null) return -1;
+                  return bTs.compareTo(aTs);
+                });
 
               return SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final chatData =
-                        chatDocs[index].data() as Map<String, dynamic>;
-                    final chatId = chatDocs[index].id;
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final doc = chatDocs[index];
+                      final chatData = doc.data() as Map<String, dynamic>;
+                      final chatId = doc.id;
 
-                    // Find the OTHER user's ID
-                    List<dynamic> users = chatData['users'] ?? [];
-                    String otherUserId = users.firstWhere(
-                      (id) => id != currentUserId,
-                      orElse: () => '',
-                    );
+                      // Extract the OTHER user (the driver) from the users array.
+                      final users = List<String>.from(
+                        (chatData['users'] as List<dynamic>?) ?? [],
+                      );
+                      final driverAuthId = users.firstWhere(
+                        (id) => id != _currentUserId,
+                        orElse: () => '',
+                      );
 
-                    // Build the tile with the real driver's name
-                    return FutureBuilder<String>(
-                      future: _getDriverName(otherUserId),
-                      builder: (context, nameSnapshot) {
-                        String driverName = nameSnapshot.data ?? "Loading...";
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: FutureBuilder<_ChatTileInfo>(
+                          future: _fetchChatTileInfo(driverAuthId),
+                          builder: (context, infoSnap) {
+                            // Show shimmer while the Future resolves
+                            if (infoSnap.connectionState ==
+                                ConnectionState.waiting) {
+                              return const _ShimmerTile();
+                            }
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: CustomMessageTile(
-                            chatData: chatData,
-                            driverName: driverName,
-                            onTap: () => _openChat(chatId, driverName),
-                          ),
-                        );
-                      },
-                    );
-                  }, childCount: chatDocs.length),
+                            final info = infoSnap.data ??
+                                const _ChatTileInfo(driverName: 'VanGo Driver');
+
+                            final displayName = info.childName != null
+                                ? '${info.driverName} (Driving ${info.childName})'
+                                : info.driverName;
+
+                            return _ChatTile(
+                              chatData: chatData,
+                              displayName: displayName,
+                              onTap: () =>
+                                  _openChat(chatId, info.driverName),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                    childCount: chatDocs.length,
+                  ),
                 ),
               );
             },
@@ -204,63 +285,85 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 }
 
-// --- Supporting Widgets ---
-
-class CustomMessageTile extends StatelessWidget {
+// ---------------------------------------------------------------------------
+// _ChatTile – the card rendered for each conversation.
+// ---------------------------------------------------------------------------
+class _ChatTile extends StatelessWidget {
   final Map<String, dynamic> chatData;
-  final String driverName;
+  final String displayName;
   final VoidCallback onTap;
 
-  const CustomMessageTile({
-    super.key,
+  const _ChatTile({
     required this.chatData,
-    required this.driverName,
+    required this.displayName,
     required this.onTap,
   });
+
+  String _timeLabel(Timestamp? ts) {
+    if (ts == null) return '';
+    final dt = ts.toDate().toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return DateFormat('dd MMM').format(dt);
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final secondaryTextColor = isDark
-        ? AppColors.darkTextSecondary
-        : AppColors.textSecondary;
+    final secondaryTextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
+
+    final lastMessage = (chatData['lastMessage'] as String?)?.trim();
+    final snippet = (lastMessage != null && lastMessage.isNotEmpty)
+        ? lastMessage
+        : 'No messages yet';
+
+    final initials = displayName.isNotEmpty
+        ? displayName.split(' ').take(2).map((w) => w[0]).join().toUpperCase()
+        : '?';
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Theme.of(context).dividerColor),
-          boxShadow: [
-            if (!isDark) // Only show shadow in light mode
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-          ],
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
         child: Row(
           children: [
+            // Avatar
             CircleAvatar(
-              radius: 28,
-              backgroundColor: isDark
-                  ? AppColors.darkAccent.withOpacity(0.2)
-                  : AppColors.accent.withOpacity(0.1),
+              radius: 26,
+              backgroundColor: accentColor.withValues(alpha: isDark ? 0.22 : 0.1),
               child: Text(
-                driverName.isNotEmpty
-                    ? driverName.substring(0, 1).toUpperCase()
-                    : "?",
-                style: AppTypography.title.copyWith(
-                  color: isDark ? AppColors.darkAccent : AppColors.accent,
+                initials,
+                style: AppTypography.label.copyWith(
+                  color: accentColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
+            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,14 +371,25 @@ class CustomMessageTile extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        driverName,
-                        style: AppTypography.title.copyWith(color: textColor),
+                      Expanded(
+                        child: Text(
+                          displayName,
+                          style: AppTypography.label.copyWith(
+                            color: textColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
-                        'Now',
+                        _timeLabel(
+                          chatData['lastMessageTime'] as Timestamp?,
+                        ),
                         style: AppTypography.label.copyWith(
-                          fontSize: 10,
+                          fontSize: 11,
                           color: secondaryTextColor,
                         ),
                       ),
@@ -283,10 +397,7 @@ class CustomMessageTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    chatData['lastMessage'] == "" ||
-                            chatData['lastMessage'] == null
-                        ? "No messages yet"
-                        : chatData['lastMessage'],
+                    snippet,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.body.copyWith(
@@ -304,6 +415,69 @@ class CustomMessageTile extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Shimmer placeholder tile shown while Supabase resolves driver/child info.
+// ---------------------------------------------------------------------------
+class _ShimmerTile extends StatelessWidget {
+  const _ShimmerTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor =
+        isDark ? const Color(0xFF2A2A3D) : const Color(0xFFE0E0E0);
+    final highlightColor =
+        isDark ? const Color(0xFF3F3F5A) : const Color(0xFFF5F5F5);
+
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
+      child: Container(
+        height: 76,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            const CircleAvatar(radius: 26, backgroundColor: Colors.white),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 14,
+                    width: 140,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 11,
+                    width: 200,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Empty-state widget when there are no chats.
+// ---------------------------------------------------------------------------
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
@@ -311,29 +485,47 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final secondaryTextColor = isDark
-        ? AppColors.darkTextSecondary
-        : AppColors.textSecondary;
+    final secondaryTextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 64,
-            color: secondaryTextColor.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No conversations yet',
-            style: AppTypography.title.copyWith(color: textColor),
-          ),
-          Text(
-            'Your route updates will appear here.',
-            style: AppTypography.body.copyWith(color: secondaryTextColor),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 56,
+                color: accentColor.withValues(alpha: 0.5),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'No conversations yet',
+              style: AppTypography.title.copyWith(
+                fontSize: 18,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Once your driver is linked, your chat will appear here automatically.',
+              textAlign: TextAlign.center,
+              style: AppTypography.body.copyWith(
+                fontSize: 14,
+                color: secondaryTextColor,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
