@@ -3,13 +3,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+// ✅ NEW: Enterprise Plugins
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 import 'package:vango_parent_app/screens/app_shell.dart';
 import 'package:vango_parent_app/screens/auth/auth_flow.dart';
 import 'package:vango_parent_app/screens/onboarding/onboarding_screen.dart';
-// ✅ ADD THIS IMPORT (Adjust path if needed)
 import 'package:vango_parent_app/screens/splash/animated_splash_screen.dart';
 
 import 'package:vango_parent_app/services/app_config.dart';
@@ -30,6 +32,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  // ✅ 1. GLOBAL CRASH HANDLER (Catches all Flutter UI fatal errors)
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -83,20 +88,22 @@ Future<void> main() async {
 
     await deviceService.syncDeviceData();
 
-    // ✅ REVERTED: Just run the app! The Splash screen handles the rest.
     runApp(const VanGoApp());
   } catch (error, stackTrace) {
+    // Record startup errors to Crashlytics before falling back to Offline App
+    FirebaseCrashlytics.instance.recordError(
+      error,
+      stackTrace,
+      reason: 'Parent app offline startup crash',
+    );
     debugPrint('Parent app offline: $error');
-    debugPrintStack(stackTrace: stackTrace);
     runApp(ParentOfflineApp(error: error));
   }
 }
 
-// ✅ ADDED 'splash' TO YOUR STAGES
 enum _AppStage { splash, onboarding, auth, home }
 
 class VanGoApp extends StatefulWidget {
-  // ✅ REVERTED: No longer need to pass variables here
   const VanGoApp({super.key});
 
   @override
@@ -108,7 +115,6 @@ class _VanGoAppState extends State<VanGoApp> {
   final GlobalKey<ScaffoldMessengerState> _messengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
-  // ✅ APP STARTS IN SPLASH STAGE
   _AppStage _stage = _AppStage.splash;
 
   @override
@@ -116,21 +122,34 @@ class _VanGoAppState extends State<VanGoApp> {
     super.initState();
   }
 
-  // ✅ NEW: Triggered when the Animated Splash finishes its loading and animations
   void _onSplashFinished(bool hasSeenOnboarding) {
     setState(() {
       _stage = hasSeenOnboarding ? _AppStage.auth : _AppStage.onboarding;
     });
+
+    // ✅ 2. NAVIGATION ANALYTICS (Splash -> Target)
+    FirebaseAnalytics.instance.logEvent(
+      name: 'navigation_flow',
+      parameters: {'source': 'splash', 'destination': _stage.name},
+    );
   }
 
   void _finishOnboarding() {
     if (_stage == _AppStage.onboarding) {
       setState(() => _stage = _AppStage.auth);
+
+      // ✅ 2. NAVIGATION ANALYTICS (Onboarding -> Auth)
+      FirebaseAnalytics.instance.logEvent(
+        name: 'navigation_flow',
+        parameters: {'source': 'onboarding', 'destination': 'auth'},
+      );
     }
   }
 
   Future<void> _completeAuth() async {
-    try {} catch (e) {
+    try {
+      // Auth logic handled externally
+    } catch (e) {
       debugPrint("Auth completion error: $e");
     }
 
@@ -139,11 +158,27 @@ class _VanGoAppState extends State<VanGoApp> {
     setState(() {
       _stage = _AppStage.home;
     });
+
+    // ✅ 2. NAVIGATION ANALYTICS (Auth -> Home)
+    FirebaseAnalytics.instance.logEvent(
+      name: 'navigation_flow',
+      parameters: {'source': 'auth', 'destination': 'home'},
+    );
   }
 
   void _signOut() {
     if (_stage == _AppStage.home) {
       setState(() => _stage = _AppStage.auth);
+
+      // ✅ 2. NAVIGATION ANALYTICS (Home -> Auth via Sign Out)
+      FirebaseAnalytics.instance.logEvent(
+        name: 'navigation_flow',
+        parameters: {
+          'source': 'home',
+          'destination': 'auth',
+          'action': 'sign_out',
+        },
+      );
     }
   }
 
@@ -151,7 +186,6 @@ class _VanGoAppState extends State<VanGoApp> {
   Widget build(BuildContext context) {
     final Widget currentScreen;
 
-    // ✅ Set up the screens with ValueKeys so AnimatedSwitcher knows when they change
     switch (_stage) {
       case _AppStage.splash:
         currentScreen = AnimatedSplashScreen(
@@ -195,9 +229,8 @@ class _VanGoAppState extends State<VanGoApp> {
           darkTheme: AppTheme.dark(),
           themeMode: currentThemeMode,
 
-          // ✅ WRAPPED IN ANIMATED SWITCHER FOR PREMIUM CROSS-FADES
           home: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 800),
+            duration: const Duration(milliseconds: 300),
             switchInCurve: Curves.easeInCubic,
             switchOutCurve: Curves.easeOutCubic,
             child: currentScreen,
@@ -218,7 +251,6 @@ class ParentOfflineApp extends StatelessWidget {
     messenger.clearSnackBars();
     try {
       await AuthService.instance.initialize();
-      // ✅ REVERTED: Just run the app
       runApp(const VanGoApp());
     } catch (retryError) {
       messenger.showSnackBar(

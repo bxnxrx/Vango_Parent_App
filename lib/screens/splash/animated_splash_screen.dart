@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// ✅ Enterprise Plugins
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
@@ -22,16 +22,14 @@ class AnimatedSplashScreen extends StatefulWidget {
   State<AnimatedSplashScreen> createState() => _AnimatedSplashScreenState();
 }
 
-// Note: Using TickerProviderStateMixin instead of SingleTickerProvider
-// because we now have an Entrance and an Exit animation.
 class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late AnimationController _entranceController;
-  late AnimationController _exitController;
 
   final String _brandName = "VanGo";
   late List<Animation<double>> _letterOpacities;
   late List<Animation<Offset>> _letterSlides;
+  late List<Animation<double>> _letterBlurs;
 
   int _lastHapticIndex = -1;
 
@@ -39,24 +37,24 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
   void initState() {
     super.initState();
 
-    // ✅ 3. ENTERPRISE CRASHLYTICS HOOK
     FirebaseCrashlytics.instance.log("Animated Splash Screen Initialized");
 
-    // --- SETUP ENTRANCE ANIMATION (The Cascade) ---
+    // --- SETUP ENTRANCE ANIMATION ---
     _entranceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      // The entrance remains incredibly fast and snappy
+      duration: const Duration(milliseconds: 800),
     );
 
     _letterOpacities = [];
     _letterSlides = [];
+    _letterBlurs = [];
 
-    // Create a staggered animation for each letter
-    final double step = 0.5 / _brandName.length; // Space out the start times
+    final double step = 0.25 / _brandName.length;
+
     for (int i = 0; i < _brandName.length; i++) {
       final double start = i * step;
-      final double end =
-          start + 0.5; // Each letter takes 50% of the total time to finish
+      final double end = start + 0.75;
 
       _letterOpacities.add(
         Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -68,69 +66,59 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
       );
 
       _letterSlides.add(
-        Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
+        Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero).animate(
           CurvedAnimation(
             parent: _entranceController,
-            curve: Interval(start, end, curve: Curves.easeOutCubic),
+            curve: Interval(start, end, curve: Curves.easeOutExpo),
+          ),
+        ),
+      );
+
+      _letterBlurs.add(
+        Tween<double>(begin: 5.0, end: 0.0).animate(
+          CurvedAnimation(
+            parent: _entranceController,
+            curve: Interval(start, end - 0.2, curve: Curves.easeOutQuart),
           ),
         ),
       );
     }
 
-    // THE PREMIUM HAPTIC CASCADE
+    // --- THE HAPTIC SWEEP ---
     _entranceController.addListener(() {
       final double val = _entranceController.value;
 
-      // Trigger haptics perfectly timed to each letter's appearance
       for (int i = 0; i < _brandName.length; i++) {
-        final double triggerPoint =
-            i * step + 0.1; // 10% into the letter's animation
+        final double triggerPoint = i * step + 0.05;
 
         if (val >= triggerPoint && _lastHapticIndex < i) {
           _lastHapticIndex = i;
 
           if (i == _brandName.length - 1) {
-            // Final letter gets the heavy lock impact
-            HapticFeedback.mediumImpact();
-          } else {
-            // Sequential light taps for the cascade
             HapticFeedback.lightImpact();
+          } else {
+            HapticFeedback.selectionClick();
           }
         }
       }
     });
 
-    // --- SETUP EXIT ANIMATION ---
-    // ✅ 1. SPLASH TO ONBOARDING TRANSITION POLISH
-    _exitController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600), // Smooth 600ms fade out
-    );
-
-    // Start the show
     _entranceController.forward();
     _initializeApp();
   }
 
   Future<void> _initializeApp() async {
     final stopwatch = Stopwatch()..start();
-
-    // ✅ 2. ENTERPRISE ANALYTICS HOOK
     FirebaseAnalytics.instance.logEvent(name: 'splash_started');
 
-    // ✅ 4. FIRST FRAME OPTIMIZATION (Warmup)
-    // Run critical tasks in parallel using Future.wait
     late bool hasSeenOnboarding;
 
     try {
       await Future.wait([
-        // Task A: Check memory
         SharedPreferences.getInstance().then((prefs) {
           hasSeenOnboarding = prefs.getBool('onboarding_completed') ?? false;
         }),
-
-        // Task B: Warm up API/Preload Fonts (Dummy delay here, replace with real API ping if needed)
-        Future.delayed(const Duration(milliseconds: 200)),
+        Future.delayed(const Duration(milliseconds: 100)),
       ]);
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
@@ -138,33 +126,28 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
         stack,
         reason: 'Splash Screen Warmup Failed',
       );
-      hasSeenOnboarding = false; // Safe fallback
+      hasSeenOnboarding = false;
     }
 
     stopwatch.stop();
 
-    // Ensure the animation has time to fully play and the user absorbs it
-    final remainingTime = 2200 - stopwatch.elapsedMilliseconds;
+    // ✅ ENTERPRISE PREMIUM REST TIMING
+    // 800ms for animation to finish + 800ms of resting time = 1600ms total.
+    // This gives the logo exactly enough time to "settle" before transitioning.
+    final remainingTime = 1600 - stopwatch.elapsedMilliseconds;
     if (remainingTime > 0) {
       await Future.delayed(Duration(milliseconds: remainingTime));
     }
 
     if (!mounted) return;
 
-    // ✅ THE EXIT FADE
-    // Dissolve the text smoothly BEFORE telling main.dart to switch screens
-    await _exitController.forward();
-
     FirebaseAnalytics.instance.logEvent(name: 'splash_completed');
-
-    // Trigger the cross-fade routing
     widget.onInitializationComplete(hasSeenOnboarding);
   }
 
   @override
   void dispose() {
     _entranceController.dispose();
-    _exitController.dispose();
     super.dispose();
   }
 
@@ -181,38 +164,36 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen>
       child: Scaffold(
         backgroundColor: bgColor,
         body: Center(
-          // Wrap everything in a FadeTransition tied to the EXIT controller
-          child: FadeTransition(
-            // Reversing the exit controller so 0.0 -> 1.0 fades out
-            opacity: Tween<double>(begin: 1.0, end: 0.0).animate(
-              CurvedAnimation(parent: _exitController, curve: Curves.easeOut),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_brandName.length, (index) {
-                // Build each letter individually
-                return AnimatedBuilder(
-                  animation: _entranceController,
-                  builder: (context, child) {
-                    return Opacity(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_brandName.length, (index) {
+              return AnimatedBuilder(
+                animation: _entranceController,
+                builder: (context, child) {
+                  return ImageFiltered(
+                    imageFilter: ImageFilter.blur(
+                      sigmaX: _letterBlurs[index].value,
+                      sigmaY: _letterBlurs[index].value,
+                    ),
+                    child: Opacity(
                       opacity: _letterOpacities[index].value,
                       child: SlideTransition(
                         position: _letterSlides[index],
                         child: Text(
                           _brandName[index],
                           style: AppTypography.headline.copyWith(
-                            fontSize: 56, // Bold presence
-                            fontWeight: FontWeight.w900,
+                            fontSize: 56,
+                            fontWeight: FontWeight.w800,
                             color: textColor,
-                            letterSpacing: 2.0, // Tight, clean spacing
+                            letterSpacing: 1.5,
                           ),
                         ),
                       ),
-                    );
-                  },
-                );
-              }),
-            ),
+                    ),
+                  );
+                },
+              );
+            }),
           ),
         ),
       ),
