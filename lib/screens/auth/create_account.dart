@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:vango_parent_app/screens/auth/otp_screen.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
@@ -20,7 +21,7 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'full_name': 'Full Name',
     'full_name_hint': 'e.g. John Doe',
     'mobile': 'Mobile Number',
-    'mobile_hint': '+94 7X XXX XXXX',
+    'mobile_hint': '7X XXX XXXX',
     'relationship': 'Relationship',
     'rel_parent': 'Parent',
     'rel_guardian': 'Guardian',
@@ -29,14 +30,15 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'email_opt': 'Email Address (Optional)',
     'email_hint': 'name@example.com',
     'continue_btn': 'Continue',
-    'sign_out_title': 'Sign Out?',
-    'sign_out_body': 'Are you sure you want to cancel setup and sign out?',
+    'sign_out_title': 'Cancel Setup?',
+    'sign_out_body':
+        'This will completely delete your account and you will need to register again.',
     'stay': 'Stay',
-    'sign_out': 'Sign Out',
+    'sign_out': 'Delete & Sign Out',
     'err_name_req': 'Full Name is required',
     'err_name_min': 'Name must be at least 3 characters',
     'err_phone_req': 'Mobile Number is required',
-    'err_phone_inv': 'Invalid format (use +947XXXXXXXX)',
+    'err_phone_inv': 'Invalid format (use 7XXXXXXXX)',
     'err_email_inv': 'Enter a valid email address',
     'err_rel_req': 'Please select your relationship type.',
     'err_form': 'Please check the form for errors.',
@@ -50,7 +52,7 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'full_name': 'සම්පූර්ණ නම',
     'full_name_hint': 'උදා: කසුන් පෙරේරා',
     'mobile': 'ජංගම දුරකථන අංකය',
-    'mobile_hint': '+94 7X XXX XXXX',
+    'mobile_hint': '7X XXX XXXX',
     'relationship': 'සම්බන්ධතාවය',
     'rel_parent': 'දෙමාපියන්',
     'rel_guardian': 'භාරකරු',
@@ -59,14 +61,14 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'email_opt': 'විද්‍යුත් තැපෑල (විකල්ප)',
     'email_hint': 'name@example.com',
     'continue_btn': 'ඉදිරියට',
-    'sign_out_title': 'ඉවත් වන්නද?',
-    'sign_out_body': 'ඔබට නිසැකවම ලියාපදිංචිය අවලංගු කර ඉවත් වීමට අවශ්‍යද?',
+    'sign_out_title': 'අවලංගු කරන්නද?',
+    'sign_out_body': 'මෙය ඔබගේ ගිණුම සම්පූර්ණයෙන්ම මකා දමනු ඇත.',
     'stay': 'රැඳී සිටින්න',
-    'sign_out': 'ඉවත් වන්න',
+    'sign_out': 'මකා ඉවත් වන්න',
     'err_name_req': 'සම්පූර්ණ නම අවශ්‍යයි',
     'err_name_min': 'නම අවම වශයෙන් අකුරු 3ක් විය යුතුය',
     'err_phone_req': 'දුරකථන අංකය අවශ්‍යයි',
-    'err_phone_inv': 'වැරදි ආකෘතියකි (+947XXXXXXXX භාවිතා කරන්න)',
+    'err_phone_inv': 'වැරදි ආකෘතියකි (7XXXXXXXX භාවිතා කරන්න)',
     'err_email_inv': 'නිවැරදි විද්‍යුත් තැපෑලක් ඇතුලත් කරන්න',
     'err_rel_req': 'කරුණාකර සම්බන්ධතා වර්ගය තෝරන්න.',
     'err_form': 'කරුණාකර පෝරමයේ දෝෂ පරීක්ෂා කරන්න.',
@@ -80,7 +82,7 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'full_name': 'முழு பெயர்',
     'full_name_hint': 'எ.கா: ஜான் டோ',
     'mobile': 'கைபேசி எண்',
-    'mobile_hint': '+94 7X XXX XXXX',
+    'mobile_hint': '7X XXX XXXX',
     'relationship': 'உறவு',
     'rel_parent': 'பெற்றோர்',
     'rel_guardian': 'பாதுகாவலர்',
@@ -89,14 +91,14 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'email_opt': 'மின்னஞ்சல் (விருப்பத்திற்குரியது)',
     'email_hint': 'name@example.com',
     'continue_btn': 'தொடரவும்',
-    'sign_out_title': 'வெளியேறவா?',
-    'sign_out_body': 'அமைப்பை ரத்துசெய்து வெளியேற விரும்புகிறீர்களா?',
+    'sign_out_title': 'ரத்து செய்யவா?',
+    'sign_out_body': 'இது உங்கள் கணக்கை முழுமையாக நீக்கிவிடும்.',
     'stay': 'தொடர்க',
-    'sign_out': 'வெளியேறு',
+    'sign_out': 'நீக்கி வெளியேறு',
     'err_name_req': 'முழு பெயர் தேவை',
     'err_name_min': 'பெயர் குறைந்தது 3 எழுத்துகளைக் கொண்டிருக்க வேண்டும்',
     'err_phone_req': 'தொலைபேசி எண் தேவை',
-    'err_phone_inv': 'தவறான வடிவம் (+947XXXXXXXX ஐப் பயன்படுத்தவும்)',
+    'err_phone_inv': 'தவறான வடிவம் (7XXXXXXXX ஐப் பயன்படுத்தவும்)',
     'err_email_inv': 'சரியான மின்னஞ்சலை உள்ளிடவும்',
     'err_rel_req': 'உங்கள் உறவு வகையைத் தேர்ந்தெடுக்கவும்.',
     'err_form': 'படிவத்தில் உள்ள பிழைகளை சரிபார்க்கவும்.',
@@ -152,11 +154,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           _emailController.text = user.email!;
           _emailReadOnly = true;
         }
+
         if (user?.phone != null && user!.phone!.isNotEmpty) {
-          _phoneController.text = user.phone!;
+          String p = user.phone!;
+          if (p.startsWith('+94')) p = p.substring(3);
+          _phoneController.text = p;
           _phoneReadOnly = true;
         } else if (cachedPhone != null && _phoneController.text.isEmpty) {
-          _phoneController.text = cachedPhone;
+          String p = cachedPhone;
+          if (p.startsWith('+94')) p = p.substring(3);
+          _phoneController.text = p;
         }
       });
     }
@@ -182,8 +189,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         return 'தமிழ்';
     }
   }
-
-  // --- PREMIUM ERROR HANDLING ---
 
   void _showMessage(String message, {bool isError = true}) {
     if (!mounted) {
@@ -245,7 +250,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return _t('err_phone_req');
     }
     final cleanPhone = value.replaceAll(' ', '');
-    final phoneRegex = RegExp(r'^\+?94[0-9]{9}$');
+    final phoneRegex = RegExp(r'^[0-9]{9}$');
     if (!phoneRegex.hasMatch(cleanPhone)) {
       return _t('err_phone_inv');
     }
@@ -287,9 +292,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     setState(() {});
 
     var phoneInput = _phoneController.text.trim().replaceAll(' ', '');
-    if (!phoneInput.startsWith('+')) {
-      phoneInput = '+$phoneInput';
-    }
+    phoneInput = '+94$phoneInput';
+
     final emailInput = _emailController.text.trim();
 
     if (!_phoneReadOnly) {
@@ -450,22 +454,33 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         false;
 
     if (confirm) {
-      await AuthService.instance.cancelSignup();
-      widget.onBack();
+      setState(() => _submitting = true);
+
+      try {
+        // ✅ CLEAN FIX: Just call the backend! It securely handles the deletion via the Admin API.
+        await AuthService.instance.cancelSignup();
+
+        if (mounted) {
+          widget.onBack();
+        }
+      } catch (e) {
+        if (mounted) {
+          _showMessage(
+            'Failed to delete account completely. Logging out locally.',
+            isError: true,
+          );
+          // Still force them back to the login screen as a fallback
+          widget.onBack();
+        }
+      } finally {
+        if (mounted) setState(() => _submitting = false);
+      }
     }
   }
 
   // --- UI COMPONENTS ---
 
-  Widget _buildLanguageSelector(bool isDark) {
-    final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
-    final selectedTextColor = isDark
-        ? Colors.white
-        : const Color(0xFF2D325A); // Light mode එකේදී තද නිල්
-    final unselectedTextColor = isDark
-        ? AppColors.darkTextSecondary
-        : Colors.grey.shade700;
-
+  Widget _buildLanguageSelector() {
     return Theme(
       data: Theme.of(context).copyWith(
         splashColor: Colors.transparent,
@@ -476,11 +491,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           HapticFeedback.selectionClick();
           setState(() => _currentLanguage = newValue);
           FirebaseAnalytics.instance.logEvent(
-            name: 'auth_language_changed',
+            name: 'lang_changed',
             parameters: {'lang': newValue.name},
           );
         },
-        color: menuBgColor, // ✅ FIX: Dynamic Background Color
+        color: AppColors.darkSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 8,
         offset: const Offset(0, 45),
@@ -493,8 +508,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 _getLanguageName(lang),
                 style: AppTypography.body.copyWith(
                   color: isSelected
-                      ? selectedTextColor
-                      : unselectedTextColor, // ✅ FIX: Dynamic Text Color
+                      ? Colors.white
+                      : AppColors.darkTextSecondary,
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                 ),
               ),
@@ -541,17 +556,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final textColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
-    final textSecondary = isDark
-        ? AppColors.darkTextSecondary
-        : AppColors.textSecondary;
     final accentColor = isDark ? AppColors.darkAccent : const Color(0xFF2D325A);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      // ✅ FIX: Force the system navigation bar to match the dark/light background correctly
+      value: SystemUiOverlayStyle.light.copyWith(
+        systemNavigationBarColor: bgColor,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
+      ),
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
           backgroundColor: bgColor,
+          resizeToAvoidBottomInset: true,
           body: AbsorbPointer(
             absorbing: _submitting,
             child: Center(
@@ -601,7 +620,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                               color: Colors.white,
                                             ),
                                           ),
-                                          _buildLanguageSelector(isDark),
+                                          _buildLanguageSelector(),
                                         ],
                                       ),
                                     ),
@@ -697,7 +716,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                             ),
                                             const SizedBox(height: 20),
 
-                                            // Mobile Number
+                                            // Mobile Number (With fixed +94 prefix)
                                             _buildTextField(
                                               controller: _phoneController,
                                               label: _t('mobile'),
@@ -705,12 +724,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                               icon: Icons.phone_android_rounded,
                                               inputType: TextInputType.phone,
                                               autofillHints: const [
-                                                AutofillHints.telephoneNumber,
+                                                AutofillHints
+                                                    .telephoneNumberNational,
                                               ],
                                               isDark: isDark,
                                               activeColor: accentColor,
                                               validator: _validatePhone,
                                               readOnly: _phoneReadOnly,
+                                              prefixText: '+94 ',
                                             ),
                                             const SizedBox(height: 20),
 
@@ -843,6 +864,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     required bool isDark,
     required Color activeColor,
     bool readOnly = false,
+    String? prefixText,
   }) {
     final borderColor = isDark ? AppColors.darkStroke : Colors.grey.shade300;
     final readOnlyBorder = isDark ? Colors.transparent : Colors.grey.shade200;
@@ -857,6 +879,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     return TextFormField(
       controller: controller,
       keyboardType: inputType,
+      // ✅ FIX: Forces the keyboard to render in Dark Mode if the app is in Dark Mode
+      keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
       validator: validator,
       readOnly: readOnly,
       autofillHints: autofillHints,
@@ -871,6 +895,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         hintText: hint,
         hintStyle: AppTypography.body.copyWith(color: hintColor),
         prefixIcon: Icon(icon, color: hintColor, size: 22),
+        prefixText: prefixText,
+        prefixStyle: AppTypography.body.copyWith(
+          color: readOnly ? hintColor : textColor,
+          fontWeight: FontWeight.w600,
+        ),
         filled: readOnly,
         fillColor: readOnly
             ? readOnlyBg
@@ -914,7 +943,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ? AppColors.darkTextSecondary
         : Colors.grey.shade500;
 
-    // Convert translation map to display items
     final List<String> localizedTypes = [
       _t('rel_parent'),
       _t('rel_guardian'),
@@ -922,7 +950,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     ];
 
     return DropdownButtonFormField<String>(
-      // Convert the english internal value back to the localized display value
       value: _selectedRelationship != null
           ? localizedTypes[_relationshipTypes.indexOf(_selectedRelationship!)]
           : null,
@@ -968,7 +995,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       }).toList(),
       onChanged: (displayVal) {
         if (displayVal != null) {
-          // Map back the translated string to the internal English string for the backend
           setState(() {
             _selectedRelationship =
                 _relationshipTypes[localizedTypes.indexOf(displayVal)];
