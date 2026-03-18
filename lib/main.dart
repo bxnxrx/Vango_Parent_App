@@ -5,9 +5,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+// ✅ NEW: Enterprise Plugins
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+
 import 'package:vango_parent_app/screens/app_shell.dart';
 import 'package:vango_parent_app/screens/auth/auth_flow.dart';
 import 'package:vango_parent_app/screens/onboarding/onboarding_screen.dart';
+import 'package:vango_parent_app/screens/splash/animated_splash_screen.dart';
+
 import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_theme.dart';
@@ -15,31 +21,26 @@ import 'package:vango_parent_app/services/notification_service.dart';
 import 'package:vango_parent_app/services/device_service.dart';
 import 'package:vango_parent_app/services/theme_service.dart';
 
-// Make sure this path is correct
-
-// --- 1. BACKGROUND MESSAGE HANDLER ---
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp();
   }
   debugPrint("📩 Background Message Received: ${message.messageId}");
-  // Android automatically displays the notification in the background
-  // We DO NOT call local notifications here to avoid duplicates!
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 2. INITIALIZE FIREBASE
   await Firebase.initializeApp();
 
-  // 3. SET UP HIGH IMPORTANCE CHANNEL
+  // ✅ 1. GLOBAL CRASH HANDLER (Catches all Flutter UI fatal errors)
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'vango_notifications_v4', // id: MUST MATCH what you used in NotificationService and AndroidManifest
+    'vango_notifications_v4',
     'Parent Notifications',
     description: 'Important updates for parents.',
     importance: Importance.max,
@@ -54,7 +55,6 @@ Future<void> main() async {
       >()
       ?.createNotificationChannel(channel);
 
-  // 4. REGISTER FIREBASE HANDLERS
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
@@ -63,7 +63,6 @@ Future<void> main() async {
     sound: true,
   );
 
-  // 5. LOAD ENV & SUPABASE
   await dotenv.load(fileName: ".env");
   AppConfig.ensure();
 
@@ -73,13 +72,11 @@ Future<void> main() async {
   );
 
   try {
-    // 6. INITIALIZE SERVICES
     await NotificationService.instance.initialize();
     await AuthService.instance.initialize();
 
     final deviceService = DeviceService();
 
-    // 7. LISTEN FOR LOGIN / LOGOUT TO SYNC TOKENS
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (data.event == AuthChangeEvent.signedIn ||
           data.event == AuthChangeEvent.initialSession) {
@@ -89,18 +86,22 @@ Future<void> main() async {
       }
     });
 
-    // 8. SYNC DEVICE DATA ON STARTUP
     await deviceService.syncDeviceData();
 
     runApp(const VanGoApp());
   } catch (error, stackTrace) {
+    // Record startup errors to Crashlytics before falling back to Offline App
+    FirebaseCrashlytics.instance.recordError(
+      error,
+      stackTrace,
+      reason: 'Parent app offline startup crash',
+    );
     debugPrint('Parent app offline: $error');
-    debugPrintStack(stackTrace: stackTrace);
     runApp(ParentOfflineApp(error: error));
   }
 }
 
-enum _AppStage { onboarding, auth, home }
+enum _AppStage { splash, onboarding, auth, home }
 
 class VanGoApp extends StatefulWidget {
   const VanGoApp({super.key});
@@ -111,63 +112,102 @@ class VanGoApp extends StatefulWidget {
 
 class _VanGoAppState extends State<VanGoApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  final GlobalKey<ScaffoldMessengerState> _messengerKey = GlobalKey<ScaffoldMessengerState>();
-  _AppStage _stage = _AppStage.onboarding;
+  final GlobalKey<ScaffoldMessengerState> _messengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+
+  _AppStage _stage = _AppStage.splash;
 
   @override
   void initState() {
     super.initState();
-    // Notification permissions are now handled inside NotificationService.instance.initialize()
+  }
+
+  void _onSplashFinished(bool hasSeenOnboarding) {
+    setState(() {
+      _stage = hasSeenOnboarding ? _AppStage.auth : _AppStage.onboarding;
+    });
+
+    // ✅ 2. NAVIGATION ANALYTICS (Splash -> Target)
+    FirebaseAnalytics.instance.logEvent(
+      name: 'navigation_flow',
+      parameters: {'source': 'splash', 'destination': _stage.name},
+    );
   }
 
   void _finishOnboarding() {
     if (_stage == _AppStage.onboarding) {
       setState(() => _stage = _AppStage.auth);
+
+      // ✅ 2. NAVIGATION ANALYTICS (Onboarding -> Auth)
+      FirebaseAnalytics.instance.logEvent(
+        name: 'navigation_flow',
+        parameters: {'source': 'onboarding', 'destination': 'auth'},
+      );
     }
   }
 
   Future<void> _completeAuth() async {
     try {
-      // Because we added the onAuthStateChange listener in main(), 
-      // the device data will automatically sync. 
-      // We don't need manual notifications here since the Node.js webhook sends the push notification!
+      // Auth logic handled externally
     } catch (e) {
       debugPrint("Auth completion error: $e");
     }
 
     if (!mounted) return;
-
-    // 1. Clear any "Personal Info" or "OTP" screens that might be open
     _navigatorKey.currentState?.popUntil((route) => route.isFirst);
-    
-    // SnackBar removed! Now relying solely on push notifications.
-
-    // 2. Switch the UI to the Home screen
     setState(() {
       _stage = _AppStage.home;
     });
+
+    // ✅ 2. NAVIGATION ANALYTICS (Auth -> Home)
+    FirebaseAnalytics.instance.logEvent(
+      name: 'navigation_flow',
+      parameters: {'source': 'auth', 'destination': 'home'},
+    );
   }
 
   void _signOut() {
     if (_stage == _AppStage.home) {
       setState(() => _stage = _AppStage.auth);
+
+      // ✅ 2. NAVIGATION ANALYTICS (Home -> Auth via Sign Out)
+      FirebaseAnalytics.instance.logEvent(
+        name: 'navigation_flow',
+        parameters: {
+          'source': 'home',
+          'destination': 'auth',
+          'action': 'sign_out',
+        },
+      );
     }
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
-    final Widget home;
+    final Widget currentScreen;
 
     switch (_stage) {
+      case _AppStage.splash:
+        currentScreen = AnimatedSplashScreen(
+          key: const ValueKey('splash'),
+          onInitializationComplete: _onSplashFinished,
+        );
+        break;
       case _AppStage.onboarding:
-        home = OnboardingScreen(onFinished: _finishOnboarding);
+        currentScreen = OnboardingScreen(
+          key: const ValueKey('onboarding'),
+          onFinished: _finishOnboarding,
+        );
         break;
       case _AppStage.auth:
-        home = AuthFlow(onAuthenticated: _completeAuth);
+        currentScreen = AuthFlow(
+          key: const ValueKey('auth'),
+          onAuthenticated: _completeAuth,
+        );
         break;
       case _AppStage.home:
-        home = AppShell(
+        currentScreen = AppShell(
+          key: const ValueKey('home'),
           onSignOut: _signOut,
           onAttendancePressed: () {},
           payments_screen: () {},
@@ -177,7 +217,6 @@ class _VanGoAppState extends State<VanGoApp> {
         break;
     }
 
-    // --- WRAP WITH ValueListenableBuilder ---
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeService.instance.themeMode,
       builder: (context, currentThemeMode, child) {
@@ -188,17 +227,20 @@ class _VanGoAppState extends State<VanGoApp> {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
-          
-          // --- USE THE DYNAMIC THEME MODE ---
-          themeMode: currentThemeMode, 
-          
-          home: home,
+          themeMode: currentThemeMode,
+
+          home: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeInCubic,
+            switchOutCurve: Curves.easeOutCubic,
+            child: currentScreen,
+          ),
         );
       },
     );
   }
 }
-  
+
 class ParentOfflineApp extends StatelessWidget {
   const ParentOfflineApp({super.key, required this.error});
 
