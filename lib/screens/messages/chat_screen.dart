@@ -133,7 +133,7 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: accentColor.withOpacity(isDark ? 0.22 : 0.1),
+              backgroundColor: accentColor.withValues(alpha: isDark ? 0.22 : 0.1),
               child: Text(
                 widget.driverName.isNotEmpty
                     ? widget.driverName[0].toUpperCase()
@@ -216,7 +216,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         Icon(
                           Icons.waving_hand_rounded,
                           size: 48,
-                          color: secondaryTextColor.withOpacity(0.4),
+                          color: secondaryTextColor.withValues(alpha: 0.4),
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -346,7 +346,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           : LinearGradient(
                               colors: [
                                 accentColor,
-                                accentColor.withOpacity(0.75),
+                                accentColor.withValues(alpha: 0.75),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
@@ -417,7 +417,7 @@ class _MessageBubble extends StatelessWidget {
         isSender ? Colors.white : textColor;
 
     final timeColor = isSender
-        ? Colors.white.withOpacity(0.65)
+        ? Colors.white.withValues(alpha: 0.65)
         : secondaryTextColor;
 
     return Align(
@@ -438,7 +438,7 @@ class _MessageBubble extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.15 : 0.06),
+              color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.06),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -499,18 +499,18 @@ class _DateChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          Expanded(child: Divider(color: textColor.withOpacity(0.15))),
+          Expanded(child: Divider(color: textColor.withValues(alpha: 0.15))),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
               _label,
               style: AppTypography.label.copyWith(
                 fontSize: 11,
-                color: textColor.withOpacity(0.55),
+                color: textColor.withValues(alpha: 0.55),
               ),
             ),
           ),
-          Expanded(child: Divider(color: textColor.withOpacity(0.15))),
+          Expanded(child: Divider(color: textColor.withValues(alpha: 0.15))),
         ],
       ),
     );
