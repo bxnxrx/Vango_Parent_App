@@ -152,7 +152,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     super.dispose();
   }
 
-  // ✅ Read from Global Language Service
   String _t(String key) =>
       _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
       key;
@@ -171,25 +170,18 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   String _parseError(dynamic error) {
     if (error is AuthException) {
       final msg = error.message.toLowerCase();
-      if (msg.contains('invalid login') ||
-          msg.contains('invalid credentials')) {
+      if (msg.contains('invalid login') || msg.contains('invalid credentials'))
         return _t('err_invalid_creds');
-      }
       if (msg.contains('already registered') ||
-          msg.contains('user already exists')) {
+          msg.contains('user already exists'))
         return _t('err_user_exists');
-      }
       if (msg.contains('rate limit') ||
           msg.contains('too many requests') ||
-          msg.contains('over_email_send_rate_limit')) {
+          msg.contains('over_email_send_rate_limit'))
         return _t('err_too_many_req');
-      }
-      if (msg.contains('not confirmed') || msg.contains('unverified')) {
+      if (msg.contains('not confirmed') || msg.contains('unverified'))
         return _t('err_unverified');
-      }
-      if (msg.contains('password should be')) {
-        return _t('err_pass_min');
-      }
+      if (msg.contains('password should be')) return _t('err_pass_min');
     }
 
     final errStr = error.toString().toLowerCase();
@@ -444,7 +436,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       child: PopupMenuButton<AppLanguage>(
         onSelected: (AppLanguage newValue) {
           HapticFeedback.selectionClick();
-          // ✅ Update global service
           LanguageService.instance.setLanguage(newValue);
           FirebaseAnalytics.instance.logEvent(
             name: 'auth_language_changed',
@@ -456,7 +447,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         elevation: 8,
         offset: const Offset(0, 45),
         itemBuilder: (context) => AppLanguage.values.map((lang) {
-          // ✅ Check global service
           final isSelected =
               LanguageService.instance.currentLanguage.value == lang;
           return PopupMenuItem<AppLanguage>(
@@ -485,7 +475,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
               const Icon(Icons.language_rounded, color: Colors.white, size: 16),
               const SizedBox(width: 6),
               Text(
-                // ✅ Read global service
                 _getLanguageName(
                   LanguageService.instance.currentLanguage.value,
                 ),
@@ -520,417 +509,355 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         : AppColors.textSecondary;
     final accentColor = isDark ? AppColors.darkAccent : const Color(0xFF2D325A);
 
-    // ✅ Wrap entire UI in ValueListenableBuilder for Instant Translation
     return ValueListenableBuilder<AppLanguage>(
       valueListenable: LanguageService.instance.currentLanguage,
       builder: (context, currentLang, child) {
         return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle.light,
-          child: GestureDetector(
-            onTap: () => FocusScope.of(context).unfocus(),
-            child: Scaffold(
-              backgroundColor: bgColor,
-              body: AbsorbPointer(
-                absorbing: _isLoading,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 500),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return SingleChildScrollView(
+          value: SystemUiOverlayStyle.light.copyWith(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: bgColor,
+            systemNavigationBarIconBrightness: isDark
+                ? Brightness.light
+                : Brightness.dark,
+          ),
+          child: Scaffold(
+            backgroundColor: bgColor,
+            // 🛑 ENTERPRISE FIX: Kills the native white layout gap!
+            resizeToAvoidBottomInset: false,
+            body: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: CustomPaint(
+                // 🚀 PERFORMANCE: O(1) rendering, completely replaces heavy Stack & ClipPath
+                painter: _HeaderBackgroundPainter(
+                  color: isDark
+                      ? AppColors.darkSurfaceStrong
+                      : const Color(0xFF2D325A),
+                ),
+                child: SafeArea(
+                  bottom:
+                      false, // Let padding handle the bottom safe area dynamically
+                  child: AbsorbPointer(
+                    absorbing: _isLoading,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 500),
+                        child: SingleChildScrollView(
                           physics: const ClampingScrollPhysics(),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: constraints.maxHeight,
-                            ),
-                            child: IntrinsicHeight(
-                              child: Stack(
-                                children: [
-                                  ClipPath(
-                                    clipper: BackgroundClipper(),
-                                    child: Container(
-                                      width: double.infinity,
-                                      height: 450,
-                                      color: isDark
-                                          ? AppColors.darkSurfaceStrong
-                                          : const Color(0xFF2D325A),
-                                    ),
-                                  ),
-                                  SafeArea(
-                                    child: Column(
+                          // 🚀 ENTERPRISE KEYBOARD HANDLING: Smooth slide-up without native layout thrashing
+                          padding: EdgeInsets.only(
+                            bottom:
+                                MediaQuery.of(context).viewInsets.bottom + 24,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 28,
+                                  right: 28,
+                                  top: 12,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            left: 28,
-                                            right: 28,
-                                            top: 20,
-                                            bottom: 20,
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    _t('welcome'),
-                                                    style: AppTypography
-                                                        .headline
-                                                        .copyWith(
-                                                          color: Colors.white
-                                                              .withValues(
-                                                                alpha: 0.9,
-                                                              ),
-                                                          fontSize: 24,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                        ),
-                                                  ),
-                                                  Text(
-                                                    'VanGo',
-                                                    style: AppTypography
-                                                        .headline
-                                                        .copyWith(
-                                                          color: Colors.white,
-                                                          fontSize: 56,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          height: 1.1,
-                                                          letterSpacing: -1,
-                                                        ),
-                                                  ),
-                                                ],
+                                        Text(
+                                          _t('welcome'),
+                                          style: AppTypography.headline
+                                              .copyWith(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.9,
+                                                ),
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.w500,
                                               ),
-                                              _buildLanguageSelector(isDark),
-                                            ],
-                                          ),
                                         ),
-                                        const Spacer(),
-                                        Container(
-                                          width: double.infinity,
-                                          margin: const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 20,
-                                          ),
-                                          padding: const EdgeInsets.all(28),
-                                          decoration: BoxDecoration(
-                                            color: cardColor,
-                                            borderRadius: BorderRadius.circular(
-                                              32,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(
-                                                  alpha: isDark ? 0.5 : 0.15,
-                                                ),
-                                                blurRadius: 30,
-                                                offset: const Offset(0, 15),
+                                        Text(
+                                          'VanGo',
+                                          style: AppTypography.headline
+                                              .copyWith(
+                                                color: Colors.white,
+                                                fontSize: 56,
+                                                fontWeight: FontWeight.bold,
+                                                height: 1.1,
+                                                letterSpacing: -1,
                                               ),
-                                            ],
-                                          ),
-                                          child: Form(
-                                            key: _formKey,
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  _t('get_started'),
-                                                  style: AppTypography.headline
-                                                      .copyWith(
-                                                        fontSize: 26,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        color: textColor,
-                                                      ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  _t('subtitle'),
-                                                  textAlign: TextAlign.center,
-                                                  style: AppTypography.body
-                                                      .copyWith(
-                                                        color: textSecondary,
-                                                      ),
-                                                ),
-                                                const SizedBox(height: 32),
-                                                Container(
-                                                  height: 52,
-                                                  padding: const EdgeInsets.all(
-                                                    4,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: isDark
-                                                        ? AppColors
-                                                              .darkBackground
-                                                        : Colors.grey.shade100,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          16,
-                                                        ),
-                                                  ),
-                                                  child: Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: _ToggleTab(
-                                                          label: _t(
-                                                            'phone_tab',
-                                                          ),
-                                                          isSelected:
-                                                              _isPhoneLogin,
-                                                          isDark: isDark,
-                                                          onTap: () =>
-                                                              _switchTab(true),
-                                                        ),
-                                                      ),
-                                                      Expanded(
-                                                        child: _ToggleTab(
-                                                          label: _t(
-                                                            'email_tab',
-                                                          ),
-                                                          isSelected:
-                                                              !_isPhoneLogin,
-                                                          isDark: isDark,
-                                                          onTap: () =>
-                                                              _switchTab(false),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 28),
-                                                AnimatedSwitcher(
-                                                  duration: const Duration(
-                                                    milliseconds: 300,
-                                                  ),
-                                                  switchInCurve:
-                                                      Curves.easeOutCubic,
-                                                  switchOutCurve:
-                                                      Curves.easeInCubic,
-                                                  child: _isPhoneLogin
-                                                      ? _buildPhoneInput(
-                                                          accentColor,
-                                                          isDark,
-                                                        )
-                                                      : _buildEmailInput(
-                                                          accentColor,
-                                                          isDark,
-                                                        ),
-                                                ),
-                                                const SizedBox(height: 24),
-                                                Listener(
-                                                  onPointerDown: (_) {
-                                                    if (!_isLoading) {
-                                                      setState(
-                                                        () => _isSubmitPressed =
-                                                            true,
-                                                      );
-                                                    }
-                                                  },
-                                                  onPointerUp: (_) {
-                                                    if (!_isLoading) {
-                                                      setState(
-                                                        () => _isSubmitPressed =
-                                                            false,
-                                                      );
-                                                    }
-                                                  },
-                                                  child: AnimatedScale(
-                                                    scale: _isSubmitPressed
-                                                        ? 0.96
-                                                        : 1.0,
-                                                    duration: const Duration(
-                                                      milliseconds: 100,
-                                                    ),
-                                                    curve: Curves.easeInOut,
-                                                    child: SizedBox(
-                                                      width: double.infinity,
-                                                      height: 56,
-                                                      child: ElevatedButton(
-                                                        onPressed: _isLoading
-                                                            ? null
-                                                            : (_isPhoneLogin
-                                                                  ? _handlePhoneLogin
-                                                                  : _handleEmailLogin),
-                                                        style: ElevatedButton.styleFrom(
-                                                          backgroundColor:
-                                                              accentColor,
-                                                          foregroundColor:
-                                                              Colors.white,
-                                                          elevation: 0,
-                                                          textStyle: AppTypography
-                                                              .title
-                                                              .copyWith(
-                                                                fontSize: 16,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  20,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                        child: _isLoading
-                                                            ? const SizedBox(
-                                                                width: 24,
-                                                                height: 24,
-                                                                child: CircularProgressIndicator(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  strokeWidth:
-                                                                      3,
-                                                                ),
-                                                              )
-                                                            : Text(
-                                                                _t(
-                                                                  'continue_btn',
-                                                                ),
-                                                              ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        top: 16,
-                                                      ),
-                                                  child: Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .center,
-                                                    children: [
-                                                      Icon(
-                                                        Icons.shield_rounded,
-                                                        size: 14,
-                                                        color: Colors
-                                                            .green
-                                                            .shade600,
-                                                      ),
-                                                      const SizedBox(width: 6),
-                                                      Text(
-                                                        _t('secure_badge'),
-                                                        style: AppTypography
-                                                            .label
-                                                            .copyWith(
-                                                              color:
-                                                                  textSecondary,
-                                                              fontSize: 12,
-                                                            ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 24),
-                                                Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: Divider(
-                                                        color: isDark
-                                                            ? AppColors
-                                                                  .darkStroke
-                                                            : Colors
-                                                                  .grey
-                                                                  .shade300,
-                                                      ),
-                                                    ),
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 12,
-                                                          ),
-                                                      child: Text(
-                                                        _t('or'),
-                                                        style: TextStyle(
-                                                          color: textSecondary,
-                                                          fontSize: 14,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    Expanded(
-                                                      child: Divider(
-                                                        color: isDark
-                                                            ? AppColors
-                                                                  .darkStroke
-                                                            : Colors
-                                                                  .grey
-                                                                  .shade300,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 24),
-                                                Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: _buildSocialButton(
-                                                        icon: SvgPicture.string(
-                                                          _googleIconSvg,
-                                                          height: 24,
-                                                          width: 24,
-                                                        ),
-                                                        isDark: isDark,
-                                                        onPressed: _isLoading
-                                                            ? null
-                                                            : () => _handleSocialLogin(
-                                                                () => AuthService
-                                                                    .instance
-                                                                    .signInWithGoogleNative(
-                                                                      webClientId:
-                                                                          AppConfig
-                                                                              .googleWebClientId,
-                                                                    ),
-                                                                'google',
-                                                              ),
-                                                      ),
-                                                    ),
-                                                    if (Platform.isIOS) ...[
-                                                      const SizedBox(width: 16),
-                                                      Expanded(
-                                                        child: _buildSocialButton(
-                                                          icon: Icon(
-                                                            Icons.apple,
-                                                            size: 28,
-                                                            color: textColor,
-                                                          ),
-                                                          isDark: isDark,
-                                                          onPressed: _isLoading
-                                                              ? null
-                                                              : () => _handleSocialLogin(
-                                                                  AuthService
-                                                                      .instance
-                                                                      .signInWithApple,
-                                                                  'apple',
-                                                                ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
                                         ),
-                                        const SizedBox(height: 20),
                                       ],
                                     ),
-                                  ),
-                                ],
+                                    _buildLanguageSelector(isDark),
+                                  ],
+                                ),
                               ),
-                            ),
+                              // Fixed spacer completely eliminates IntrinsicHeight calculation costs
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.08,
+                              ),
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                padding: const EdgeInsets.all(28),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(32),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: isDark ? 0.5 : 0.15,
+                                      ),
+                                      blurRadius: 30,
+                                      offset: const Offset(0, 15),
+                                    ),
+                                  ],
+                                ),
+                                child: Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _t('get_started'),
+                                        style: AppTypography.headline.copyWith(
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.w800,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        _t('subtitle'),
+                                        textAlign: TextAlign.center,
+                                        style: AppTypography.body.copyWith(
+                                          color: textSecondary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 32),
+                                      Container(
+                                        height: 52,
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: isDark
+                                              ? AppColors.darkBackground
+                                              : Colors.grey.shade100,
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: _ToggleTab(
+                                                label: _t('phone_tab'),
+                                                isSelected: _isPhoneLogin,
+                                                isDark: isDark,
+                                                onTap: () => _switchTab(true),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: _ToggleTab(
+                                                label: _t('email_tab'),
+                                                isSelected: !_isPhoneLogin,
+                                                isDark: isDark,
+                                                onTap: () => _switchTab(false),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 28),
+                                      AnimatedSwitcher(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        switchInCurve: Curves.easeOutCubic,
+                                        switchOutCurve: Curves.easeInCubic,
+                                        child: _isPhoneLogin
+                                            ? _buildPhoneInput(
+                                                accentColor,
+                                                isDark,
+                                              )
+                                            : _buildEmailInput(
+                                                accentColor,
+                                                isDark,
+                                              ),
+                                      ),
+                                      const SizedBox(height: 24),
+                                      Listener(
+                                        onPointerDown: (_) {
+                                          if (!_isLoading)
+                                            setState(
+                                              () => _isSubmitPressed = true,
+                                            );
+                                        },
+                                        onPointerUp: (_) {
+                                          if (!_isLoading)
+                                            setState(
+                                              () => _isSubmitPressed = false,
+                                            );
+                                        },
+                                        child: AnimatedScale(
+                                          scale: _isSubmitPressed ? 0.96 : 1.0,
+                                          duration: const Duration(
+                                            milliseconds: 100,
+                                          ),
+                                          curve: Curves.easeInOut,
+                                          child: SizedBox(
+                                            width: double.infinity,
+                                            height: 56,
+                                            child: ElevatedButton(
+                                              onPressed: _isLoading
+                                                  ? null
+                                                  : (_isPhoneLogin
+                                                        ? _handlePhoneLogin
+                                                        : _handleEmailLogin),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: accentColor,
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                textStyle: AppTypography.title
+                                                    .copyWith(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                              ),
+                                              child: _isLoading
+                                                  ? const SizedBox(
+                                                      width: 24,
+                                                      height: 24,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            color: Colors.white,
+                                                            strokeWidth: 3,
+                                                          ),
+                                                    )
+                                                  : Text(_t('continue_btn')),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 16),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.shield_rounded,
+                                              size: 14,
+                                              color: Colors.green.shade600,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              _t('secure_badge'),
+                                              style: AppTypography.label
+                                                  .copyWith(
+                                                    color: textSecondary,
+                                                    fontSize: 12,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 24),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Divider(
+                                              color: isDark
+                                                  ? AppColors.darkStroke
+                                                  : Colors.grey.shade300,
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                            ),
+                                            child: Text(
+                                              _t('or'),
+                                              style: TextStyle(
+                                                color: textSecondary,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Divider(
+                                              color: isDark
+                                                  ? AppColors.darkStroke
+                                                  : Colors.grey.shade300,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 24),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildSocialButton(
+                                              icon: SvgPicture.string(
+                                                _googleIconSvg,
+                                                height: 24,
+                                                width: 24,
+                                              ),
+                                              isDark: isDark,
+                                              onPressed: _isLoading
+                                                  ? null
+                                                  : () => _handleSocialLogin(
+                                                      () => AuthService.instance
+                                                          .signInWithGoogleNative(
+                                                            webClientId: AppConfig
+                                                                .googleWebClientId,
+                                                          ),
+                                                      'google',
+                                                    ),
+                                            ),
+                                          ),
+                                          if (Platform.isIOS) ...[
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: _buildSocialButton(
+                                                icon: Icon(
+                                                  Icons.apple,
+                                                  size: 28,
+                                                  color: textColor,
+                                                ),
+                                                isDark: isDark,
+                                                onPressed: _isLoading
+                                                    ? null
+                                                    : () => _handleSocialLogin(
+                                                        AuthService
+                                                            .instance
+                                                            .signInWithApple,
+                                                        'apple',
+                                                      ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                            ],
                           ),
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -1038,6 +965,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       autofillHints: autofillHints,
       validator: validator,
       autovalidateMode: AutovalidateMode.onUserInteraction,
+      keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
       style: AppTypography.body.copyWith(
         color: textColor,
         fontWeight: FontWeight.w600,
@@ -1164,22 +1092,21 @@ class _ToggleTab extends StatelessWidget {
   }
 }
 
-class BackgroundClipper extends CustomClipper<Path> {
+class _HeaderBackgroundPainter extends CustomPainter {
+  final Color color;
+  _HeaderBackgroundPainter({required this.color});
+
   @override
-  Path getClip(Size size) {
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
     final path = Path();
-    path.lineTo(0, size.height - 80);
-    path.quadraticBezierTo(
-      size.width / 2,
-      size.height,
-      size.width,
-      size.height - 80,
-    );
+    path.lineTo(0, 370);
+    path.quadraticBezierTo(size.width / 2, 450, size.width, 370);
     path.lineTo(size.width, 0);
     path.close();
-    return path;
+    canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:vango_parent_app/screens/auth/otp_screen.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
@@ -191,10 +192,35 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
   }
 
-  void _showMessage(String message, {bool isError = true}) {
-    if (!mounted) {
-      return;
+  // 🛑 SECURITY FIX: Robust backend error masking
+  String _parseError(dynamic error) {
+    if (error is AuthException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('invalid login') || msg.contains('invalid credentials'))
+        return _t('err_invalid_creds');
+      if (msg.contains('already registered') ||
+          msg.contains('user already exists'))
+        return _t('err_user_exists');
+      if (msg.contains('rate limit') ||
+          msg.contains('too many requests') ||
+          msg.contains('over_email_send_rate_limit'))
+        return _t('err_too_many_req');
+      if (msg.contains('not confirmed') || msg.contains('unverified'))
+        return _t('err_unverified');
+      if (msg.contains('password should be')) return _t('err_pass_min');
     }
+    final errStr = error.toString().toLowerCase();
+    if (errStr.contains('network') ||
+        errStr.contains('socket') ||
+        errStr.contains('timeout') ||
+        errStr.contains('clientexception')) {
+      return _t('err_network');
+    }
+    return _t('err_generic');
+  }
+
+  void _showMessage(String message, {bool isError = true}) {
+    if (!mounted) return;
 
     final bgColor = isError ? const Color(0xFFB3261E) : const Color(0xFF2E7D32);
     final icon = isError
@@ -234,47 +260,29 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
   }
 
-  // --- VALIDATORS ---
-
   String? _validateName(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return _t('err_name_req');
-    }
-    if (value.trim().length < 3) {
-      return _t('err_name_min');
-    }
+    if (value == null || value.trim().isEmpty) return _t('err_name_req');
+    if (value.trim().length < 3) return _t('err_name_min');
     return null;
   }
 
   String? _validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return _t('err_phone_req');
-    }
+    if (value == null || value.trim().isEmpty) return _t('err_phone_req');
     final cleanPhone = value.replaceAll(' ', '');
     final phoneRegex = RegExp(r'^[0-9]{9}$');
-    if (!phoneRegex.hasMatch(cleanPhone)) {
-      return _t('err_phone_inv');
-    }
+    if (!phoneRegex.hasMatch(cleanPhone)) return _t('err_phone_inv');
     return null;
   }
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return null;
-    }
+    if (value == null || value.trim().isEmpty) return null;
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value.trim())) {
-      return _t('err_email_inv');
-    }
+    if (!emailRegex.hasMatch(value.trim())) return _t('err_email_inv');
     return null;
   }
 
-  // --- ACTIONS ---
-
   Future<void> _handleSubmit() async {
-    if (_submitting) {
-      return;
-    }
+    if (_submitting) return;
 
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.lightImpact();
@@ -287,16 +295,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
-    setState(() {
-      _submitting = true;
-    });
-
+    setState(() => _submitting = true);
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
 
     var phoneInput = _phoneController.text.trim().replaceAll(' ', '');
     phoneInput = '+94$phoneInput';
-
     final emailInput = _emailController.text.trim();
 
     if (!_phoneReadOnly) {
@@ -315,9 +319,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   Future<void> _verifyPhoneAndSave(String phone, String email) async {
     try {
       await AuthService.instance.linkPhone(phone);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() => _submitting = false);
       await Navigator.push(
@@ -346,7 +348,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        _showMessage(e.toString(), isError: true);
+        _showMessage(_parseError(e), isError: true); // 🛑 SECURITY FIX
       }
     }
   }
@@ -354,9 +356,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   Future<void> _verifyEmailAndSave(String email, String phone) async {
     try {
       await AuthService.instance.linkEmail(email);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() => _submitting = false);
       await Navigator.push(
@@ -385,7 +385,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        _showMessage(e.toString(), isError: true);
+        _showMessage(_parseError(e), isError: true); // 🛑 SECURITY FIX
       }
     }
   }
@@ -403,17 +403,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       await AuthService.instance.markProfileCompleted();
       FirebaseAnalytics.instance.logEvent(name: 'profile_completed');
 
-      if (mounted) {
-        widget.onProfileCompleted();
-      }
+      if (mounted) widget.onProfileCompleted();
     } catch (e) {
-      if (mounted) {
-        _showMessage(e.toString(), isError: true);
-      }
+      if (mounted)
+        _showMessage(_parseError(e), isError: true); // 🛑 SECURITY FIX
     } finally {
-      if (mounted) {
-        setState(() => _submitting = false);
-      }
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -467,29 +462,19 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
     if (confirm) {
       setState(() => _submitting = true);
-
       try {
         await AuthService.instance.cancelSignup();
-        if (mounted) {
-          widget.onBack();
-        }
+        if (mounted) widget.onBack();
       } catch (e) {
         if (mounted) {
-          _showMessage(
-            'Failed to delete account completely. Logging out locally.',
-            isError: true,
-          );
+          _showMessage(_parseError(e), isError: true);
           widget.onBack();
         }
       } finally {
-        if (mounted) {
-          setState(() => _submitting = false);
-        }
+        if (mounted) setState(() => _submitting = false);
       }
     }
   }
-
-  // --- UI COMPONENTS ---
 
   Widget _buildLanguageSelector() {
     return Theme(
@@ -583,302 +568,233 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 ? Brightness.light
                 : Brightness.dark,
           ),
-          child: GestureDetector(
-            onTap: () => FocusScope.of(context).unfocus(),
-            child: ColoredBox(
-              color: bgColor,
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                resizeToAvoidBottomInset: true,
-                body: MediaQuery.removePadding(
-                  context: context,
-                  removeBottom: true,
-                  child: SafeArea(
-                    bottom: true,
-                    child: AbsorbPointer(
-                      absorbing: _submitting,
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 500),
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              return SingleChildScrollView(
-                                physics: const ClampingScrollPhysics(),
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    minHeight: constraints.maxHeight,
-                                  ),
-                                  child: IntrinsicHeight(
-                                    child: Stack(
-                                      children: [
-                                        ClipPath(
-                                          clipper: _BackgroundClipper(),
-                                          child: Container(
-                                            width: double.infinity,
-                                            height: 450,
-                                            color: isDark
-                                                ? AppColors.darkSurfaceStrong
-                                                : const Color(0xFF2D325A),
-                                          ),
+          child: Scaffold(
+            backgroundColor: bgColor,
+            // 🛑 ENTERPRISE FIX: Kills the native white layout gap!
+            resizeToAvoidBottomInset: false,
+            body: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: CustomPaint(
+                // 🚀 PERFORMANCE: O(1) rendering
+                painter: _HeaderBackgroundPainter(
+                  color: isDark
+                      ? AppColors.darkSurfaceStrong
+                      : const Color(0xFF2D325A),
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: AbsorbPointer(
+                    absorbing: _submitting,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 500),
+                        child: SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          // 🚀 ENTERPRISE KEYBOARD HANDLING
+                          padding: EdgeInsets.only(
+                            bottom:
+                                MediaQuery.of(context).viewInsets.bottom + 24,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    IconButton(
+                                      onPressed: _handleCancel,
+                                      icon: const Icon(
+                                        Icons.arrow_back_ios_new_rounded,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    _buildLanguageSelector(),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 28,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _t('header'),
+                                      style: AppTypography.headline.copyWith(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _t('subtitle'),
+                                      style: AppTypography.body.copyWith(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.8,
                                         ),
-                                        Column(
-                                          children: [
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 16,
-                                                    vertical: 8,
-                                                  ),
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  IconButton(
-                                                    onPressed: _handleCancel,
-                                                    icon: const Icon(
-                                                      Icons
-                                                          .arrow_back_ios_new_rounded,
-                                                      color: Colors.white,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Fixed spacer completely eliminates IntrinsicHeight calculation costs
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.08,
+                              ),
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                padding: const EdgeInsets.all(28),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(32),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: isDark ? 0.5 : 0.15,
+                                      ),
+                                      blurRadius: 30,
+                                      offset: const Offset(0, 15),
+                                    ),
+                                  ],
+                                ),
+                                child: Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _t('section_personal'),
+                                        style: AppTypography.headline.copyWith(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 28),
+                                      _buildTextField(
+                                        controller: _fullNameController,
+                                        label: _t('full_name'),
+                                        hint: _t('full_name_hint'),
+                                        icon: Icons.person_outline_rounded,
+                                        autofillHints: const [
+                                          AutofillHints.name,
+                                        ],
+                                        isDark: isDark,
+                                        activeColor: accentColor,
+                                        validator: _validateName,
+                                      ),
+                                      const SizedBox(height: 20),
+                                      _buildTextField(
+                                        controller: _phoneController,
+                                        label: _t('mobile'),
+                                        hint: _t('mobile_hint'),
+                                        icon: Icons.phone_android_rounded,
+                                        inputType: TextInputType.phone,
+                                        autofillHints: const [
+                                          AutofillHints.telephoneNumberNational,
+                                        ],
+                                        isDark: isDark,
+                                        activeColor: accentColor,
+                                        validator: _validatePhone,
+                                        readOnly: _phoneReadOnly,
+                                        prefixText: '+94 ',
+                                      ),
+                                      const SizedBox(height: 20),
+                                      _buildDropdown(isDark, accentColor),
+                                      const SizedBox(height: 20),
+                                      _buildTextField(
+                                        controller: _emailController,
+                                        label: _t('email_opt'),
+                                        hint: _t('email_hint'),
+                                        icon: Icons.email_outlined,
+                                        inputType: TextInputType.emailAddress,
+                                        autofillHints: const [
+                                          AutofillHints.email,
+                                        ],
+                                        isDark: isDark,
+                                        activeColor: accentColor,
+                                        validator: _validateEmail,
+                                        readOnly: _emailReadOnly,
+                                      ),
+                                      const SizedBox(height: 32),
+                                      Listener(
+                                        onPointerDown: (_) {
+                                          if (!_submitting)
+                                            setState(
+                                              () => _isSubmitPressed = true,
+                                            );
+                                        },
+                                        onPointerUp: (_) {
+                                          if (!_submitting)
+                                            setState(
+                                              () => _isSubmitPressed = false,
+                                            );
+                                        },
+                                        child: AnimatedScale(
+                                          scale: _isSubmitPressed ? 0.96 : 1.0,
+                                          duration: const Duration(
+                                            milliseconds: 100,
+                                          ),
+                                          curve: Curves.easeInOut,
+                                          child: SizedBox(
+                                            width: double.infinity,
+                                            height: 56,
+                                            child: ElevatedButton(
+                                              onPressed: _submitting
+                                                  ? null
+                                                  : _handleSubmit,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: accentColor,
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                textStyle: AppTypography.title
+                                                    .copyWith(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                     ),
-                                                  ),
-                                                  _buildLanguageSelector(),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 20),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 28,
-                                                  ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    _t('header'),
-                                                    style: AppTypography
-                                                        .headline
-                                                        .copyWith(
-                                                          color: Colors.white,
-                                                          fontSize: 32,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          height: 1.1,
-                                                        ),
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    _t('subtitle'),
-                                                    style: AppTypography.body
-                                                        .copyWith(
-                                                          color: Colors.white
-                                                              .withValues(
-                                                                alpha: 0.8,
-                                                              ),
-                                                          fontSize: 15,
-                                                        ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const Spacer(),
-                                            Container(
-                                              width: double.infinity,
-                                              margin:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 20,
-                                                    vertical: 24,
-                                                  ),
-                                              padding: const EdgeInsets.all(28),
-                                              decoration: BoxDecoration(
-                                                color: cardColor,
-                                                borderRadius:
-                                                    BorderRadius.circular(32),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black
-                                                        .withValues(
-                                                          alpha: isDark
-                                                              ? 0.5
-                                                              : 0.15,
-                                                        ),
-                                                    blurRadius: 30,
-                                                    offset: const Offset(0, 15),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Form(
-                                                key: _formKey,
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      _t('section_personal'),
-                                                      style: AppTypography
-                                                          .headline
-                                                          .copyWith(
-                                                            fontSize: 20,
-                                                            fontWeight:
-                                                                FontWeight.w800,
-                                                            color: textColor,
-                                                          ),
-                                                    ),
-                                                    const SizedBox(height: 28),
-                                                    _buildTextField(
-                                                      controller:
-                                                          _fullNameController,
-                                                      label: _t('full_name'),
-                                                      hint: _t(
-                                                        'full_name_hint',
-                                                      ),
-                                                      icon: Icons
-                                                          .person_outline_rounded,
-                                                      autofillHints: const [
-                                                        AutofillHints.name,
-                                                      ],
-                                                      isDark: isDark,
-                                                      activeColor: accentColor,
-                                                      validator: _validateName,
-                                                    ),
-                                                    const SizedBox(height: 20),
-                                                    _buildTextField(
-                                                      controller:
-                                                          _phoneController,
-                                                      label: _t('mobile'),
-                                                      hint: _t('mobile_hint'),
-                                                      icon: Icons
-                                                          .phone_android_rounded,
-                                                      inputType:
-                                                          TextInputType.phone,
-                                                      autofillHints: const [
-                                                        AutofillHints
-                                                            .telephoneNumberNational,
-                                                      ],
-                                                      isDark: isDark,
-                                                      activeColor: accentColor,
-                                                      validator: _validatePhone,
-                                                      readOnly: _phoneReadOnly,
-                                                      prefixText: '+94 ',
-                                                    ),
-                                                    const SizedBox(height: 20),
-                                                    _buildDropdown(
-                                                      isDark,
-                                                      accentColor,
-                                                    ),
-                                                    const SizedBox(height: 20),
-                                                    _buildTextField(
-                                                      controller:
-                                                          _emailController,
-                                                      label: _t('email_opt'),
-                                                      hint: _t('email_hint'),
-                                                      icon:
-                                                          Icons.email_outlined,
-                                                      inputType: TextInputType
-                                                          .emailAddress,
-                                                      autofillHints: const [
-                                                        AutofillHints.email,
-                                                      ],
-                                                      isDark: isDark,
-                                                      activeColor: accentColor,
-                                                      validator: _validateEmail,
-                                                      readOnly: _emailReadOnly,
-                                                    ),
-                                                    const SizedBox(height: 32),
-                                                    Listener(
-                                                      onPointerDown: (_) {
-                                                        if (!_submitting) {
-                                                          setState(
-                                                            () =>
-                                                                _isSubmitPressed =
-                                                                    true,
-                                                          );
-                                                        }
-                                                      },
-                                                      onPointerUp: (_) {
-                                                        if (!_submitting) {
-                                                          setState(
-                                                            () =>
-                                                                _isSubmitPressed =
-                                                                    false,
-                                                          );
-                                                        }
-                                                      },
-                                                      child: AnimatedScale(
-                                                        scale: _isSubmitPressed
-                                                            ? 0.96
-                                                            : 1.0,
-                                                        duration:
-                                                            const Duration(
-                                                              milliseconds: 100,
-                                                            ),
-                                                        curve: Curves.easeInOut,
-                                                        child: SizedBox(
-                                                          width:
-                                                              double.infinity,
-                                                          height: 56,
-                                                          child: ElevatedButton(
-                                                            onPressed:
-                                                                _submitting
-                                                                ? null
-                                                                : _handleSubmit,
-                                                            style: ElevatedButton.styleFrom(
-                                                              backgroundColor:
-                                                                  accentColor,
-                                                              foregroundColor:
-                                                                  Colors.white,
-                                                              elevation: 0,
-                                                              textStyle: AppTypography
-                                                                  .title
-                                                                  .copyWith(
-                                                                    fontSize:
-                                                                        16,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold,
-                                                                  ),
-                                                              shape: RoundedRectangleBorder(
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      20,
-                                                                    ),
-                                                              ),
-                                                            ),
-                                                            child: _submitting
-                                                                ? const SizedBox(
-                                                                    width: 24,
-                                                                    height: 24,
-                                                                    child: CircularProgressIndicator(
-                                                                      color: Colors
-                                                                          .white,
-                                                                      strokeWidth:
-                                                                          3,
-                                                                    ),
-                                                                  )
-                                                                : Text(
-                                                                    _t(
-                                                                      'continue_btn',
-                                                                    ),
-                                                                  ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
                                                 ),
                                               ),
+                                              child: _submitting
+                                                  ? const SizedBox(
+                                                      width: 24,
+                                                      height: 24,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            color: Colors.white,
+                                                            strokeWidth: 3,
+                                                          ),
+                                                    )
+                                                  : Text(_t('continue_btn')),
                                             ),
-                                            const SizedBox(height: 20),
-                                          ],
+                                          ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                              const SizedBox(height: 20),
+                            ],
                           ),
                         ),
                       ),
@@ -989,7 +905,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     ];
 
     return DropdownButtonFormField<String>(
-      // ✅ FIX: Replace `value:` with `initialValue:`
       initialValue: _selectedRelationship != null
           ? localizedTypes[_relationshipTypes.indexOf(_selectedRelationship!)]
           : null,
@@ -1045,22 +960,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 }
 
-class _BackgroundClipper extends CustomClipper<Path> {
+class _HeaderBackgroundPainter extends CustomPainter {
+  final Color color;
+  _HeaderBackgroundPainter({required this.color});
+
   @override
-  Path getClip(Size size) {
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
     final path = Path();
-    path.lineTo(0, size.height - 80);
-    path.quadraticBezierTo(
-      size.width / 2,
-      size.height,
-      size.width,
-      size.height - 80,
-    );
+    path.lineTo(0, 370);
+    path.quadraticBezierTo(size.width / 2, 450, size.width, 370);
     path.lineTo(size.width, 0);
     path.close();
-    return path;
+    canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
