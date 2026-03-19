@@ -29,11 +29,15 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  // Current parent's Supabase Auth ID.
-  final String _currentUserId =
-      Supabase.instance.client.auth.currentUser!.id;
+  // Fix #4: Safe nullable access instead of force-unwrap `!`
+  final String? _currentUserId =
+      Supabase.instance.client.auth.currentUser?.id;
 
-  // In-memory cache so FutureBuilders don't re-fire on every stream event.
+  // Fix #8 (documented): This cache is LOAD-BEARING for correctness.
+  // The FutureBuilder inside SliverChildBuilderDelegate can be called multiple
+  // times for the same index as items scroll in/out of the viewport. Without
+  // this cache, every scroll event would fire a new Supabase query per tile.
+  // Do NOT remove or bypass this cache without revisiting the FutureBuilder.
   final Map<String, Future<_ChatTileInfo>> _infoCache = {};
 
   // -------------------------------------------------------------------------
@@ -41,6 +45,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
   // -------------------------------------------------------------------------
   Future<_ChatTileInfo> _fetchChatTileInfo(String driverAuthId) {
     return _infoCache.putIfAbsent(driverAuthId, () async {
+      // Fix #4: Guard against expired session
+      if (_currentUserId == null) {
+        return const _ChatTileInfo(driverName: 'VanGo Driver');
+      }
       try {
         // 1. Get driver record using supabase_user_id.
         final driverRow = await Supabase.instance.client
@@ -61,7 +69,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         final childRow = await Supabase.instance.client
             .from('children')
             .select('child_name')
-            .eq('parent_id', _currentUserId)
+            .eq('parent_id', _currentUserId!)
             .eq('linked_driver_id', driverDbId)
             .maybeSingle();
 
@@ -72,6 +80,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
         return const _ChatTileInfo(driverName: 'VanGo Driver');
       }
     });
+  }
+
+  // Fix #6: Invalidate cache and trigger a fresh fetch on pull-to-refresh.
+  // Handles the case where a driver is reassigned to a different child while
+  // the parent has the app open — without this the tile would show stale data.
+  Future<void> _onRefresh() async {
+    setState(() => _infoCache.clear());
   }
 
   // -------------------------------------------------------------------------
@@ -92,194 +107,179 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final secondaryTextColor =
         isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
+    // Fix #4: Bail out early if session is expired — avoids querying Firestore
+    // with a null userId which would return wrong/empty results silently.
+    if (_currentUserId == null) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Center(
+          child: Text(
+            'Session expired. Please log in again.',
+            style: AppTypography.body.copyWith(color: AppColors.danger),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          // ── App Bar ───────────────────────────────────────────────────────
-          SliverAppBar(
-            floating: true,
-            pinned: true,
-            expandedHeight: 80.0,
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(Icons.menu_rounded, color: textColor),
-              onPressed: widget.onOpenDrawer,
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(
-                left: 56,
-                bottom: 16,
-                right: 20,
+      // Fix #6: Wrap with RefreshIndicator so pull-to-refresh clears the cache
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: CustomScrollView(
+          slivers: [
+            // ── App Bar ───────────────────────────────────────────────────────
+            SliverAppBar(
+              floating: true,
+              pinned: true,
+              expandedHeight: 80.0,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.menu_rounded, color: textColor),
+                onPressed: widget.onOpenDrawer,
               ),
-              centerTitle: false,
-              title: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Messages',
-                    style: AppTypography.headline.copyWith(
-                      fontSize: 20,
-                      color: textColor,
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.only(
+                  left: 56,
+                  bottom: 16,
+                  right: 20,
+                ),
+                centerTitle: false,
+                title: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Messages',
+                      style: AppTypography.headline.copyWith(
+                        fontSize: 20,
+                        color: textColor,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'Live conversations',
-                    style: AppTypography.body.copyWith(
-                      fontSize: 10,
-                      color: secondaryTextColor,
+                    Text(
+                      'Live conversations',
+                      style: AppTypography.body.copyWith(
+                        fontSize: 10,
+                        color: secondaryTextColor,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // ── Search Bar ────────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: TextField(
-                style: TextStyle(color: textColor),
-                decoration: InputDecoration(
-                  hintText: 'Search conversations...',
-                  hintStyle: TextStyle(color: secondaryTextColor),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    size: 20,
-                    color: secondaryTextColor,
-                  ),
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surface,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).dividerColor,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).dividerColor,
-                    ),
-                  ),
+                  ],
                 ),
               ),
             ),
-          ),
 
-          // ── Chat List (real-time Firestore stream) ─────────────────────────
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('chats')
-                .where('users', arrayContains: _currentUserId)
-                .snapshots(),
-            builder: (context, snapshot) {
-              // Error
-              if (snapshot.hasError) {
-                return SliverFillRemaining(
-                  child: Center(
-                    child: Text(
-                      'Error loading chats.\nPlease try again later.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.body.copyWith(
-                        color: AppColors.danger,
+            // Fix #5: Search bar removed — it had no controller, no onChanged,
+            // and no filter logic. Rendering a non-functional search bar is a
+            // misleading UX contract. Re-add when real-time filtering is wired up.
+
+            // ── Chat List (real-time Firestore stream) ─────────────────────────
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('chats')
+                  .where('users', arrayContains: _currentUserId)
+                  // Fix #7: Server-side ordering replaces the client-side sort
+                  // that was running on every stream event. Requires a composite
+                  // Firestore index: users (Array) + lastMessageTime (Descending).
+                  // Firebase Console will provide the index creation link on first run.
+                  .orderBy('lastMessageTime', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                // Error
+                if (snapshot.hasError) {
+                  return SliverFillRemaining(
+                    child: Center(
+                      child: Text(
+                        'Error loading chats.\nPlease try again later.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.body.copyWith(
+                          color: AppColors.danger,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              }
+                  );
+                }
 
-              // Initial load
-              if (snapshot.connectionState == ConnectionState.waiting) {
+                // Initial load
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (_, __) => const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: _ShimmerTile(),
+                        ),
+                        childCount: 4,
+                      ),
+                    ),
+                  );
+                }
+
+                // Empty
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const SliverFillRemaining(child: _EmptyState());
+                }
+
+                final chatDocs = snapshot.data!.docs;
+
                 return SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (_, __) => const Padding(
-                        padding: EdgeInsets.only(bottom: 12),
-                        child: _ShimmerTile(),
-                      ),
-                      childCount: 4,
+                      (context, index) {
+                        final doc = chatDocs[index];
+                        final chatData = doc.data() as Map<String, dynamic>;
+                        final chatId = doc.id;
+
+                        // Extract the OTHER user (the driver) from the users array.
+                        final users = List<String>.from(
+                          (chatData['users'] as List<dynamic>?) ?? [],
+                        );
+                        final driverAuthId = users.firstWhere(
+                          (id) => id != _currentUserId,
+                          orElse: () => '',
+                        );
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          // NOTE: This FutureBuilder is safe because _fetchChatTileInfo
+                          // caches the returned Future in _infoCache via putIfAbsent.
+                          // See Fix #8 comment on _infoCache declaration above.
+                          child: FutureBuilder<_ChatTileInfo>(
+                            future: _fetchChatTileInfo(driverAuthId),
+                            builder: (context, infoSnap) {
+                              // Show shimmer while the Future resolves
+                              if (infoSnap.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const _ShimmerTile();
+                              }
+
+                              final info = infoSnap.data ??
+                                  const _ChatTileInfo(driverName: 'VanGo Driver');
+
+                              final displayName = info.childName != null
+                                  ? '${info.driverName} (Driving ${info.childName})'
+                                  : info.driverName;
+
+                              return _ChatTile(
+                                chatData: chatData,
+                                displayName: displayName,
+                                onTap: () =>
+                                    _openChat(chatId, info.driverName),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                      childCount: chatDocs.length,
                     ),
                   ),
                 );
-              }
-
-              // Empty
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const SliverFillRemaining(child: _EmptyState());
-              }
-
-              // Sort docs by lastMessageTime descending (most recent first)
-              final chatDocs = snapshot.data!.docs.toList()
-                ..sort((a, b) {
-                  final aData = a.data() as Map<String, dynamic>;
-                  final bData = b.data() as Map<String, dynamic>;
-                  final aTs = aData['lastMessageTime'] as Timestamp?;
-                  final bTs = bData['lastMessageTime'] as Timestamp?;
-                  if (aTs == null && bTs == null) return 0;
-                  if (aTs == null) return 1;
-                  if (bTs == null) return -1;
-                  return bTs.compareTo(aTs);
-                });
-
-              return SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final doc = chatDocs[index];
-                      final chatData = doc.data() as Map<String, dynamic>;
-                      final chatId = doc.id;
-
-                      // Extract the OTHER user (the driver) from the users array.
-                      final users = List<String>.from(
-                        (chatData['users'] as List<dynamic>?) ?? [],
-                      );
-                      final driverAuthId = users.firstWhere(
-                        (id) => id != _currentUserId,
-                        orElse: () => '',
-                      );
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: FutureBuilder<_ChatTileInfo>(
-                          future: _fetchChatTileInfo(driverAuthId),
-                          builder: (context, infoSnap) {
-                            // Show shimmer while the Future resolves
-                            if (infoSnap.connectionState ==
-                                ConnectionState.waiting) {
-                              return const _ShimmerTile();
-                            }
-
-                            final info = infoSnap.data ??
-                                const _ChatTileInfo(driverName: 'VanGo Driver');
-
-                            final displayName = info.childName != null
-                                ? '${info.driverName} (Driving ${info.childName})'
-                                : info.driverName;
-
-                            return _ChatTile(
-                              chatData: chatData,
-                              displayName: displayName,
-                              onTap: () =>
-                                  _openChat(chatId, info.driverName),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                    childCount: chatDocs.length,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
