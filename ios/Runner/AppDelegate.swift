@@ -11,6 +11,14 @@ import GoogleMaps
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
 
+    // 🛑 THE IOS BACKGROUND FIX
+    if let window = self.window, let flutterViewController = window.rootViewController as? FlutterViewController {
+        flutterViewController.view.backgroundColor = UIColor.black
+        flutterViewController.view.isOpaque = false
+        window.backgroundColor = UIColor.black
+        window.isOpaque = false
+    }
+
     // 1. MUST BE FIRST: Google Maps setup BEFORE plugin registration
     if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
        let dict = NSDictionary(contentsOfFile: path) as? [String: Any],
