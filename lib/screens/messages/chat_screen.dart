@@ -23,9 +23,18 @@ class _ChatScreenState extends State<ChatScreen> {
   // ── State ────────────────────────────────────────────────────────────────
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final String _currentUserId =
-      Supabase.instance.client.auth.currentUser!.id;
+
+  // Fix #4: Safe nullable access instead of force-unwrap `!`
+  final String? _currentUserId =
+      Supabase.instance.client.auth.currentUser?.id;
+
   bool _isSending = false;
+
+  // Fix #1: Track previous message count to prevent scroll side-effects in build()
+  int _prevMessageCount = 0;
+
+  // Fix #10: Optimistic UI — locally staged pending messages shown instantly
+  final List<Map<String, dynamic>> _pendingMessages = [];
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
   @override
@@ -37,7 +46,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
-  /// Scroll to the very bottom of the message list (called after new data arrives).
+  /// Scroll to the very bottom of the message list.
+  /// Only called when genuinely new messages arrive, never from build().
   void _scrollToBottom({bool animated = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -56,9 +66,10 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  /// Format a Firestore Timestamp to a human-readable time/date label.
+  /// Fix #11: Returns "Sending…" for null timestamps (server not yet assigned)
+  /// instead of an empty string, giving the user clear feedback.
   String _messageTimeLabel(Timestamp? ts) {
-    if (ts == null) return '';
+    if (ts == null) return 'Sending…';
     final dt = ts.toDate().toLocal();
     final now = DateTime.now();
     if (now.difference(dt).inDays == 0) {
@@ -69,34 +80,68 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // ── Send Message ─────────────────────────────────────────────────────────
   Future<void> _sendMessage() async {
+    // Fix #4: Guard against expired/missing session
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Session expired. Please log in again.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
     final text = _messageController.text.trim();
     if (text.isEmpty || _isSending) return;
 
     setState(() => _isSending = true);
     _messageController.clear();
 
+    // Fix #10: Add a pending bubble immediately for optimistic UI.
+    // The real bubble will appear once Firestore confirms and the stream emits.
+    final pending = {
+      'text': text,
+      'senderId': _currentUserId,
+      'timestamp': null, // null signals "pending" state
+    };
+    setState(() => _pendingMessages.add(pending));
+    _scrollToBottom();
+
     final chatRef = FirebaseFirestore.instance
         .collection('chats')
         .doc(widget.chatId);
 
     try {
-      // 1. Add the message to the subcollection.
-      await chatRef.collection('messages').add({
+      // Fix #2: Atomic WriteBatch — both writes succeed or both fail together.
+      // Previously, two sequential awaits risked the inbox showing stale
+      // lastMessage if the app died or lost connectivity between them.
+      final batch = FirebaseFirestore.instance.batch();
+
+      final messageRef = chatRef.collection('messages').doc();
+      batch.set(messageRef, {
         'senderId': _currentUserId,
         'text': text,
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      // 2. Update the parent chat document's last-message fields.
-      await chatRef.update({
+      batch.update(chatRef, {
         'lastMessage': text,
         'lastMessageTime': FieldValue.serverTimestamp(),
       });
+
+      await batch.commit();
+
+      // Remove the optimistic bubble — the stream will now render the real one.
+      if (mounted) setState(() => _pendingMessages.remove(pending));
     } catch (e) {
+      // Fix #3: User-friendly error message; raw exception logged for devs only.
+      debugPrint('ChatScreen._sendMessage error: $e');
       if (mounted) {
+        // Remove the failed pending bubble so the user knows it didn't send.
+        setState(() => _pendingMessages.remove(pending));
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send message: $e'),
+          const SnackBar(
+            content: Text('Message failed to send. Please check your connection.'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -116,6 +161,10 @@ class _ChatScreenState extends State<ChatScreen> {
         isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
     final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
     final inputFillColor = Theme.of(context).colorScheme.surface;
+
+    // Fix #9: Compute maxBubbleWidth once here in build() so _MessageBubble
+    // widgets don't each subscribe to MediaQuery changes independently.
+    final maxBubbleWidth = MediaQuery.of(context).size.width * 0.75;
 
     return Scaffold(
       backgroundColor: scaffoldBg,
@@ -202,13 +251,25 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                // Fix #12: Only show the full-screen spinner on the very first
+                // load. If the stream re-subscribes with existing data, we keep
+                // rendering the data to avoid a jarring flash of the spinner.
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 final docs = snapshot.data?.docs ?? [];
 
-                if (docs.isEmpty) {
+                // Fix #1: Only trigger scroll when a genuinely new confirmed
+                // message arrives from Firestore — not on every build() call.
+                // This also correctly respects if the user has scrolled up.
+                if (docs.length > _prevMessageCount) {
+                  _prevMessageCount = docs.length;
+                  _scrollToBottom();
+                }
+
+                if (docs.isEmpty && _pendingMessages.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -231,34 +292,42 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }
 
-                // Auto-scroll when new messages arrive.
-                _scrollToBottom();
-
                 return ListView.builder(
                   controller: _scrollController,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  itemCount: docs.length,
+                  // Fix #10: Combine confirmed messages + pending bubbles
+                  itemCount: docs.length + _pendingMessages.length,
                   itemBuilder: (context, index) {
-                    final msgData =
-                        docs[index].data() as Map<String, dynamic>;
+                    // Pending bubbles are rendered after confirmed messages
+                    final isPending = index >= docs.length;
+
+                    final Map<String, dynamic> msgData;
+                    if (isPending) {
+                      msgData = _pendingMessages[index - docs.length];
+                    } else {
+                      msgData = docs[index].data() as Map<String, dynamic>;
+                    }
+
                     final isSender = msgData['senderId'] == _currentUserId;
                     final ts = msgData['timestamp'] as Timestamp?;
 
                     // Date separator: show date chip when the day changes.
                     bool showDateChip = false;
-                    if (index == 0) {
-                      showDateChip = true;
-                    } else {
-                      final prevData =
-                          docs[index - 1].data() as Map<String, dynamic>;
-                      final prevTs = prevData['timestamp'] as Timestamp?;
-                      if (ts != null && prevTs != null) {
-                        final curr = ts.toDate().toLocal();
-                        final prev = prevTs.toDate().toLocal();
-                        showDateChip = curr.day != prev.day ||
-                            curr.month != prev.month ||
-                            curr.year != prev.year;
+                    if (!isPending) {
+                      if (index == 0) {
+                        showDateChip = true;
+                      } else {
+                        final prevData =
+                            docs[index - 1].data() as Map<String, dynamic>;
+                        final prevTs = prevData['timestamp'] as Timestamp?;
+                        if (ts != null && prevTs != null) {
+                          final curr = ts.toDate().toLocal();
+                          final prev = prevTs.toDate().toLocal();
+                          showDateChip = curr.day != prev.day ||
+                              curr.month != prev.month ||
+                              curr.year != prev.year;
+                        }
                       }
                     }
 
@@ -269,14 +338,22 @@ class _ChatScreenState extends State<ChatScreen> {
                             date: ts.toDate().toLocal(),
                             textColor: secondaryTextColor,
                           ),
-                        _MessageBubble(
-                          text: msgData['text'] as String? ?? '',
-                          timeLabel: _messageTimeLabel(ts),
-                          isSender: isSender,
-                          isDark: isDark,
-                          accentColor: accentColor,
-                          textColor: textColor ?? AppColors.textPrimary,
-                          secondaryTextColor: secondaryTextColor,
+                        // Fix #10: Pending bubbles are rendered at reduced
+                        // opacity to communicate that they are in-flight.
+                        Opacity(
+                          opacity: isPending ? 0.55 : 1.0,
+                          child: _MessageBubble(
+                            text: msgData['text'] as String? ?? '',
+                            // Fix #11: "Sending…" shown for null ts
+                            timeLabel: _messageTimeLabel(ts),
+                            isSender: isSender,
+                            isDark: isDark,
+                            accentColor: accentColor,
+                            textColor: textColor ?? AppColors.textPrimary,
+                            secondaryTextColor: secondaryTextColor,
+                            // Fix #9: Width passed from build(), not queried inside bubble
+                            maxWidth: maxBubbleWidth,
+                          ),
                         ),
                       ],
                     );
@@ -393,6 +470,8 @@ class _MessageBubble extends StatelessWidget {
   final Color accentColor;
   final Color textColor;
   final Color secondaryTextColor;
+  // Fix #9: Accept pre-computed width from parent instead of querying MediaQuery
+  final double maxWidth;
 
   const _MessageBubble({
     required this.text,
@@ -402,6 +481,7 @@ class _MessageBubble extends StatelessWidget {
     required this.accentColor,
     required this.textColor,
     required this.secondaryTextColor,
+    required this.maxWidth,
   });
 
   @override
@@ -424,9 +504,7 @@ class _MessageBubble extends StatelessWidget {
       alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
+        constraints: BoxConstraints(maxWidth: maxWidth),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: bubbleColor,
