@@ -6,9 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
-
-// --- LOCALIZATION ENGINE ---
-enum AppLanguage { english, sinhala, tamil }
+import 'package:vango_parent_app/services/language_service.dart';
 
 const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   AppLanguage.english: {
@@ -71,7 +69,6 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _currentPage = 0;
-  AppLanguage _currentLanguage = AppLanguage.english;
 
   Timer? _autoPlayTimer;
   bool _isAutoScrolling = false;
@@ -136,7 +133,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _controller
             .nextPage(
               duration: const Duration(milliseconds: 600),
-              // ✅ iOS POLISH: Softer, more controlled ease curve
               curve: Curves.easeOutCubic,
             )
             .then((_) {
@@ -153,7 +149,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
   }
 
-  String _t(String key) => _localizedStrings[_currentLanguage]?[key] ?? key;
+  // ✅ Read from Global Language Service
+  String _t(String key) =>
+      _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
+      key;
 
   String _getLanguageName(AppLanguage lang) {
     switch (lang) {
@@ -190,7 +189,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     if (isLastPage) {
       _Analytics.logEvent('onboarding_completed');
-      // ✅ TRIGGER PERSISTENCE HERE
       _markOnboardingCompleted();
       return;
     }
@@ -240,7 +238,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     return Semantics(
       button: true,
-      label: "Select Language. Currently ${_getLanguageName(_currentLanguage)}",
+      label: "Select Language",
       child: Theme(
         data: Theme.of(context).copyWith(
           splashColor: Colors.transparent,
@@ -250,7 +248,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
             HapticFeedback.selectionClick();
-            setState(() => _currentLanguage = newValue);
+            // ✅ Update Global Language Service
+            LanguageService.instance.setLanguage(newValue);
             _Analytics.logEvent(
               'language_changed',
               properties: {'language': newValue.name},
@@ -267,7 +266,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             maxWidth: selectorWidth,
           ),
           itemBuilder: (context) => AppLanguage.values.map((lang) {
-            final isSelected = _currentLanguage == lang;
+            // ✅ Check against global service
+            final isSelected =
+                LanguageService.instance.currentLanguage.value == lang;
             return PopupMenuItem<AppLanguage>(
               value: lang,
               child: Center(
@@ -296,7 +297,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 Icon(Icons.language_rounded, color: textColor, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  _getLanguageName(_currentLanguage),
+                  // ✅ Read from global service
+                  _getLanguageName(
+                    LanguageService.instance.currentLanguage.value,
+                  ),
                   style: AppTypography.label.copyWith(
                     color: textColor,
                     fontWeight: FontWeight.w600,
@@ -399,120 +403,131 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
-      child: PopScope(
-        canPop: _currentPage == 0,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-          if (_currentPage > 0) {
-            _onUserInteraction();
-            _controller.previousPage(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-            );
-          }
-        },
-        child: Scaffold(
-          backgroundColor: bgColor,
-          body: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final double maxWidth = constraints.maxWidth > 600
-                    ? 500
-                    : double.infinity;
+    // ✅ Wrap entire UI in ValueListenableBuilder for Instant Translation
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: LanguageService.instance.currentLanguage,
+      builder: (context, currentLang, child) {
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: isDark
+              ? SystemUiOverlayStyle.light
+              : SystemUiOverlayStyle.dark,
+          child: PopScope(
+            canPop: _currentPage == 0,
+            onPopInvokedWithResult: (didPop, result) {
+              if (didPop) return;
+              if (_currentPage > 0) {
+                _onUserInteraction();
+                _controller.previousPage(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeOutCubic,
+                );
+              }
+            },
+            child: Scaffold(
+              backgroundColor: bgColor,
+              body: SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double maxWidth = constraints.maxWidth > 600
+                        ? 500
+                        : double.infinity;
 
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: maxWidth),
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: 16,
-                            right: 16,
-                            top: 20,
-                            bottom: 12,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildLanguageSelector(isDark),
-                              Semantics(
-                                button: true,
-                                label: "Skip onboarding",
-                                child: TextButton(
-                                  onPressed: () {
-                                    HapticFeedback.lightImpact();
-                                    _Analytics.logEvent(
-                                      'onboarding_skip_clicked',
-                                      properties: {'slide_index': _currentPage},
-                                    );
-                                    Future.delayed(
-                                      const Duration(milliseconds: 150),
-                                      () {
-                                        // ✅ TRIGGER PERSISTENCE HERE ON SKIP TOO
-                                        _markOnboardingCompleted();
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: maxWidth),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 16,
+                                right: 16,
+                                top: 20,
+                                bottom: 12,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildLanguageSelector(isDark),
+                                  Semantics(
+                                    button: true,
+                                    label: "Skip onboarding",
+                                    child: TextButton(
+                                      onPressed: () {
+                                        HapticFeedback.lightImpact();
+                                        _Analytics.logEvent(
+                                          'onboarding_skip_clicked',
+                                          properties: {
+                                            'slide_index': _currentPage,
+                                          },
+                                        );
+                                        Future.delayed(
+                                          const Duration(milliseconds: 150),
+                                          () {
+                                            _markOnboardingCompleted();
+                                          },
+                                        );
                                       },
-                                    );
-                                  },
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: textColor,
-                                    overlayColor: textColor.withOpacity(0.1),
-                                  ),
-                                  child: Text(
-                                    _t('skip'),
-                                    style: AppTypography.label.copyWith(
-                                      fontWeight: FontWeight.w600,
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: textColor,
+                                        overlayColor: textColor.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        _t('skip'),
+                                        style: AppTypography.label.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: GestureDetector(
-                            onPanDown: (_) => _onUserInteraction(),
-                            child: PageView.builder(
-                              controller: _controller,
-                              // ✅ iOS POLISH: ClampingScrollPhysics stops the exaggerated over-scroll bounce
-                              physics: const ClampingScrollPhysics(),
-                              onPageChanged: (index) {
-                                setState(() => _currentPage = index);
-                                _Analytics.logEvent(
-                                  'onboarding_slide_viewed',
-                                  properties: {'slide_index': index},
-                                );
-
-                                if (!_isAutoScrolling) {
-                                  HapticFeedback.selectionClick();
-                                }
-
-                                _startAutoPlay();
-                              },
-                              itemCount: _slides.length,
-                              itemBuilder: (context, index) => Padding(
-                                padding: const EdgeInsets.only(
-                                  bottom: 24,
-                                  top: 8,
-                                ),
-                                child: _buildCard(_slides[index], isDark),
+                                ],
                               ),
                             ),
-                          ),
+                            Expanded(
+                              child: GestureDetector(
+                                onPanDown: (_) => _onUserInteraction(),
+                                child: PageView.builder(
+                                  controller: _controller,
+                                  physics: const ClampingScrollPhysics(),
+                                  onPageChanged: (index) {
+                                    setState(() => _currentPage = index);
+                                    _Analytics.logEvent(
+                                      'onboarding_slide_viewed',
+                                      properties: {'slide_index': index},
+                                    );
+
+                                    if (!_isAutoScrolling) {
+                                      HapticFeedback.selectionClick();
+                                    }
+
+                                    _startAutoPlay();
+                                  },
+                                  itemCount: _slides.length,
+                                  itemBuilder: (context, index) => Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: 24,
+                                      top: 8,
+                                    ),
+                                    child: _buildCard(_slides[index], isDark),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            _buildDots(isDark),
+                            const SizedBox(height: 24),
+                          ],
                         ),
-                        _buildDots(isDark),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -635,7 +650,6 @@ class _SlideDetailsState extends State<_SlideDetails> {
               ),
             ],
           ),
-
           Semantics(
             button: true,
             label: widget.buttonLabel,

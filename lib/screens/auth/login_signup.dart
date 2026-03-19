@@ -10,9 +10,7 @@ import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/screens/auth/reset_password_screen.dart';
-
-// --- LOCALIZATION ENGINE ---
-enum AppLanguage { english, sinhala, tamil }
+import 'package:vango_parent_app/services/language_service.dart';
 
 const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   AppLanguage.english: {
@@ -128,12 +126,9 @@ class LoginSignupScreen extends StatefulWidget {
 }
 
 class _LoginSignupScreenState extends State<LoginSignupScreen> {
-  AppLanguage _currentLanguage = AppLanguage.english;
   bool _isPhoneLogin = true;
   bool _isLoading = false;
   bool _isPasswordVisible = false;
-
-  // ANIMATION POLISH: Button Press State
   bool _isSubmitPressed = false;
 
   final _formKey = GlobalKey<FormState>();
@@ -157,7 +152,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     super.dispose();
   }
 
-  String _t(String key) => _localizedStrings[_currentLanguage]?[key] ?? key;
+  // ✅ Read from Global Language Service
+  String _t(String key) =>
+      _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
+      key;
 
   String _getLanguageName(AppLanguage lang) {
     switch (lang) {
@@ -169,8 +167,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         return 'தமிழ்';
     }
   }
-
-  // --- PREMIUM ERROR HANDLING ---
 
   String _parseError(dynamic error) {
     if (error is AuthException) {
@@ -208,9 +204,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   }
 
   void _showMessage(String message, {bool isError = true}) {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     final bgColor = isError ? const Color(0xFFB3261E) : const Color(0xFF2E7D32);
     final icon = isError
@@ -250,19 +244,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
   }
 
-  // --- MICRO-INTERACTION: TAB DELAY ---
-
   void _switchTab(bool toPhone) async {
-    if (_isPhoneLogin == toPhone || _isLoading) {
-      return;
-    }
+    if (_isPhoneLogin == toPhone || _isLoading) return;
 
     HapticFeedback.selectionClick();
     await Future.delayed(const Duration(milliseconds: 120));
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {
       _isPhoneLogin = toPhone;
@@ -270,47 +258,29 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     _formKey.currentState?.reset();
   }
 
-  // --- VALIDATORS ---
-
   String? _validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return _t('err_phone_req');
-    }
+    if (value == null || value.trim().isEmpty) return _t('err_phone_req');
     final cleanPhone = value.replaceAll(' ', '');
     final phoneRegex = RegExp(r'^\+94[0-9]{9}$');
-    if (!phoneRegex.hasMatch(cleanPhone)) {
-      return _t('err_phone_inv');
-    }
+    if (!phoneRegex.hasMatch(cleanPhone)) return _t('err_phone_inv');
     return null;
   }
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return _t('err_email_req');
-    }
+    if (value == null || value.trim().isEmpty) return _t('err_email_req');
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value.trim())) {
-      return _t('err_email_inv');
-    }
+    if (!emailRegex.hasMatch(value.trim())) return _t('err_email_inv');
     return null;
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return _t('err_pass_req');
-    }
-    if (value.length < 8) {
-      return _t('err_pass_min');
-    }
+    if (value == null || value.isEmpty) return _t('err_pass_req');
+    if (value.length < 8) return _t('err_pass_min');
     return null;
   }
 
-  // --- ACTIONS ---
-
   Future<void> _handlePhoneLogin() async {
-    if (_isLoading) {
-      return;
-    }
+    if (_isLoading) return;
 
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.lightImpact();
@@ -334,16 +304,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     } catch (e) {
       _showMessage(_parseError(e), isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handleEmailLogin() async {
-    if (_isLoading) {
-      return;
-    }
+    if (_isLoading) return;
 
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.lightImpact();
@@ -386,16 +352,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     } catch (e) {
       _showMessage(_parseError(e), isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handleForgotPassword() async {
-    if (_isLoading) {
-      return;
-    }
+    if (_isLoading) return;
 
     final email = _emailController.text.trim();
     final emailError = _validateEmail(email);
@@ -413,17 +375,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
     try {
       await AuthService.instance.requestPasswordReset(email);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       final successMsg = _t('reset_sent').replaceAll('@email', email);
       _showMessage(successMsg, isError: false);
 
       await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -433,9 +391,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     } catch (e) {
       _showMessage(_parseError(e), isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -443,9 +399,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     Future<void> Function() method,
     String provider,
   ) async {
-    if (_isLoading) {
-      return;
-    }
+    if (_isLoading) return;
 
     _isLoading = true;
     HapticFeedback.mediumImpact();
@@ -462,9 +416,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     } catch (e) {
       _showMessage(_parseError(e), isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -477,13 +429,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     }
   }
 
-  // --- UI COMPONENTS ---
-
   Widget _buildLanguageSelector(bool isDark) {
     final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
-    final selectedTextColor = isDark
-        ? Colors.white
-        : const Color(0xFF2D325A);
+    final selectedTextColor = isDark ? Colors.white : const Color(0xFF2D325A);
     final unselectedTextColor = isDark
         ? AppColors.darkTextSecondary
         : Colors.grey.shade700;
@@ -496,27 +444,28 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       child: PopupMenuButton<AppLanguage>(
         onSelected: (AppLanguage newValue) {
           HapticFeedback.selectionClick();
-          setState(() => _currentLanguage = newValue);
+          // ✅ Update global service
+          LanguageService.instance.setLanguage(newValue);
           FirebaseAnalytics.instance.logEvent(
             name: 'auth_language_changed',
             parameters: {'lang': newValue.name},
           );
         },
-        color: menuBgColor, // ✅ FIX: Dynamic Background Color
+        color: menuBgColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 8,
         offset: const Offset(0, 45),
         itemBuilder: (context) => AppLanguage.values.map((lang) {
-          final isSelected = _currentLanguage == lang;
+          // ✅ Check global service
+          final isSelected =
+              LanguageService.instance.currentLanguage.value == lang;
           return PopupMenuItem<AppLanguage>(
             value: lang,
             child: Center(
               child: Text(
                 _getLanguageName(lang),
                 style: AppTypography.body.copyWith(
-                  color: isSelected
-                      ? selectedTextColor
-                      : unselectedTextColor, // ✅ FIX: Dynamic Text Color
+                  color: isSelected ? selectedTextColor : unselectedTextColor,
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                 ),
               ),
@@ -536,7 +485,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
               const Icon(Icons.language_rounded, color: Colors.white, size: 16),
               const SizedBox(width: 6),
               Text(
-                _getLanguageName(_currentLanguage),
+                // ✅ Read global service
+                _getLanguageName(
+                  LanguageService.instance.currentLanguage.value,
+                ),
                 style: AppTypography.label.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -568,414 +520,427 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         : AppColors.textSecondary;
     final accentColor = isDark ? AppColors.darkAccent : const Color(0xFF2D325A);
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Scaffold(
-          backgroundColor: bgColor,
-          body: AbsorbPointer(
-            absorbing: _isLoading,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
-                        ),
-                        child: IntrinsicHeight(
-                          child: Stack(
-                            children: [
-                              // 1. BACKGROUND HEADER
-                              ClipPath(
-                                clipper: BackgroundClipper(),
-                                child: Container(
-                                  width: double.infinity,
-                                  height: 450,
-                                  color: isDark
-                                      ? AppColors.darkSurfaceStrong
-                                      : const Color(0xFF2D325A),
-                                ),
-                              ),
-
-                              // 2. CONTENT
-                              SafeArea(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        left: 28,
-                                        right: 28,
-                                        top: 20,
-                                        bottom: 20,
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Column(
+    // ✅ Wrap entire UI in ValueListenableBuilder for Instant Translation
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: LanguageService.instance.currentLanguage,
+      builder: (context, currentLang, child) {
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
+          child: GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: Scaffold(
+              backgroundColor: bgColor,
+              body: AbsorbPointer(
+                absorbing: _isLoading,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 500),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight,
+                            ),
+                            child: IntrinsicHeight(
+                              child: Stack(
+                                children: [
+                                  ClipPath(
+                                    clipper: BackgroundClipper(),
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: 450,
+                                      color: isDark
+                                          ? AppColors.darkSurfaceStrong
+                                          : const Color(0xFF2D325A),
+                                    ),
+                                  ),
+                                  SafeArea(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 28,
+                                            right: 28,
+                                            top: 20,
+                                            bottom: 20,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                _t('welcome'),
-                                                style: AppTypography.headline
-                                                    .copyWith(
-                                                      color: Colors.white
-                                                          .withValues(
-                                                            alpha: 0.9,
-                                                          ),
-                                                      fontSize: 24,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                              ),
-                                              Text(
-                                                'VanGo',
-                                                style: AppTypography.headline
-                                                    .copyWith(
-                                                      color: Colors.white,
-                                                      fontSize: 56,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      height: 1.1,
-                                                      letterSpacing: -1,
-                                                    ),
-                                              ),
-                                            ],
-                                          ),
-                                          _buildLanguageSelector(isDark),
-                                        ],
-                                      ),
-                                    ),
-
-                                    const Spacer(),
-
-                                    // THE AUTH CARD
-                                    Container(
-                                      width: double.infinity,
-                                      margin: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 20,
-                                      ),
-                                      padding: const EdgeInsets.all(28),
-                                      decoration: BoxDecoration(
-                                        color: cardColor,
-                                        borderRadius: BorderRadius.circular(32),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: isDark ? 0.5 : 0.15,
-                                            ),
-                                            blurRadius: 30,
-                                            offset: const Offset(0, 15),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Form(
-                                        key: _formKey,
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              _t('get_started'),
-                                              style: AppTypography.headline
-                                                  .copyWith(
-                                                    fontSize: 26,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: textColor,
-                                                  ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              _t('subtitle'),
-                                              textAlign: TextAlign.center,
-                                              style: AppTypography.body
-                                                  .copyWith(
-                                                    color: textSecondary,
-                                                  ),
-                                            ),
-                                            const SizedBox(height: 32),
-
-                                            // TOGGLE BUTTON
-                                            Container(
-                                              height: 52,
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: BoxDecoration(
-                                                color: isDark
-                                                    ? AppColors.darkBackground
-                                                    : Colors.grey.shade100,
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                              ),
-                                              child: Row(
+                                              Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
-                                                  Expanded(
-                                                    child: _ToggleTab(
-                                                      label: _t('phone_tab'),
-                                                      isSelected: _isPhoneLogin,
-                                                      isDark: isDark,
-                                                      onTap: () =>
-                                                          _switchTab(true),
-                                                    ),
+                                                  Text(
+                                                    _t('welcome'),
+                                                    style: AppTypography
+                                                        .headline
+                                                        .copyWith(
+                                                          color: Colors.white
+                                                              .withValues(
+                                                                alpha: 0.9,
+                                                              ),
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
                                                   ),
-                                                  Expanded(
-                                                    child: _ToggleTab(
-                                                      label: _t('email_tab'),
-                                                      isSelected:
-                                                          !_isPhoneLogin,
-                                                      isDark: isDark,
-                                                      onTap: () =>
-                                                          _switchTab(false),
-                                                    ),
+                                                  Text(
+                                                    'VanGo',
+                                                    style: AppTypography
+                                                        .headline
+                                                        .copyWith(
+                                                          color: Colors.white,
+                                                          fontSize: 56,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          height: 1.1,
+                                                          letterSpacing: -1,
+                                                        ),
                                                   ),
                                                 ],
                                               ),
+                                              _buildLanguageSelector(isDark),
+                                            ],
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Container(
+                                          width: double.infinity,
+                                          margin: const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                            vertical: 20,
+                                          ),
+                                          padding: const EdgeInsets.all(28),
+                                          decoration: BoxDecoration(
+                                            color: cardColor,
+                                            borderRadius: BorderRadius.circular(
+                                              32,
                                             ),
-                                            const SizedBox(height: 28),
-
-                                            // INPUT FIELDS
-                                            AnimatedSwitcher(
-                                              duration: const Duration(
-                                                milliseconds: 300,
-                                              ),
-                                              switchInCurve:
-                                                  Curves.easeOutCubic,
-                                              switchOutCurve:
-                                                  Curves.easeInCubic,
-                                              child: _isPhoneLogin
-                                                  ? _buildPhoneInput(
-                                                      accentColor,
-                                                      isDark,
-                                                    )
-                                                  : _buildEmailInput(
-                                                      accentColor,
-                                                      isDark,
-                                                    ),
-                                            ),
-
-                                            const SizedBox(height: 24),
-
-                                            // MAIN SUBMIT BUTTON
-                                            Listener(
-                                              onPointerDown: (_) {
-                                                if (!_isLoading) {
-                                                  setState(
-                                                    () =>
-                                                        _isSubmitPressed = true,
-                                                  );
-                                                }
-                                              },
-                                              onPointerUp: (_) {
-                                                if (!_isLoading) {
-                                                  setState(
-                                                    () => _isSubmitPressed =
-                                                        false,
-                                                  );
-                                                }
-                                              },
-                                              child: AnimatedScale(
-                                                scale: _isSubmitPressed
-                                                    ? 0.96
-                                                    : 1.0,
-                                                duration: const Duration(
-                                                  milliseconds: 100,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(
+                                                  alpha: isDark ? 0.5 : 0.15,
                                                 ),
-                                                curve: Curves.easeInOut,
-                                                child: SizedBox(
-                                                  width: double.infinity,
-                                                  height: 56,
-                                                  child: ElevatedButton(
-                                                    onPressed: _isLoading
-                                                        ? null
-                                                        : (_isPhoneLogin
-                                                              ? _handlePhoneLogin
-                                                              : _handleEmailLogin),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor:
-                                                          accentColor,
-                                                      foregroundColor:
-                                                          Colors.white,
-                                                      elevation: 0,
-                                                      textStyle: AppTypography
-                                                          .title
-                                                          .copyWith(
-                                                            fontSize: 16,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                          ),
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              20,
-                                                            ),
+                                                blurRadius: 30,
+                                                offset: const Offset(0, 15),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Form(
+                                            key: _formKey,
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  _t('get_started'),
+                                                  style: AppTypography.headline
+                                                      .copyWith(
+                                                        fontSize: 26,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        color: textColor,
                                                       ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  _t('subtitle'),
+                                                  textAlign: TextAlign.center,
+                                                  style: AppTypography.body
+                                                      .copyWith(
+                                                        color: textSecondary,
+                                                      ),
+                                                ),
+                                                const SizedBox(height: 32),
+                                                Container(
+                                                  height: 52,
+                                                  padding: const EdgeInsets.all(
+                                                    4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: isDark
+                                                        ? AppColors
+                                                              .darkBackground
+                                                        : Colors.grey.shade100,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          16,
+                                                        ),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: _ToggleTab(
+                                                          label: _t(
+                                                            'phone_tab',
+                                                          ),
+                                                          isSelected:
+                                                              _isPhoneLogin,
+                                                          isDark: isDark,
+                                                          onTap: () =>
+                                                              _switchTab(true),
+                                                        ),
+                                                      ),
+                                                      Expanded(
+                                                        child: _ToggleTab(
+                                                          label: _t(
+                                                            'email_tab',
+                                                          ),
+                                                          isSelected:
+                                                              !_isPhoneLogin,
+                                                          isDark: isDark,
+                                                          onTap: () =>
+                                                              _switchTab(false),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 28),
+                                                AnimatedSwitcher(
+                                                  duration: const Duration(
+                                                    milliseconds: 300,
+                                                  ),
+                                                  switchInCurve:
+                                                      Curves.easeOutCubic,
+                                                  switchOutCurve:
+                                                      Curves.easeInCubic,
+                                                  child: _isPhoneLogin
+                                                      ? _buildPhoneInput(
+                                                          accentColor,
+                                                          isDark,
+                                                        )
+                                                      : _buildEmailInput(
+                                                          accentColor,
+                                                          isDark,
+                                                        ),
+                                                ),
+                                                const SizedBox(height: 24),
+                                                Listener(
+                                                  onPointerDown: (_) {
+                                                    if (!_isLoading) {
+                                                      setState(
+                                                        () => _isSubmitPressed =
+                                                            true,
+                                                      );
+                                                    }
+                                                  },
+                                                  onPointerUp: (_) {
+                                                    if (!_isLoading) {
+                                                      setState(
+                                                        () => _isSubmitPressed =
+                                                            false,
+                                                      );
+                                                    }
+                                                  },
+                                                  child: AnimatedScale(
+                                                    scale: _isSubmitPressed
+                                                        ? 0.96
+                                                        : 1.0,
+                                                    duration: const Duration(
+                                                      milliseconds: 100,
                                                     ),
-                                                    child: _isLoading
-                                                        ? const SizedBox(
-                                                            width: 24,
-                                                            height: 24,
-                                                            child:
-                                                                CircularProgressIndicator(
+                                                    curve: Curves.easeInOut,
+                                                    child: SizedBox(
+                                                      width: double.infinity,
+                                                      height: 56,
+                                                      child: ElevatedButton(
+                                                        onPressed: _isLoading
+                                                            ? null
+                                                            : (_isPhoneLogin
+                                                                  ? _handlePhoneLogin
+                                                                  : _handleEmailLogin),
+                                                        style: ElevatedButton.styleFrom(
+                                                          backgroundColor:
+                                                              accentColor,
+                                                          foregroundColor:
+                                                              Colors.white,
+                                                          elevation: 0,
+                                                          textStyle: AppTypography
+                                                              .title
+                                                              .copyWith(
+                                                                fontSize: 16,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  20,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: _isLoading
+                                                            ? const SizedBox(
+                                                                width: 24,
+                                                                height: 24,
+                                                                child: CircularProgressIndicator(
                                                                   color: Colors
                                                                       .white,
                                                                   strokeWidth:
                                                                       3,
                                                                 ),
-                                                          )
-                                                        : Text(
-                                                            _t('continue_btn'),
-                                                          ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-
-                                            // SECURITY BADGE
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 16,
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.shield_rounded,
-                                                    size: 14,
-                                                    color:
-                                                        Colors.green.shade600,
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                  Text(
-                                                    _t('secure_badge'),
-                                                    style: AppTypography.label
-                                                        .copyWith(
-                                                          color: textSecondary,
-                                                          fontSize: 12,
-                                                        ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-
-                                            const SizedBox(height: 24),
-
-                                            // DIVIDER
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Divider(
-                                                    color: isDark
-                                                        ? AppColors.darkStroke
-                                                        : Colors.grey.shade300,
+                                                              )
+                                                            : Text(
+                                                                _t(
+                                                                  'continue_btn',
+                                                                ),
+                                                              ),
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
                                                 Padding(
                                                   padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 12,
+                                                      const EdgeInsets.only(
+                                                        top: 16,
                                                       ),
-                                                  child: Text(
-                                                    _t('or'),
-                                                    style: TextStyle(
-                                                      color: textSecondary,
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  child: Divider(
-                                                    color: isDark
-                                                        ? AppColors.darkStroke
-                                                        : Colors.grey.shade300,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 24),
-
-                                            // SOCIAL LOGIN
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: _buildSocialButton(
-                                                    icon: SvgPicture.string(
-                                                      _googleIconSvg,
-                                                      height: 24,
-                                                      width: 24,
-                                                    ),
-                                                    isDark: isDark,
-                                                    onPressed: _isLoading
-                                                        ? null
-                                                        : () => _handleSocialLogin(
-                                                            () => AuthService
-                                                                .instance
-                                                                .signInWithGoogleNative(
-                                                                  webClientId:
-                                                                      AppConfig
-                                                                          .googleWebClientId,
-                                                                ),
-                                                            'google',
-                                                          ),
-                                                  ),
-                                                ),
-                                                if (Platform.isIOS) ...[
-                                                  const SizedBox(width: 16),
-                                                  Expanded(
-                                                    child: _buildSocialButton(
-                                                      icon: Icon(
-                                                        Icons.apple,
-                                                        size: 28,
-                                                        color: textColor,
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.shield_rounded,
+                                                        size: 14,
+                                                        color: Colors
+                                                            .green
+                                                            .shade600,
                                                       ),
-                                                      isDark: isDark,
-                                                      onPressed: _isLoading
-                                                          ? null
-                                                          : () => _handleSocialLogin(
-                                                              AuthService
-                                                                  .instance
-                                                                  .signInWithApple,
-                                                              'apple',
+                                                      const SizedBox(width: 6),
+                                                      Text(
+                                                        _t('secure_badge'),
+                                                        style: AppTypography
+                                                            .label
+                                                            .copyWith(
+                                                              color:
+                                                                  textSecondary,
+                                                              fontSize: 12,
                                                             ),
-                                                    ),
+                                                      ),
+                                                    ],
                                                   ),
-                                                ],
+                                                ),
+                                                const SizedBox(height: 24),
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Divider(
+                                                        color: isDark
+                                                            ? AppColors
+                                                                  .darkStroke
+                                                            : Colors
+                                                                  .grey
+                                                                  .shade300,
+                                                      ),
+                                                    ),
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 12,
+                                                          ),
+                                                      child: Text(
+                                                        _t('or'),
+                                                        style: TextStyle(
+                                                          color: textSecondary,
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Expanded(
+                                                      child: Divider(
+                                                        color: isDark
+                                                            ? AppColors
+                                                                  .darkStroke
+                                                            : Colors
+                                                                  .grey
+                                                                  .shade300,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 24),
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: _buildSocialButton(
+                                                        icon: SvgPicture.string(
+                                                          _googleIconSvg,
+                                                          height: 24,
+                                                          width: 24,
+                                                        ),
+                                                        isDark: isDark,
+                                                        onPressed: _isLoading
+                                                            ? null
+                                                            : () => _handleSocialLogin(
+                                                                () => AuthService
+                                                                    .instance
+                                                                    .signInWithGoogleNative(
+                                                                      webClientId:
+                                                                          AppConfig
+                                                                              .googleWebClientId,
+                                                                    ),
+                                                                'google',
+                                                              ),
+                                                      ),
+                                                    ),
+                                                    if (Platform.isIOS) ...[
+                                                      const SizedBox(width: 16),
+                                                      Expanded(
+                                                        child: _buildSocialButton(
+                                                          icon: Icon(
+                                                            Icons.apple,
+                                                            size: 28,
+                                                            color: textColor,
+                                                          ),
+                                                          isDark: isDark,
+                                                          onPressed: _isLoading
+                                                              ? null
+                                                              : () => _handleSocialLogin(
+                                                                  AuthService
+                                                                      .instance
+                                                                      .signInWithApple,
+                                                                  'apple',
+                                                                ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
                                               ],
                                             ),
-                                          ],
+                                          ),
                                         ),
-                                      ),
+                                        const SizedBox(height: 20),
+                                      ],
                                     ),
-                                    const SizedBox(height: 20),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
-
-  // --- INPUT BUILDERS ---
 
   Widget _buildPhoneInput(Color activeColor, bool isDark) {
     return Container(

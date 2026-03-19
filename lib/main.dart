@@ -20,6 +20,7 @@ import 'package:vango_parent_app/theme/app_theme.dart';
 import 'package:vango_parent_app/services/notification_service.dart';
 import 'package:vango_parent_app/services/device_service.dart';
 import 'package:vango_parent_app/services/theme_service.dart';
+import 'package:vango_parent_app/services/language_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -74,6 +75,7 @@ Future<void> main() async {
   try {
     await NotificationService.instance.initialize();
     await AuthService.instance.initialize();
+    await LanguageService.instance.init();
 
     final deviceService = DeviceService();
 
