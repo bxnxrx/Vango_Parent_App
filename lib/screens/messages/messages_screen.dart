@@ -7,9 +7,6 @@ import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/screens/messages/chat_screen.dart';
 import 'package:intl/intl.dart';
 
-// ---------------------------------------------------------------------------
-// Data holder returned by the FutureBuilder for each chat tile.
-// ---------------------------------------------------------------------------
 class _ChatTileInfo {
   final String driverName;
   final String? childName;
@@ -17,9 +14,6 @@ class _ChatTileInfo {
   const _ChatTileInfo({required this.driverName, this.childName});
 }
 
-// ---------------------------------------------------------------------------
-// MessagesScreen
-// ---------------------------------------------------------------------------
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key, required this.onOpenDrawer});
   final VoidCallback onOpenDrawer;
@@ -29,28 +23,17 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  // Fix #4: Safe nullable access instead of force-unwrap `!`
   final String? _currentUserId =
       Supabase.instance.client.auth.currentUser?.id;
 
-  // Fix #8 (documented): This cache is LOAD-BEARING for correctness.
-  // The FutureBuilder inside SliverChildBuilderDelegate can be called multiple
-  // times for the same index as items scroll in/out of the viewport. Without
-  // this cache, every scroll event would fire a new Supabase query per tile.
-  // Do NOT remove or bypass this cache without revisiting the FutureBuilder.
   final Map<String, Future<_ChatTileInfo>> _infoCache = {};
 
-  // -------------------------------------------------------------------------
-  // Fetch driver + child info from Supabase for a given driver auth ID.
-  // -------------------------------------------------------------------------
   Future<_ChatTileInfo> _fetchChatTileInfo(String driverAuthId) {
     return _infoCache.putIfAbsent(driverAuthId, () async {
-      // Fix #4: Guard against expired session
       if (_currentUserId == null) {
         return const _ChatTileInfo(driverName: 'VanGo Driver');
       }
       try {
-        // 1. Get driver record using supabase_user_id.
         final driverRow = await Supabase.instance.client
             .from('drivers')
             .select('id, first_name, last_name')
@@ -65,7 +48,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
             '${driverRow['first_name']} ${driverRow['last_name']}';
         final driverDbId = driverRow['id'];
 
-        // 2. Find a child linked to this driver that belongs to this parent.
         final childRow = await Supabase.instance.client
             .from('children')
             .select('child_name')
@@ -82,20 +64,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
     });
   }
 
-  // Fix #6: Invalidate cache and trigger a fresh fetch on pull-to-refresh.
-  // Handles the case where a driver is reassigned to a different child while
-  // the parent has the app open — without this the tile would show stale data.
   Future<void> _onRefresh() async {
     setState(() => _infoCache.clear());
   }
 
-  // -------------------------------------------------------------------------
-  // Navigate into the ChatScreen.
-  // -------------------------------------------------------------------------
-  void _openChat(String chatId, String driverName) {
+  void _openChat(String chatId, String driverName, String receiverId) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ChatScreen(chatId: chatId, driverName: driverName),
+        builder: (_) => ChatScreen(
+          chatId: chatId, 
+          driverName: driverName,
+          receiverId: receiverId, 
+        ),
       ),
     );
   }
@@ -107,8 +87,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final secondaryTextColor =
         isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
-    // Fix #4: Bail out early if session is expired — avoids querying Firestore
-    // with a null userId which would return wrong/empty results silently.
     if (_currentUserId == null) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -123,12 +101,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      // Fix #6: Wrap with RefreshIndicator so pull-to-refresh clears the cache
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: CustomScrollView(
           slivers: [
-            // ── App Bar ───────────────────────────────────────────────────────
             SliverAppBar(
               floating: true,
               pinned: true,
@@ -169,23 +145,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
               ),
             ),
 
-            // Fix #5: Search bar removed — it had no controller, no onChanged,
-            // and no filter logic. Rendering a non-functional search bar is a
-            // misleading UX contract. Re-add when real-time filtering is wired up.
-
-            // ── Chat List (real-time Firestore stream) ─────────────────────────
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('chats')
                   .where('users', arrayContains: _currentUserId)
-                  // Fix #7: Server-side ordering replaces the client-side sort
-                  // that was running on every stream event. Requires a composite
-                  // Firestore index: users (Array) + lastMessageTime (Descending).
-                  // Firebase Console will provide the index creation link on first run.
                   .orderBy('lastMessageTime', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                // Error
                 if (snapshot.hasError) {
                   return SliverFillRemaining(
                     child: Center(
@@ -200,7 +166,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   );
                 }
 
-                // Initial load
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
@@ -216,7 +181,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   );
                 }
 
-                // Empty
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const SliverFillRemaining(child: _EmptyState());
                 }
@@ -232,7 +196,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         final chatData = doc.data() as Map<String, dynamic>;
                         final chatId = doc.id;
 
-                        // Extract the OTHER user (the driver) from the users array.
                         final users = List<String>.from(
                           (chatData['users'] as List<dynamic>?) ?? [],
                         );
@@ -243,13 +206,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          // NOTE: This FutureBuilder is safe because _fetchChatTileInfo
-                          // caches the returned Future in _infoCache via putIfAbsent.
-                          // See Fix #8 comment on _infoCache declaration above.
                           child: FutureBuilder<_ChatTileInfo>(
                             future: _fetchChatTileInfo(driverAuthId),
                             builder: (context, infoSnap) {
-                              // Show shimmer while the Future resolves
                               if (infoSnap.connectionState ==
                                   ConnectionState.waiting) {
                                 return const _ShimmerTile();
@@ -265,8 +224,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               return _ChatTile(
                                 chatData: chatData,
                                 displayName: displayName,
+                                currentUserId: _currentUserId!,
                                 onTap: () =>
-                                    _openChat(chatId, info.driverName),
+                                    _openChat(chatId, info.driverName, driverAuthId),
                               );
                             },
                           ),
@@ -285,18 +245,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// _ChatTile – the card rendered for each conversation.
-// ---------------------------------------------------------------------------
 class _ChatTile extends StatelessWidget {
   final Map<String, dynamic> chatData;
   final String displayName;
   final VoidCallback onTap;
+  final String currentUserId;
 
   const _ChatTile({
     required this.chatData,
     required this.displayName,
     required this.onTap,
+    required this.currentUserId,
   });
 
   String _timeLabel(Timestamp? ts) {
@@ -328,6 +287,10 @@ class _ChatTile extends StatelessWidget {
         ? displayName.split(' ').take(2).map((w) => w[0]).join().toUpperCase()
         : '?';
 
+    // ✅ FIXED: Bulletproof parsing to prevent layout crash
+    final rawUnread = chatData['unreadCount_$currentUserId'];
+    final unreadCount = (rawUnread is num) ? rawUnread.toInt() : 0;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -349,7 +312,6 @@ class _ChatTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Avatar
             CircleAvatar(
               radius: 26,
               backgroundColor: accentColor.withValues(alpha: isDark ? 0.22 : 0.1),
@@ -363,7 +325,6 @@ class _ChatTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 14),
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,20 +338,54 @@ class _ChatTile extends StatelessWidget {
                           style: AppTypography.label.copyWith(
                             color: textColor,
                             fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.w600,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        _timeLabel(
-                          chatData['lastMessageTime'] as Timestamp?,
-                        ),
-                        style: AppTypography.label.copyWith(
-                          fontSize: 11,
-                          color: secondaryTextColor,
+                      // ✨ FIXED ALIGNMENT SECTION
+                      SizedBox(
+                        width: 55, 
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _timeLabel(chatData['lastMessageTime'] as Timestamp?),
+                              style: AppTypography.label.copyWith(
+                                fontSize: 11,
+                                color: unreadCount > 0 ? accentColor : secondaryTextColor,
+                                fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                            if (unreadCount > 0) ...[
+                              const SizedBox(height: 6), 
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: accentColor,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 22,
+                                  minHeight: 22,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ] else 
+                              const SizedBox(height: 28), // Placeholder for alignment
+                          ],
                         ),
                       ),
                     ],
@@ -401,7 +396,8 @@ class _ChatTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.body.copyWith(
-                      color: secondaryTextColor,
+                      color: unreadCount > 0 ? textColor : secondaryTextColor,
+                      fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
                       fontSize: 13,
                     ),
                   ),
@@ -415,19 +411,14 @@ class _ChatTile extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Shimmer placeholder tile shown while Supabase resolves driver/child info.
-// ---------------------------------------------------------------------------
 class _ShimmerTile extends StatelessWidget {
   const _ShimmerTile();
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor =
-        isDark ? const Color(0xFF2A2A3D) : const Color(0xFFE0E0E0);
-    final highlightColor =
-        isDark ? const Color(0xFF3F3F5A) : const Color(0xFFF5F5F5);
+    final baseColor = isDark ? const Color(0xFF2A2A3D) : const Color(0xFFE0E0E0);
+    final highlightColor = isDark ? const Color(0xFF3F3F5A) : const Color(0xFFF5F5F5);
 
     return Shimmer.fromColors(
       baseColor: baseColor,
@@ -475,9 +466,6 @@ class _ShimmerTile extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Empty-state widget when there are no chats.
-// ---------------------------------------------------------------------------
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
@@ -485,8 +473,7 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final secondaryTextColor =
-        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
     final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return Center(

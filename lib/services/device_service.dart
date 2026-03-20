@@ -88,6 +88,7 @@ class DeviceService {
         'app_version': packageInfo.version,
         'last_ip_address': currentIp,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
+        'is_revoked': false, // ✅ FIX: explicitly set so backend query can find this row
       }, onConflict: 'user_id, device_identifier');
 
       print('✅ Device synced successfully to trusted_devices!');
