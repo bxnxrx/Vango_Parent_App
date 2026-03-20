@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart'; // ✅ Added Crashlytics
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_analytics/firebase_analytics.dart'; // ✅ 100% Firebase Analytics
 
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
@@ -52,12 +53,6 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   },
 };
 
-class _Analytics {
-  static void logEvent(String eventName, {Map<String, dynamic>? properties}) {
-    debugPrint('📈 [ANALYTICS] Event: $eventName | Props: $properties');
-  }
-}
-
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, required this.onFinished});
   final VoidCallback onFinished;
@@ -100,7 +95,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
-    _Analytics.logEvent('onboarding_started');
+    FirebaseAnalytics.instance.logEvent(name: 'onboarding_started');
     _startAutoPlay();
   }
 
@@ -132,7 +127,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _isAutoScrolling = true;
         _controller
             .nextPage(
-              // ✅ TIMING FIX: Page Transitions = 300ms
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
             )
@@ -170,7 +164,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_completed', true);
     } catch (e, stackTrace) {
-      // ✅ GLOBAL LOGGING FIX
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -186,19 +179,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _goToNextPage() {
     final isLastPage = _currentPage == _slides.length - 1;
 
-    _Analytics.logEvent(
-      'onboarding_cta_clicked',
-      properties: {'slide_index': _currentPage, 'is_last_page': isLastPage},
+    FirebaseAnalytics.instance.logEvent(
+      name: 'onboarding_cta_clicked',
+      parameters: {
+        'slide_index': _currentPage,
+        'is_last_page': isLastPage
+            ? 'true'
+            : 'false', // ✅ Firebase requires string/num
+      },
     );
 
     if (isLastPage) {
-      _Analytics.logEvent('onboarding_completed');
+      FirebaseAnalytics.instance.logEvent(name: 'onboarding_completed');
       _markOnboardingCompleted();
       return;
     }
 
     _controller.nextPage(
-      // ✅ TIMING FIX: Page Transitions = 300ms
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
     );
@@ -215,7 +212,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: List.generate(_slides.length, (index) {
           final isActive = index == _currentPage;
           return AnimatedContainer(
-            // ✅ TIMING FIX: Micro interactions = 150ms
             duration: const Duration(milliseconds: 150),
             curve: Curves.easeInOut,
             margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -243,7 +239,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     const double selectorWidth = 140.0;
 
     return Semantics(
-      button: true, // ✅ ACCESSIBILITY FIX
+      button: true,
       label: "Select Language",
       child: Theme(
         data: Theme.of(context).copyWith(
@@ -253,11 +249,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
-            HapticFeedback.selectionClick();
+            HapticFeedback.lightImpact();
             LanguageService.instance.setLanguage(newValue);
-            _Analytics.logEvent(
-              'language_changed',
-              properties: {'language': newValue.name},
+            FirebaseAnalytics.instance.logEvent(
+              name: 'language_changed',
+              parameters: {'language': newValue.name},
             );
           },
           color: isDark ? AppColors.darkSurface : AppColors.surface,
@@ -348,7 +344,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           clipBehavior: Clip.antiAlias,
           child: AnimatedSwitcher(
-            // ✅ TIMING FIX: Feature Transitions = 400ms
             duration: const Duration(milliseconds: 400),
             transitionBuilder: (Widget child, Animation<double> animation) {
               return FadeTransition(
@@ -421,7 +416,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               if (_currentPage > 0) {
                 _onUserInteraction();
                 _controller.previousPage(
-                  // ✅ TIMING FIX: Page Transitions = 300ms
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutCubic,
                 );
@@ -454,18 +448,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 children: [
                                   _buildLanguageSelector(isDark),
                                   Semantics(
-                                    button: true, // ✅ ACCESSIBILITY FIX
+                                    button: true,
                                     label: "Skip onboarding",
                                     child: TextButton(
                                       onPressed: () {
                                         HapticFeedback.lightImpact();
-                                        _Analytics.logEvent(
-                                          'onboarding_skip_clicked',
-                                          properties: {
+                                        FirebaseAnalytics.instance.logEvent(
+                                          name: 'onboarding_skip_clicked',
+                                          parameters: {
                                             'slide_index': _currentPage,
                                           },
                                         );
-                                        // ✅ TIMING FIX: Micro interactions = 150ms
                                         Future.delayed(
                                           const Duration(milliseconds: 150),
                                           () {
@@ -498,9 +491,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   physics: const ClampingScrollPhysics(),
                                   onPageChanged: (index) {
                                     setState(() => _currentPage = index);
-                                    _Analytics.logEvent(
-                                      'onboarding_slide_viewed',
-                                      properties: {'slide_index': index},
+                                    FirebaseAnalytics.instance.logEvent(
+                                      name: 'onboarding_slide_viewed',
+                                      parameters: {'slide_index': index},
                                     );
 
                                     if (!_isAutoScrolling) {
@@ -654,13 +647,12 @@ class _SlideDetailsState extends State<_SlideDetails> {
             ],
           ),
           Semantics(
-            button: true, // ✅ ACCESSIBILITY FIX
+            button: true,
             label: widget.buttonLabel,
             child: GestureDetector(
               onTapDown: (_) => setState(() => _isPressed = true),
               onTapUp: (_) {
                 setState(() => _isPressed = false);
-                // ✅ HAPTIC STANDARDIZATION: Navigation=light, Submit=medium
                 if (widget.isLastPage) {
                   HapticFeedback.mediumImpact();
                 } else {
@@ -671,7 +663,6 @@ class _SlideDetailsState extends State<_SlideDetails> {
               onTapCancel: () => setState(() => _isPressed = false),
               child: AnimatedScale(
                 scale: _isPressed ? 0.96 : 1.0,
-                // ✅ TIMING FIX: Micro interactions = 150ms
                 duration: const Duration(milliseconds: 150),
                 curve: Curves.easeInOut,
                 child: Container(
