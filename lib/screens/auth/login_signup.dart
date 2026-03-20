@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart'; // ✅ Added Crashlytics
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/services/app_config.dart';
@@ -12,6 +12,7 @@ import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/screens/auth/reset_password_screen.dart';
 import 'package:vango_parent_app/services/language_service.dart';
+import 'package:vango_parent_app/utils/auth_ui_helper.dart'; // ✅ UI Helper
 
 const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   AppLanguage.english: {
@@ -167,85 +168,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     }
   }
 
-  String _parseError(dynamic error) {
-    if (error is AuthException) {
-      final msg = error.message.toLowerCase();
-      if (msg.contains('invalid login') || msg.contains('invalid credentials'))
-        return _t('err_invalid_creds');
-      if (msg.contains('already registered') ||
-          msg.contains('user already exists'))
-        return _t('err_user_exists');
-      if (msg.contains('rate limit') ||
-          msg.contains('too many requests') ||
-          msg.contains('over_email_send_rate_limit'))
-        return _t('err_too_many_req');
-      if (msg.contains('not confirmed') || msg.contains('unverified'))
-        return _t('err_unverified');
-      if (msg.contains('password should be')) return _t('err_pass_min');
-    }
-    final errStr = error.toString().toLowerCase();
-    if (errStr.contains('network') ||
-        errStr.contains('socket') ||
-        errStr.contains('timeout') ||
-        errStr.contains('clientexception')) {
-      return _t('err_network');
-    }
-    return _t('err_generic');
-  }
-
-  void _showMessage(String message, {bool isError = true}) {
-    if (!mounted) return;
-
-    // ✅ HAPTIC FIX: Heavy impact for alerts/errors
-    HapticFeedback.heavyImpact();
-
-    // ✅ COLOR THEME FIX: Uses system theme for error, standard green for success
-    final bgColor = isError
-        ? Theme.of(context).colorScheme.error
-        : Colors.green.shade700;
-    final icon = isError
-        ? Icons.error_outline_rounded
-        : Icons.check_circle_outline_rounded;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(icon, color: Colors.white, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  message,
-                  style: AppTypography.body.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: bgColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.only(bottom: 30, left: 20, right: 20),
-          elevation: 6,
-          duration: const Duration(seconds: 4),
-        ),
-      );
-  }
-
   void _switchTab(bool toPhone) async {
     if (_isPhoneLogin == toPhone || _isLoading) return;
 
-    // ✅ HAPTIC FIX: Light impact for navigation
     HapticFeedback.lightImpact();
-    // ✅ TIMING FIX: Micro interactions = 150ms
     await Future.delayed(const Duration(milliseconds: 150));
 
     if (!mounted) return;
@@ -286,7 +212,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     }
 
     _isLoading = true;
-    // ✅ HAPTIC FIX: Medium impact for submit
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
     setState(() {});
@@ -301,13 +226,17 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       await Supabase.instance.client.auth.signInWithOtp(phone: phone);
       widget.onOtpRequested(phone);
     } catch (e, stackTrace) {
-      // ✅ GLOBAL LOGGING FIX
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
         reason: 'Phone Auth Failed',
       );
-      _showMessage(_parseError(e), isError: true);
+      // ✅ Uses shared UI helper
+      AuthUiHelper.showMessage(
+        context,
+        _t(AuthUiHelper.parseErrorKey(e)),
+        isError: true,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -357,7 +286,11 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           stackTrace,
           reason: 'Email Auth Failed',
         );
-        _showMessage(_parseError(e), isError: true);
+        AuthUiHelper.showMessage(
+          context,
+          _t(AuthUiHelper.parseErrorKey(e)),
+          isError: true,
+        );
       }
     } catch (e, stackTrace) {
       FirebaseCrashlytics.instance.recordError(
@@ -365,7 +298,11 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         stackTrace,
         reason: 'Email Auth Exception',
       );
-      _showMessage(_parseError(e), isError: true);
+      AuthUiHelper.showMessage(
+        context,
+        _t(AuthUiHelper.parseErrorKey(e)),
+        isError: true,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -379,7 +316,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
     if (emailError != null) {
       HapticFeedback.lightImpact();
-      _showMessage(emailError, isError: true);
+      AuthUiHelper.showMessage(context, emailError, isError: true);
       return;
     }
 
@@ -393,9 +330,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       if (!mounted) return;
 
       final successMsg = _t('reset_sent').replaceAll('@email', email);
-      _showMessage(successMsg, isError: false);
+      AuthUiHelper.showMessage(context, successMsg, isError: false);
 
-      // ✅ TIMING FIX: Page Transitions = 300ms
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
 
@@ -410,7 +346,11 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         stackTrace,
         reason: 'Forgot Password Request Failed',
       );
-      _showMessage(_parseError(e), isError: true);
+      AuthUiHelper.showMessage(
+        context,
+        _t(AuthUiHelper.parseErrorKey(e)),
+        isError: true,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -440,7 +380,11 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         stackTrace,
         reason: 'Social Auth Failed',
       );
-      _showMessage(_parseError(e), isError: true);
+      AuthUiHelper.showMessage(
+        context,
+        _t(AuthUiHelper.parseErrorKey(e)),
+        isError: true,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -456,7 +400,11 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         stackTrace,
         reason: 'Auth Status Check Failed',
       );
-      _showMessage(_parseError(e), isError: true);
+      AuthUiHelper.showMessage(
+        context,
+        _t(AuthUiHelper.parseErrorKey(e)),
+        isError: true,
+      );
     }
   }
 
@@ -468,7 +416,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         : Colors.grey.shade700;
 
     return Semantics(
-      button: true, // ✅ ACCESSIBILITY FIX
+      button: true,
       label: "Select Language",
       child: Theme(
         data: Theme.of(context).copyWith(
@@ -720,9 +668,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                       ),
                                       const SizedBox(height: 28),
                                       AnimatedSwitcher(
-                                        // ✅ TIMING FIX: Feature Transitions = 400ms
                                         duration: const Duration(
-                                          milliseconds: 400,
+                                          milliseconds: 300,
                                         ),
                                         switchInCurve: Curves.easeOutCubic,
                                         switchOutCurve: Curves.easeInCubic,
@@ -738,7 +685,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                       ),
                                       const SizedBox(height: 24),
                                       Semantics(
-                                        button: true, // ✅ ACCESSIBILITY FIX
+                                        button: true,
+                                        label: _t('continue_btn'),
                                         child: Listener(
                                           onPointerDown: (_) {
                                             if (!_isLoading)
@@ -756,7 +704,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                             scale: _isSubmitPressed
                                                 ? 0.96
                                                 : 1.0,
-                                            // ✅ TIMING FIX: Micro interactions = 150ms
                                             duration: const Duration(
                                               milliseconds: 150,
                                             ),
@@ -1015,59 +962,66 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         ? AppColors.darkTextSecondary
         : Colors.grey.shade500;
 
-    return TextFormField(
-      controller: controller,
-      keyboardType: inputType,
-      textInputAction: isPassword ? TextInputAction.done : TextInputAction.next,
-      obscureText: isPassword && !_isPasswordVisible,
-      autofillHints: autofillHints,
-      validator: validator,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
-      keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
-      style: AppTypography.body.copyWith(
-        color: textColor,
-        fontWeight: FontWeight.w600,
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: AppTypography.body.copyWith(color: hintColor),
-        hintText: hint,
-        hintStyle: AppTypography.body.copyWith(color: hintColor),
-        prefixIcon: Icon(icon, color: hintColor, size: 22),
-        suffixIcon: isPassword
-            ? IconButton(
-                icon: Icon(
-                  _isPasswordVisible
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
-                  color: hintColor,
-                  size: 22,
-                ),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  setState(() => _isPasswordVisible = !_isPasswordVisible);
-                },
-              )
-            : null,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 18,
+    // ✅ ACCESSIBILITY FIX: Wrapped in Semantics
+    return Semantics(
+      label: label,
+      textField: true,
+      child: TextFormField(
+        controller: controller,
+        keyboardType: inputType,
+        textInputAction: isPassword
+            ? TextInputAction.done
+            : TextInputAction.next,
+        obscureText: isPassword && !_isPasswordVisible,
+        autofillHints: autofillHints,
+        validator: validator,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
+        style: AppTypography.body.copyWith(
+          color: textColor,
+          fontWeight: FontWeight.w600,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: borderColor, width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: activeColor, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: AppTypography.body.copyWith(color: hintColor),
+          hintText: hint,
+          hintStyle: AppTypography.body.copyWith(color: hintColor),
+          prefixIcon: Icon(icon, color: hintColor, size: 22),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _isPasswordVisible
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: hintColor,
+                    size: 22,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    setState(() => _isPasswordVisible = !_isPasswordVisible);
+                  },
+                )
+              : null,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: borderColor, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: activeColor, width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+          ),
         ),
       ),
     );
@@ -1080,7 +1034,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     required VoidCallback? onPressed,
   }) {
     return Semantics(
-      button: true, // ✅ ACCESSIBILITY FIX
+      button: true,
       label: "Login with $label",
       child: SizedBox(
         height: 56,
@@ -1121,12 +1075,11 @@ class _ToggleTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      button: true, // ✅ ACCESSIBILITY FIX
+      button: true,
       label: label,
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          // ✅ TIMING FIX: Micro interactions = 150ms
           duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(
             color: isSelected

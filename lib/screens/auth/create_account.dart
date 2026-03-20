@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart'; // ✅ Added Crashlytics
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 import 'package:vango_parent_app/screens/auth/otp_screen.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
+import 'package:vango_parent_app/utils/auth_ui_helper.dart'; // ✅ UI Helper
 
 const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   AppLanguage.english: {
@@ -154,12 +155,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
         if (user?.phone != null && user!.phone!.isNotEmpty) {
           String p = user.phone!;
-          if (p.startsWith('+94')) p = p.substring(3);
+          if (p.startsWith('+94')) {
+            p = p.substring(3);
+          }
           _phoneController.text = p;
           _phoneReadOnly = true;
         } else if (cachedPhone != null && _phoneController.text.isEmpty) {
           String p = cachedPhone;
-          if (p.startsWith('+94')) p = p.substring(3);
+          if (p.startsWith('+94')) {
+            p = p.substring(3);
+          }
           _phoneController.text = p;
         }
       });
@@ -189,79 +194,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
   }
 
-  String _parseError(dynamic error) {
-    if (error is AuthException) {
-      final msg = error.message.toLowerCase();
-      if (msg.contains('invalid login') || msg.contains('invalid credentials'))
-        return _t('err_invalid_creds');
-      if (msg.contains('already registered') ||
-          msg.contains('user already exists'))
-        return _t('err_user_exists');
-      if (msg.contains('rate limit') ||
-          msg.contains('too many requests') ||
-          msg.contains('over_email_send_rate_limit'))
-        return _t('err_too_many_req');
-      if (msg.contains('not confirmed') || msg.contains('unverified'))
-        return _t('err_unverified');
-      if (msg.contains('password should be')) return _t('err_pass_min');
-    }
-    final errStr = error.toString().toLowerCase();
-    if (errStr.contains('network') ||
-        errStr.contains('socket') ||
-        errStr.contains('timeout') ||
-        errStr.contains('clientexception')) {
-      return _t('err_network');
-    }
-    return _t('err_generic');
-  }
-
-  void _showMessage(String message, {bool isError = true}) {
-    if (!mounted) return;
-
-    // ✅ HAPTIC FIX: Heavy impact for alerts
-    HapticFeedback.heavyImpact();
-
-    // ✅ COLOR THEME FIX: Material standard error
-    final bgColor = isError
-        ? Theme.of(context).colorScheme.error
-        : Colors.green.shade700;
-    final icon = isError
-        ? Icons.error_outline_rounded
-        : Icons.check_circle_outline_rounded;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(icon, color: Colors.white, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  message,
-                  style: AppTypography.body.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: bgColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.only(bottom: 30, left: 20, right: 20),
-          elevation: 6,
-          duration: const Duration(seconds: 4),
-        ),
-      );
-  }
-
   String? _validateName(String? value) {
     if (value == null || value.trim().isEmpty) return _t('err_name_req');
     if (value.trim().length < 3) return _t('err_name_min');
@@ -288,17 +220,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.lightImpact();
-      _showMessage(_t('err_form'), isError: true);
+      AuthUiHelper.showMessage(context, _t('err_form'), isError: true);
       return;
     }
     if (_selectedRelationship == null) {
       HapticFeedback.lightImpact();
-      _showMessage(_t('err_rel_req'), isError: true);
+      AuthUiHelper.showMessage(context, _t('err_rel_req'), isError: true);
       return;
     }
 
     setState(() => _submitting = true);
-    // ✅ HAPTIC FIX: Medium impact for form submissions
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
 
@@ -351,13 +282,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     } catch (e, stackTrace) {
       if (mounted) {
         setState(() => _submitting = false);
-        // ✅ GLOBAL LOGGING FIX
         FirebaseCrashlytics.instance.recordError(
           e,
           stackTrace,
           reason: 'Failed to verify phone linked',
         );
-        _showMessage(_parseError(e), isError: true);
+        AuthUiHelper.showMessage(
+          context,
+          _t(AuthUiHelper.parseErrorKey(e)),
+          isError: true,
+        );
       }
     }
   }
@@ -399,7 +333,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           stackTrace,
           reason: 'Failed to verify email linked',
         );
-        _showMessage(_parseError(e), isError: true);
+        AuthUiHelper.showMessage(
+          context,
+          _t(AuthUiHelper.parseErrorKey(e)),
+          isError: true,
+        );
       }
     }
   }
@@ -425,7 +363,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           stackTrace,
           reason: 'Failed to save parent profile',
         );
-        _showMessage(_parseError(e), isError: true);
+        AuthUiHelper.showMessage(
+          context,
+          _t(AuthUiHelper.parseErrorKey(e)),
+          isError: true,
+        );
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -433,7 +375,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> _handleCancel() async {
-    // ✅ HAPTIC FIX: Light impact for navigation interactions
     HapticFeedback.lightImpact();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -493,7 +434,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             stackTrace,
             reason: 'Failed to fully cancel signup',
           );
-          _showMessage(_parseError(e), isError: true);
+          AuthUiHelper.showMessage(
+            context,
+            _t(AuthUiHelper.parseErrorKey(e)),
+            isError: true,
+          );
           widget.onBack();
         }
       } finally {
@@ -504,7 +449,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   Widget _buildLanguageSelector() {
     return Semantics(
-      button: true, // ✅ ACCESSIBILITY FIX
+      button: true,
       label: "Select Language",
       child: Theme(
         data: Theme.of(context).copyWith(
@@ -591,8 +536,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final textColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
-
-    // ✅ THEME FIX: Unified Theme Accent
     final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return ValueListenableBuilder<AppLanguage>(
@@ -626,7 +569,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         constraints: const BoxConstraints(maxWidth: 500),
                         child: SingleChildScrollView(
                           physics: const ClampingScrollPhysics(),
-                          // ✅ SAFE BOTTOM SPACING FIX: Includes home indicator padding + keyboard
                           padding: EdgeInsets.only(
                             bottom:
                                 MediaQuery.of(context).viewInsets.bottom +
@@ -646,7 +588,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Semantics(
-                                      button: true, // ✅ ACCESSIBILITY FIX
+                                      button: true,
                                       label: 'Back',
                                       child: IconButton(
                                         onPressed: _handleCancel,
@@ -775,7 +717,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                       ),
                                       const SizedBox(height: 32),
                                       Semantics(
-                                        button: true, // ✅ ACCESSIBILITY FIX
+                                        button: true,
+                                        label: _t('continue_btn'),
                                         child: Listener(
                                           onPointerDown: (_) {
                                             if (!_submitting)
@@ -793,7 +736,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                             scale: _isSubmitPressed
                                                 ? 0.96
                                                 : 1.0,
-                                            // ✅ TIMING FIX: Micro interactions = 150ms
                                             duration: const Duration(
                                               milliseconds: 150,
                                             ),
@@ -866,9 +808,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     required IconData icon,
     Iterable<String>? autofillHints,
     TextInputType inputType = TextInputType.text,
-    String? Function(String?)? validator,
-    required bool isDark,
+    bool isPassword = false,
+    bool isPasswordVisible = false,
+    VoidCallback? onToggleVisibility,
     required Color activeColor,
+    required bool isDark,
+    String? Function(String?)? validator,
     bool readOnly = false,
     String? prefixText,
   }) {
@@ -882,58 +827,62 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ? AppColors.darkTextSecondary
         : Colors.grey.shade500;
 
-    return TextFormField(
-      controller: controller,
-      keyboardType: inputType,
-      keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
-      validator: validator,
-      readOnly: readOnly,
-      autofillHints: autofillHints,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
-      style: AppTypography.body.copyWith(
-        color: readOnly ? hintColor : textColor,
-        fontWeight: FontWeight.w600,
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: AppTypography.body.copyWith(color: hintColor),
-        hintText: hint,
-        hintStyle: AppTypography.body.copyWith(color: hintColor),
-        prefixIcon: Icon(icon, color: hintColor, size: 22),
-        prefixText: prefixText,
-        prefixStyle: AppTypography.body.copyWith(
+    return Semantics(
+      label: label, // ✅ ACCESSIBILITY FIX
+      textField: true,
+      child: TextFormField(
+        controller: controller,
+        keyboardType: inputType,
+        keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
+        validator: validator,
+        readOnly: readOnly,
+        autofillHints: autofillHints,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        style: AppTypography.body.copyWith(
           color: readOnly ? hintColor : textColor,
           fontWeight: FontWeight.w600,
         ),
-        filled: readOnly,
-        fillColor: readOnly
-            ? readOnlyBg
-            : (isDark ? AppColors.darkSurface : Colors.white),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 18,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: readOnly ? readOnlyBorder : borderColor,
-            width: 1.5,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: AppTypography.body.copyWith(color: hintColor),
+          hintText: hint,
+          hintStyle: AppTypography.body.copyWith(color: hintColor),
+          prefixIcon: Icon(icon, color: hintColor, size: 22),
+          prefixText: prefixText,
+          prefixStyle: AppTypography.body.copyWith(
+            color: readOnly ? hintColor : textColor,
+            fontWeight: FontWeight.w600,
           ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: readOnly ? readOnlyBorder : activeColor,
-            width: readOnly ? 1.5 : 2,
+          filled: readOnly,
+          fillColor: readOnly
+              ? readOnlyBg
+              : (isDark ? AppColors.darkSurface : Colors.white),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
           ),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: readOnly ? readOnlyBorder : borderColor,
+              width: 1.5,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: readOnly ? readOnlyBorder : activeColor,
+              width: readOnly ? 1.5 : 2,
+            ),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+          ),
         ),
       ),
     );
@@ -954,58 +903,62 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       _t('rel_other'),
     ];
 
-    return DropdownButtonFormField<String>(
-      initialValue: _selectedRelationship != null
-          ? localizedTypes[_relationshipTypes.indexOf(_selectedRelationship!)]
-          : null,
-      isExpanded: true,
-      icon: Icon(Icons.keyboard_arrow_down_rounded, color: hintColor),
-      dropdownColor: isDark ? AppColors.darkSurfaceStrong : Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      validator: (val) => val == null ? _t('err_rel_req') : null,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
-      style: AppTypography.body.copyWith(
-        color: textColor,
-        fontWeight: FontWeight.w600,
+    return Semantics(
+      label: _t('relationship'), // ✅ ACCESSIBILITY FIX
+      button: true,
+      child: DropdownButtonFormField<String>(
+        initialValue: _selectedRelationship != null
+            ? localizedTypes[_relationshipTypes.indexOf(_selectedRelationship!)]
+            : null,
+        isExpanded: true,
+        icon: Icon(Icons.keyboard_arrow_down_rounded, color: hintColor),
+        dropdownColor: isDark ? AppColors.darkSurfaceStrong : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        validator: (val) => val == null ? _t('err_rel_req') : null,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        style: AppTypography.body.copyWith(
+          color: textColor,
+          fontWeight: FontWeight.w600,
+        ),
+        decoration: InputDecoration(
+          labelText: _t('relationship'),
+          labelStyle: AppTypography.body.copyWith(color: hintColor),
+          hintText: _t('rel_hint'),
+          hintStyle: AppTypography.body.copyWith(color: hintColor),
+          prefixIcon: Icon(
+            Icons.people_outline_rounded,
+            color: hintColor,
+            size: 22,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: borderColor, width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: activeColor, width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+          ),
+        ),
+        items: localizedTypes.map((displayType) {
+          return DropdownMenuItem(value: displayType, child: Text(displayType));
+        }).toList(),
+        onChanged: (displayVal) {
+          if (displayVal != null) {
+            setState(() {
+              _selectedRelationship =
+                  _relationshipTypes[localizedTypes.indexOf(displayVal)];
+            });
+          }
+        },
       ),
-      decoration: InputDecoration(
-        labelText: _t('relationship'),
-        labelStyle: AppTypography.body.copyWith(color: hintColor),
-        hintText: _t('rel_hint'),
-        hintStyle: AppTypography.body.copyWith(color: hintColor),
-        prefixIcon: Icon(
-          Icons.people_outline_rounded,
-          color: hintColor,
-          size: 22,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 16,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: borderColor, width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: activeColor, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
-        ),
-      ),
-      items: localizedTypes.map((displayType) {
-        return DropdownMenuItem(value: displayType, child: Text(displayType));
-      }).toList(),
-      onChanged: (displayVal) {
-        if (displayVal != null) {
-          setState(
-            () => _selectedRelationship =
-                _relationshipTypes[localizedTypes.indexOf(displayVal)],
-          );
-        }
-      },
     );
   }
 }

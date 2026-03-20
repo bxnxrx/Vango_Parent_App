@@ -8,6 +8,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
+import 'package:vango_parent_app/utils/auth_ui_helper.dart'; // ✅ UI Helper
 
 const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   AppLanguage.english: {
@@ -19,9 +20,6 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'resend_btn': 'Resend Code',
     'verify_btn': 'Verify & Proceed',
     'err_req': 'Please enter all 6 digits',
-    'err_invalid': 'Invalid code. Please try again.',
-    'err_network': 'Network error. Check your connection.',
-    'err_generic': 'Verification failed. Please try again.',
     'success_resend': 'Verification code resent successfully',
   },
   AppLanguage.sinhala: {
@@ -33,9 +31,6 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'resend_btn': 'නැවත යවන්න',
     'verify_btn': 'තහවුරු කර ඉදිරියට',
     'err_req': 'කරුණාකර ඉලක්කම් 6ම ඇතුළත් කරන්න',
-    'err_invalid': 'වැරදි කේතයකි. නැවත උත්සාහ කරන්න.',
-    'err_network': 'ජාල දෝෂයකි. ඔබගේ සම්බන්ධතාවය පරීක්ෂා කරන්න.',
-    'err_generic': 'තහවුරු කිරීම අසාර්ථකයි. නැවත උත්සාහ කරන්න.',
     'success_resend': 'තහවුරු කිරීමේ කේතය සාර්ථකව නැවත යවන ලදී',
   },
   AppLanguage.tamil: {
@@ -47,9 +42,6 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'resend_btn': 'மீண்டும் அனுப்பு',
     'verify_btn': 'சரிபார்த்து தொடரவும்',
     'err_req': 'அனைத்து 6 இலக்கங்களையும் உள்ளிடவும்',
-    'err_invalid': 'தவறான குறியீடு. மீண்டும் முயற்சிக்கவும்.',
-    'err_network': 'நெட்வொர்க் பிழை. உங்கள் இணைப்பை சரிபார்க்கவும்.',
-    'err_generic': 'சரிபார்ப்பு தோல்வியடைந்தது. மீண்டும் முயற்சிக்கவும்.',
     'success_resend':
         'சரிபார்ப்புக் குறியீடு வெற்றிகரமாக மீண்டும் அனுப்பப்பட்டது',
   },
@@ -102,12 +94,10 @@ class _OtpScreenState extends State<OtpScreen> {
     FirebaseAnalytics.instance.logEvent(name: 'otp_screen_viewed');
     _startCountdown();
 
-    // Auto-focus first field
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) _focusNodes[0].requestFocus();
     });
 
-    // Add listeners for rich UI updates (highlighting active box)
     for (var node in _focusNodes) {
       node.addListener(() => setState(() {}));
     }
@@ -155,68 +145,13 @@ class _OtpScreenState extends State<OtpScreen> {
     });
   }
 
-  String _parseError(dynamic error) {
-    if (error is AuthException) {
-      final msg = error.message.toLowerCase();
-      if (msg.contains('invalid') || msg.contains('expired'))
-        return _t('err_invalid');
-    }
-    final errStr = error.toString().toLowerCase();
-    if (errStr.contains('network') || errStr.contains('socket'))
-      return _t('err_network');
-    return _t('err_generic');
-  }
-
-  void _showMessage(String message, {bool isError = true}) {
-    if (!mounted) return;
-    HapticFeedback.heavyImpact();
-
-    final bgColor = isError
-        ? Theme.of(context).colorScheme.error
-        : Colors.green.shade700;
-    final icon = isError
-        ? Icons.error_outline_rounded
-        : Icons.check_circle_outline_rounded;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(icon, color: Colors.white, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  message,
-                  style: AppTypography.body.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: bgColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.only(bottom: 30, left: 20, right: 20),
-          elevation: 6,
-          duration: const Duration(seconds: 4),
-        ),
-      );
-  }
-
   Future<void> _handleVerify() async {
     if (_isLoading) return;
 
     final code = _controllers.map((c) => c.text).join();
     if (code.length < _digits) {
       HapticFeedback.lightImpact();
-      _showMessage(_t('err_req'), isError: true);
+      AuthUiHelper.showMessage(context, _t('err_req'), isError: true);
       return;
     }
 
@@ -245,8 +180,11 @@ class _OtpScreenState extends State<OtpScreen> {
         stack,
         reason: 'OTP Verification Failed',
       );
-      _showMessage(_parseError(e), isError: true);
-      // Clear fields on error
+      AuthUiHelper.showMessage(
+        context,
+        _t(AuthUiHelper.parseErrorKey(e)),
+        isError: true,
+      );
       for (var c in _controllers) {
         c.clear();
       }
@@ -279,7 +217,7 @@ class _OtpScreenState extends State<OtpScreen> {
         }
       }
 
-      _showMessage(_t('success_resend'), isError: false);
+      AuthUiHelper.showMessage(context, _t('success_resend'), isError: false);
       _startCountdown();
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
@@ -287,77 +225,91 @@ class _OtpScreenState extends State<OtpScreen> {
         stack,
         reason: 'OTP Resend Failed',
       );
-      _showMessage(_parseError(e), isError: true);
+      AuthUiHelper.showMessage(
+        context,
+        _t(AuthUiHelper.parseErrorKey(e)),
+        isError: true,
+      );
     } finally {
       if (mounted) setState(() => _resending = false);
     }
   }
 
   Widget _buildLanguageSelector() {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-      ),
-      child: PopupMenuButton<AppLanguage>(
-        onSelected: (AppLanguage newValue) {
-          HapticFeedback.lightImpact();
-          LanguageService.instance.setLanguage(newValue);
-          FirebaseAnalytics.instance.logEvent(
-            name: 'lang_changed',
-            parameters: {'lang': newValue.name},
-          );
-        },
-        color: AppColors.darkSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 8,
-        offset: const Offset(0, 45),
-        itemBuilder: (context) => AppLanguage.values.map((lang) {
-          final isSelected =
-              LanguageService.instance.currentLanguage.value == lang;
-          return PopupMenuItem<AppLanguage>(
-            value: lang,
-            child: Center(
-              child: Text(
-                _getLanguageName(lang),
-                style: AppTypography.body.copyWith(
-                  color: isSelected
-                      ? Colors.white
-                      : AppColors.darkTextSecondary,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
+    return Semantics(
+      button: true, // ✅ ACCESSIBILITY FIX
+      label: 'Select Language',
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+        ),
+        child: PopupMenuButton<AppLanguage>(
+          onSelected: (AppLanguage newValue) {
+            HapticFeedback.lightImpact();
+            LanguageService.instance.setLanguage(newValue);
+            FirebaseAnalytics.instance.logEvent(
+              name: 'lang_changed',
+              parameters: {'lang': newValue.name},
+            );
+          },
+          color: AppColors.darkSurface,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.language_rounded, color: Colors.white, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                _getLanguageName(
-                  LanguageService.instance.currentLanguage.value,
+          elevation: 8,
+          offset: const Offset(0, 45),
+          itemBuilder: (context) => AppLanguage.values.map((lang) {
+            final isSelected =
+                LanguageService.instance.currentLanguage.value == lang;
+            return PopupMenuItem<AppLanguage>(
+              value: lang,
+              child: Center(
+                child: Text(
+                  _getLanguageName(lang),
+                  style: AppTypography.body.copyWith(
+                    color: isSelected
+                        ? Colors.white
+                        : AppColors.darkTextSecondary,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                  ),
                 ),
-                style: AppTypography.label.copyWith(
+              ),
+            );
+          }).toList(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.language_rounded,
                   color: Colors.white,
-                  fontWeight: FontWeight.w600,
+                  size: 16,
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Colors.white,
-                size: 16,
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  _getLanguageName(
+                    LanguageService.instance.currentLanguage.value,
+                  ),
+                  style: AppTypography.label.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -447,7 +399,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 40),
+                              const SizedBox(height: 20),
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 28,
@@ -461,6 +413,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                         color: Colors.white,
                                         fontSize: 32,
                                         fontWeight: FontWeight.bold,
+                                        height: 1.1,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
@@ -471,7 +424,6 @@ class _OtpScreenState extends State<OtpScreen> {
                                           alpha: 0.9,
                                         ),
                                         fontSize: 15,
-                                        height: 1.4,
                                       ),
                                     ),
                                   ],
@@ -479,7 +431,7 @@ class _OtpScreenState extends State<OtpScreen> {
                               ),
                               SizedBox(
                                 height:
-                                    MediaQuery.of(context).size.height * 0.06,
+                                    MediaQuery.of(context).size.height * 0.08,
                               ),
                               Container(
                                 width: double.infinity,
@@ -528,20 +480,25 @@ class _OtpScreenState extends State<OtpScreen> {
                                             color: textSecondary,
                                           ),
                                         ),
-                                        GestureDetector(
-                                          onTap: _handleResend,
-                                          child: Text(
-                                            _secondsLeft > 0
-                                                ? _t('resend_in').replaceAll(
-                                                    '@sec',
-                                                    _secondsLeft.toString(),
-                                                  )
-                                                : _t('resend_btn'),
-                                            style: AppTypography.label.copyWith(
-                                              color: _secondsLeft > 0
-                                                  ? Colors.grey
-                                                  : accentColor,
-                                              fontWeight: FontWeight.bold,
+                                        Semantics(
+                                          button: true,
+                                          label: _t('resend_btn'),
+                                          child: GestureDetector(
+                                            onTap: _handleResend,
+                                            child: Text(
+                                              _secondsLeft > 0
+                                                  ? _t('resend_in').replaceAll(
+                                                      '@sec',
+                                                      _secondsLeft.toString(),
+                                                    )
+                                                  : _t('resend_btn'),
+                                              style: AppTypography.label
+                                                  .copyWith(
+                                                    color: _secondsLeft > 0
+                                                        ? Colors.grey
+                                                        : accentColor,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                             ),
                                           ),
                                         ),
@@ -552,6 +509,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                     // Verify Button
                                     Semantics(
                                       button: true,
+                                      label: _t('verify_btn'),
                                       child: Listener(
                                         onPointerDown: (_) {
                                           if (!_isLoading)
@@ -638,62 +596,67 @@ class _OtpScreenState extends State<OtpScreen> {
         ? AppColors.darkStroke
         : Colors.grey.shade300;
 
-    return Container(
-      width: 46,
-      height: 56,
-      decoration: BoxDecoration(
-        color: isFocused ? Colors.transparent : unselectedBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isFocused
-              ? accentColor
-              : (hasText
-                    ? (isDark ? Colors.grey.shade600 : Colors.grey.shade400)
-                    : unselectedBorder),
-          width: isFocused ? 2 : 1.5,
+    // ✅ ACCESSIBILITY FIX: Wrapped in Semantics
+    return Semantics(
+      label: "OTP Digit ${index + 1}",
+      textField: true,
+      child: Container(
+        width: 46,
+        height: 56,
+        decoration: BoxDecoration(
+          color: isFocused ? Colors.transparent : unselectedBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isFocused
+                ? accentColor
+                : (hasText
+                      ? (isDark ? Colors.grey.shade600 : Colors.grey.shade400)
+                      : unselectedBorder),
+            width: isFocused ? 2 : 1.5,
+          ),
         ),
-      ),
-      child: Center(
-        child: TextFormField(
-          controller: _controllers[index],
-          focusNode: _focusNodes[index],
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
-          maxLength: 6, // Allow pasting full code
-          style: AppTypography.headline.copyWith(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black,
-          ),
-          decoration: const InputDecoration(
-            counterText: "",
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-          ),
-          onChanged: (value) {
-            // Enterprise Paste Handling: If user pastes 6 digits
-            if (value.length > 1) {
-              final chars = value.split('');
-              for (int i = 0; i < _digits; i++) {
-                if (i < chars.length) {
-                  _controllers[i].text = chars[i];
+        child: Center(
+          child: TextFormField(
+            controller: _controllers[index],
+            focusNode: _focusNodes[index],
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
+            maxLength: 6,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            style: AppTypography.headline.copyWith(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+            decoration: const InputDecoration(
+              counterText: "",
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+            onChanged: (value) {
+              if (value.length > 1) {
+                final chars = value.split('');
+                for (int i = 0; i < _digits; i++) {
+                  if (i < chars.length) {
+                    _controllers[i].text = chars[i];
+                  }
                 }
+                _focusNodes[_digits - 1].requestFocus();
+                if (chars.length == _digits) {
+                  _handleVerify();
+                }
+                return;
               }
-              _focusNodes[_digits - 1].requestFocus();
-              if (chars.length == _digits) {
-                _handleVerify(); // Auto submit
-              }
-              return;
-            }
 
-            if (value.isNotEmpty && index < _digits - 1) {
-              _focusNodes[index + 1].requestFocus();
-            }
-            if (value.isEmpty && index > 0) {
-              _focusNodes[index - 1].requestFocus();
-            }
-          },
+              if (value.isNotEmpty && index < _digits - 1) {
+                _focusNodes[index + 1].requestFocus();
+              }
+              if (value.isEmpty && index > 0) {
+                _focusNodes[index - 1].requestFocus();
+              }
+            },
+          ),
         ),
       ),
     );
@@ -708,8 +671,8 @@ class _HeaderBackgroundPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
     final path = Path();
-    path.lineTo(0, 250);
-    path.quadraticBezierTo(size.width / 2, 330, size.width, 250);
+    path.lineTo(0, 370);
+    path.quadraticBezierTo(size.width / 2, 450, size.width, 370);
     path.lineTo(size.width, 0);
     path.close();
     canvas.drawPath(path, paint);
