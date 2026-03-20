@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart'; // ✅ Added Crashlytics
 
 import 'package:vango_parent_app/screens/auth/otp_screen.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
@@ -153,16 +154,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
         if (user?.phone != null && user!.phone!.isNotEmpty) {
           String p = user.phone!;
-          if (p.startsWith('+94')) {
-            p = p.substring(3);
-          }
+          if (p.startsWith('+94')) p = p.substring(3);
           _phoneController.text = p;
           _phoneReadOnly = true;
         } else if (cachedPhone != null && _phoneController.text.isEmpty) {
           String p = cachedPhone;
-          if (p.startsWith('+94')) {
-            p = p.substring(3);
-          }
+          if (p.startsWith('+94')) p = p.substring(3);
           _phoneController.text = p;
         }
       });
@@ -192,7 +189,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
   }
 
-  // 🛑 SECURITY FIX: Robust backend error masking
   String _parseError(dynamic error) {
     if (error is AuthException) {
       final msg = error.message.toLowerCase();
@@ -222,7 +218,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   void _showMessage(String message, {bool isError = true}) {
     if (!mounted) return;
 
-    final bgColor = isError ? const Color(0xFFB3261E) : const Color(0xFF2E7D32);
+    // ✅ HAPTIC FIX: Heavy impact for alerts
+    HapticFeedback.heavyImpact();
+
+    // ✅ COLOR THEME FIX: Material standard error
+    final bgColor = isError
+        ? Theme.of(context).colorScheme.error
+        : Colors.green.shade700;
     final icon = isError
         ? Icons.error_outline_rounded
         : Icons.check_circle_outline_rounded;
@@ -296,6 +298,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
 
     setState(() => _submitting = true);
+    // ✅ HAPTIC FIX: Medium impact for form submissions
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
 
@@ -345,10 +348,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (mounted) {
         setState(() => _submitting = false);
-        _showMessage(_parseError(e), isError: true); // 🛑 SECURITY FIX
+        // ✅ GLOBAL LOGGING FIX
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stackTrace,
+          reason: 'Failed to verify phone linked',
+        );
+        _showMessage(_parseError(e), isError: true);
       }
     }
   }
@@ -382,10 +391,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (mounted) {
         setState(() => _submitting = false);
-        _showMessage(_parseError(e), isError: true); // 🛑 SECURITY FIX
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stackTrace,
+          reason: 'Failed to verify email linked',
+        );
+        _showMessage(_parseError(e), isError: true);
       }
     }
   }
@@ -404,16 +418,23 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       FirebaseAnalytics.instance.logEvent(name: 'profile_completed');
 
       if (mounted) widget.onProfileCompleted();
-    } catch (e) {
-      if (mounted)
-        _showMessage(_parseError(e), isError: true); // 🛑 SECURITY FIX
+    } catch (e, stackTrace) {
+      if (mounted) {
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stackTrace,
+          reason: 'Failed to save parent profile',
+        );
+        _showMessage(_parseError(e), isError: true);
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
   Future<void> _handleCancel() async {
-    HapticFeedback.selectionClick();
+    // ✅ HAPTIC FIX: Light impact for navigation interactions
+    HapticFeedback.lightImpact();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkSurfaceStrong : Colors.white;
@@ -465,8 +486,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       try {
         await AuthService.instance.cancelSignup();
         if (mounted) widget.onBack();
-      } catch (e) {
+      } catch (e, stackTrace) {
         if (mounted) {
+          FirebaseCrashlytics.instance.recordError(
+            e,
+            stackTrace,
+            reason: 'Failed to fully cancel signup',
+          );
           _showMessage(_parseError(e), isError: true);
           widget.onBack();
         }
@@ -477,70 +503,80 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Widget _buildLanguageSelector() {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-      ),
-      child: PopupMenuButton<AppLanguage>(
-        onSelected: (AppLanguage newValue) {
-          HapticFeedback.selectionClick();
-          LanguageService.instance.setLanguage(newValue);
-          FirebaseAnalytics.instance.logEvent(
-            name: 'lang_changed',
-            parameters: {'lang': newValue.name},
-          );
-        },
-        color: AppColors.darkSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 8,
-        offset: const Offset(0, 45),
-        itemBuilder: (context) => AppLanguage.values.map((lang) {
-          final isSelected =
-              LanguageService.instance.currentLanguage.value == lang;
-          return PopupMenuItem<AppLanguage>(
-            value: lang,
-            child: Center(
-              child: Text(
-                _getLanguageName(lang),
-                style: AppTypography.body.copyWith(
-                  color: isSelected
-                      ? Colors.white
-                      : AppColors.darkTextSecondary,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
+    return Semantics(
+      button: true, // ✅ ACCESSIBILITY FIX
+      label: "Select Language",
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+        ),
+        child: PopupMenuButton<AppLanguage>(
+          onSelected: (AppLanguage newValue) {
+            HapticFeedback.lightImpact();
+            LanguageService.instance.setLanguage(newValue);
+            FirebaseAnalytics.instance.logEvent(
+              name: 'lang_changed',
+              parameters: {'lang': newValue.name},
+            );
+          },
+          color: AppColors.darkSurface,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.language_rounded, color: Colors.white, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                _getLanguageName(
-                  LanguageService.instance.currentLanguage.value,
+          elevation: 8,
+          offset: const Offset(0, 45),
+          itemBuilder: (context) => AppLanguage.values.map((lang) {
+            final isSelected =
+                LanguageService.instance.currentLanguage.value == lang;
+            return PopupMenuItem<AppLanguage>(
+              value: lang,
+              child: Center(
+                child: Text(
+                  _getLanguageName(lang),
+                  style: AppTypography.body.copyWith(
+                    color: isSelected
+                        ? Colors.white
+                        : AppColors.darkTextSecondary,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                  ),
                 ),
-                style: AppTypography.label.copyWith(
+              ),
+            );
+          }).toList(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.language_rounded,
                   color: Colors.white,
-                  fontWeight: FontWeight.w600,
+                  size: 16,
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Colors.white,
-                size: 16,
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  _getLanguageName(
+                    LanguageService.instance.currentLanguage.value,
+                  ),
+                  style: AppTypography.label.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -555,7 +591,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final textColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
-    final accentColor = isDark ? AppColors.darkAccent : const Color(0xFF2D325A);
+
+    // ✅ THEME FIX: Unified Theme Accent
+    final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return ValueListenableBuilder<AppLanguage>(
       valueListenable: LanguageService.instance.currentLanguage,
@@ -570,16 +608,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           ),
           child: Scaffold(
             backgroundColor: bgColor,
-            // 🛑 ENTERPRISE FIX: Kills the native white layout gap!
             resizeToAvoidBottomInset: false,
             body: GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
               child: CustomPaint(
-                // 🚀 PERFORMANCE: O(1) rendering
                 painter: _HeaderBackgroundPainter(
                   color: isDark
                       ? AppColors.darkSurfaceStrong
-                      : const Color(0xFF2D325A),
+                      : AppColors.accent,
                 ),
                 child: SafeArea(
                   bottom: false,
@@ -590,10 +626,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         constraints: const BoxConstraints(maxWidth: 500),
                         child: SingleChildScrollView(
                           physics: const ClampingScrollPhysics(),
-                          // 🚀 ENTERPRISE KEYBOARD HANDLING
+                          // ✅ SAFE BOTTOM SPACING FIX: Includes home indicator padding + keyboard
                           padding: EdgeInsets.only(
                             bottom:
-                                MediaQuery.of(context).viewInsets.bottom + 24,
+                                MediaQuery.of(context).viewInsets.bottom +
+                                MediaQuery.of(context).padding.bottom +
+                                32,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -607,11 +645,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    IconButton(
-                                      onPressed: _handleCancel,
-                                      icon: const Icon(
-                                        Icons.arrow_back_ios_new_rounded,
-                                        color: Colors.white,
+                                    Semantics(
+                                      button: true, // ✅ ACCESSIBILITY FIX
+                                      label: 'Back',
+                                      child: IconButton(
+                                        onPressed: _handleCancel,
+                                        icon: const Icon(
+                                          Icons.arrow_back_ios_new_rounded,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                     _buildLanguageSelector(),
@@ -648,7 +690,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                   ],
                                 ),
                               ),
-                              // Fixed spacer completely eliminates IntrinsicHeight calculation costs
                               SizedBox(
                                 height:
                                     MediaQuery.of(context).size.height * 0.08,
@@ -733,58 +774,67 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         readOnly: _emailReadOnly,
                                       ),
                                       const SizedBox(height: 32),
-                                      Listener(
-                                        onPointerDown: (_) {
-                                          if (!_submitting)
-                                            setState(
-                                              () => _isSubmitPressed = true,
-                                            );
-                                        },
-                                        onPointerUp: (_) {
-                                          if (!_submitting)
-                                            setState(
-                                              () => _isSubmitPressed = false,
-                                            );
-                                        },
-                                        child: AnimatedScale(
-                                          scale: _isSubmitPressed ? 0.96 : 1.0,
-                                          duration: const Duration(
-                                            milliseconds: 100,
-                                          ),
-                                          curve: Curves.easeInOut,
-                                          child: SizedBox(
-                                            width: double.infinity,
-                                            height: 56,
-                                            child: ElevatedButton(
-                                              onPressed: _submitting
-                                                  ? null
-                                                  : _handleSubmit,
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: accentColor,
-                                                foregroundColor: Colors.white,
-                                                elevation: 0,
-                                                textStyle: AppTypography.title
-                                                    .copyWith(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
+                                      Semantics(
+                                        button: true, // ✅ ACCESSIBILITY FIX
+                                        child: Listener(
+                                          onPointerDown: (_) {
+                                            if (!_submitting)
+                                              setState(
+                                                () => _isSubmitPressed = true,
+                                              );
+                                          },
+                                          onPointerUp: (_) {
+                                            if (!_submitting)
+                                              setState(
+                                                () => _isSubmitPressed = false,
+                                              );
+                                          },
+                                          child: AnimatedScale(
+                                            scale: _isSubmitPressed
+                                                ? 0.96
+                                                : 1.0,
+                                            // ✅ TIMING FIX: Micro interactions = 150ms
+                                            duration: const Duration(
+                                              milliseconds: 150,
+                                            ),
+                                            curve: Curves.easeInOut,
+                                            child: SizedBox(
+                                              width: double.infinity,
+                                              height: 56,
+                                              child: ElevatedButton(
+                                                onPressed: _submitting
+                                                    ? null
+                                                    : _handleSubmit,
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: accentColor,
+                                                  foregroundColor: Colors.white,
+                                                  elevation: 0,
+                                                  textStyle: AppTypography.title
+                                                      .copyWith(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          20,
+                                                        ),
+                                                  ),
                                                 ),
+                                                child: _submitting
+                                                    ? const SizedBox(
+                                                        width: 24,
+                                                        height: 24,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              color:
+                                                                  Colors.white,
+                                                              strokeWidth: 3,
+                                                            ),
+                                                      )
+                                                    : Text(_t('continue_btn')),
                                               ),
-                                              child: _submitting
-                                                  ? const SizedBox(
-                                                      width: 24,
-                                                      height: 24,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            color: Colors.white,
-                                                            strokeWidth: 3,
-                                                          ),
-                                                    )
-                                                  : Text(_t('continue_btn')),
                                             ),
                                           ),
                                         ),
@@ -950,10 +1000,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       }).toList(),
       onChanged: (displayVal) {
         if (displayVal != null) {
-          setState(() {
-            _selectedRelationship =
-                _relationshipTypes[localizedTypes.indexOf(displayVal)];
-          });
+          setState(
+            () => _selectedRelationship =
+                _relationshipTypes[localizedTypes.indexOf(displayVal)],
+          );
         }
       },
     );
