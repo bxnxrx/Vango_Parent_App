@@ -192,7 +192,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
   }
 
-  // 🛑 SECURITY FIX: Robust backend error masking
   String _parseError(dynamic error) {
     if (error is AuthException) {
       final msg = error.message.toLowerCase();
@@ -221,6 +220,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   void _showMessage(String message, {bool isError = true}) {
     if (!mounted) return;
+
+    // HAPTIC STANDARDIZATION
+    HapticFeedback.heavyImpact();
 
     final bgColor = isError ? const Color(0xFFB3261E) : const Color(0xFF2E7D32);
     final icon = isError
@@ -296,6 +298,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
 
     setState(() => _submitting = true);
+    // HAPTIC STANDARDIZATION
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
 
@@ -348,7 +351,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        _showMessage(_parseError(e), isError: true); // 🛑 SECURITY FIX
+        _showMessage(_parseError(e), isError: true);
       }
     }
   }
@@ -385,7 +388,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
-        _showMessage(_parseError(e), isError: true); // 🛑 SECURITY FIX
+        _showMessage(_parseError(e), isError: true);
       }
     }
   }
@@ -405,15 +408,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
       if (mounted) widget.onProfileCompleted();
     } catch (e) {
-      if (mounted)
-        _showMessage(_parseError(e), isError: true); // 🛑 SECURITY FIX
+      if (mounted) _showMessage(_parseError(e), isError: true);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
   Future<void> _handleCancel() async {
-    HapticFeedback.selectionClick();
+    // HAPTIC STANDARDIZATION
+    HapticFeedback.lightImpact();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkSurfaceStrong : Colors.white;
@@ -484,7 +487,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       ),
       child: PopupMenuButton<AppLanguage>(
         onSelected: (AppLanguage newValue) {
-          HapticFeedback.selectionClick();
+          // HAPTIC STANDARDIZATION
+          HapticFeedback.lightImpact();
           LanguageService.instance.setLanguage(newValue);
           FirebaseAnalytics.instance.logEvent(
             name: 'lang_changed',
@@ -555,7 +559,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final textColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
-    final accentColor = isDark ? AppColors.darkAccent : const Color(0xFF2D325A);
+
+    // THEME FIX: Uses AppColors instead of hardcoded hex
+    final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return ValueListenableBuilder<AppLanguage>(
       valueListenable: LanguageService.instance.currentLanguage,
@@ -570,16 +576,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           ),
           child: Scaffold(
             backgroundColor: bgColor,
-            // 🛑 ENTERPRISE FIX: Kills the native white layout gap!
             resizeToAvoidBottomInset: false,
             body: GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
               child: CustomPaint(
-                // 🚀 PERFORMANCE: O(1) rendering
                 painter: _HeaderBackgroundPainter(
                   color: isDark
                       ? AppColors.darkSurfaceStrong
-                      : const Color(0xFF2D325A),
+                      : AppColors.accent,
                 ),
                 child: SafeArea(
                   bottom: false,
@@ -590,10 +594,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         constraints: const BoxConstraints(maxWidth: 500),
                         child: SingleChildScrollView(
                           physics: const ClampingScrollPhysics(),
-                          // 🚀 ENTERPRISE KEYBOARD HANDLING
+                          // SAFE BOTTOM SPACING FIX: Includes home indicator padding + keyboard
                           padding: EdgeInsets.only(
                             bottom:
-                                MediaQuery.of(context).viewInsets.bottom + 24,
+                                MediaQuery.of(context).viewInsets.bottom +
+                                MediaQuery.of(context).padding.bottom +
+                                32,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,7 +654,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                   ],
                                 ),
                               ),
-                              // Fixed spacer completely eliminates IntrinsicHeight calculation costs
                               SizedBox(
                                 height:
                                     MediaQuery.of(context).size.height * 0.08,
@@ -748,8 +753,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         },
                                         child: AnimatedScale(
                                           scale: _isSubmitPressed ? 0.96 : 1.0,
+                                          // ANIMATION STANDARDIZATION
                                           duration: const Duration(
-                                            milliseconds: 100,
+                                            milliseconds: 150,
                                           ),
                                           curve: Curves.easeInOut,
                                           child: SizedBox(

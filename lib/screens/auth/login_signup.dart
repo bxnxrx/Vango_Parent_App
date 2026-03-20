@@ -198,6 +198,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   void _showMessage(String message, {bool isError = true}) {
     if (!mounted) return;
 
+    // HAPTIC STANDARDIZATION: Heavy impact for success/errors
+    HapticFeedback.heavyImpact();
+
     final bgColor = isError ? const Color(0xFFB3261E) : const Color(0xFF2E7D32);
     final icon = isError
         ? Icons.error_outline_rounded
@@ -239,7 +242,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   void _switchTab(bool toPhone) async {
     if (_isPhoneLogin == toPhone || _isLoading) return;
 
-    HapticFeedback.selectionClick();
+    // HAPTIC STANDARDIZATION: Light impact for navigation/tabs
+    HapticFeedback.lightImpact();
     await Future.delayed(const Duration(milliseconds: 120));
 
     if (!mounted) return;
@@ -280,6 +284,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     }
 
     _isLoading = true;
+    // HAPTIC STANDARDIZATION: Medium impact for form submission
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
     setState(() {});
@@ -372,7 +377,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       final successMsg = _t('reset_sent').replaceAll('@email', email);
       _showMessage(successMsg, isError: false);
 
-      await Future.delayed(const Duration(milliseconds: 300));
+      // ANIMATION STANDARDIZATION: 400ms delay for navigation
+      await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
 
       Navigator.of(context).push(
@@ -423,7 +429,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   Widget _buildLanguageSelector(bool isDark) {
     final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
-    final selectedTextColor = isDark ? Colors.white : const Color(0xFF2D325A);
+    final selectedTextColor = isDark ? Colors.white : AppColors.accent;
     final unselectedTextColor = isDark
         ? AppColors.darkTextSecondary
         : Colors.grey.shade700;
@@ -435,7 +441,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       ),
       child: PopupMenuButton<AppLanguage>(
         onSelected: (AppLanguage newValue) {
-          HapticFeedback.selectionClick();
+          HapticFeedback.lightImpact();
           LanguageService.instance.setLanguage(newValue);
           FirebaseAnalytics.instance.logEvent(
             name: 'auth_language_changed',
@@ -507,7 +513,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     final textSecondary = isDark
         ? AppColors.darkTextSecondary
         : AppColors.textSecondary;
-    final accentColor = isDark ? AppColors.darkAccent : const Color(0xFF2D325A);
+
+    // THEME FIX: No hardcoded Hex colors. Uses centralized AppColors.
+    final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return ValueListenableBuilder<AppLanguage>(
       valueListenable: LanguageService.instance.currentLanguage,
@@ -522,20 +530,17 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           ),
           child: Scaffold(
             backgroundColor: bgColor,
-            // 🛑 ENTERPRISE FIX: Kills the native white layout gap!
             resizeToAvoidBottomInset: false,
             body: GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
               child: CustomPaint(
-                // 🚀 PERFORMANCE: O(1) rendering, completely replaces heavy Stack & ClipPath
                 painter: _HeaderBackgroundPainter(
                   color: isDark
                       ? AppColors.darkSurfaceStrong
-                      : const Color(0xFF2D325A),
+                      : AppColors.accent,
                 ),
                 child: SafeArea(
-                  bottom:
-                      false, // Let padding handle the bottom safe area dynamically
+                  bottom: false,
                   child: AbsorbPointer(
                     absorbing: _isLoading,
                     child: Center(
@@ -543,10 +548,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                         constraints: const BoxConstraints(maxWidth: 500),
                         child: SingleChildScrollView(
                           physics: const ClampingScrollPhysics(),
-                          // 🚀 ENTERPRISE KEYBOARD HANDLING: Smooth slide-up without native layout thrashing
+                          // SAFE BOTTOM SPACING FIX: Includes home indicator padding + keyboard
                           padding: EdgeInsets.only(
                             bottom:
-                                MediaQuery.of(context).viewInsets.bottom + 24,
+                                MediaQuery.of(context).viewInsets.bottom +
+                                MediaQuery.of(context).padding.bottom +
+                                32,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,7 +601,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                   ],
                                 ),
                               ),
-                              // Fixed spacer completely eliminates IntrinsicHeight calculation costs
                               SizedBox(
                                 height:
                                     MediaQuery.of(context).size.height * 0.08,
@@ -674,6 +680,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                       ),
                                       const SizedBox(height: 28),
                                       AnimatedSwitcher(
+                                        // ANIMATION STANDARDIZATION
                                         duration: const Duration(
                                           milliseconds: 300,
                                         ),
@@ -705,8 +712,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                         },
                                         child: AnimatedScale(
                                           scale: _isSubmitPressed ? 0.96 : 1.0,
+                                          // ANIMATION STANDARDIZATION
                                           duration: const Duration(
-                                            milliseconds: 100,
+                                            milliseconds: 150,
                                           ),
                                           curve: Curves.easeInOut,
                                           child: SizedBox(
@@ -1060,6 +1068,7 @@ class _ToggleTab extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
+        // ANIMATION STANDARDIZATION
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           color: isSelected
