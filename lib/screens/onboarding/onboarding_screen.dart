@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:firebase_analytics/firebase_analytics.dart'; // ✅ 100% Firebase Analytics
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
@@ -183,9 +183,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       name: 'onboarding_cta_clicked',
       parameters: {
         'slide_index': _currentPage,
-        'is_last_page': isLastPage
-            ? 'true'
-            : 'false', // ✅ Firebase requires string/num
+        'is_last_page': isLastPage ? 'true' : 'false',
       },
     );
 
@@ -249,12 +247,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
-            HapticFeedback.lightImpact();
+            HapticFeedback.selectionClick();
             LanguageService.instance.setLanguage(newValue);
-            FirebaseAnalytics.instance.logEvent(
-              name: 'language_changed',
-              parameters: {'language': newValue.name},
-            );
           },
           color: isDark ? AppColors.darkSurface : AppColors.surface,
           shape: RoundedRectangleBorder(
@@ -452,7 +446,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     label: "Skip onboarding",
                                     child: TextButton(
                                       onPressed: () {
-                                        HapticFeedback.lightImpact();
+                                        HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
                                         FirebaseAnalytics.instance.logEvent(
                                           name: 'onboarding_skip_clicked',
                                           parameters: {
@@ -497,7 +491,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     );
 
                                     if (!_isAutoScrolling) {
-                                      HapticFeedback.selectionClick();
+                                      HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
                                     }
 
                                     _startAutoPlay();
@@ -653,10 +647,11 @@ class _SlideDetailsState extends State<_SlideDetails> {
               onTapDown: (_) => setState(() => _isPressed = true),
               onTapUp: (_) {
                 setState(() => _isPressed = false);
+                // ✅ HAPTIC FIX: Success vs Navigation
                 if (widget.isLastPage) {
-                  HapticFeedback.mediumImpact();
+                  HapticFeedback.lightImpact(); // Success: Finishing onboarding
                 } else {
-                  HapticFeedback.lightImpact();
+                  HapticFeedback.selectionClick(); // Navigation: Next slide
                 }
                 widget.onNext();
               },

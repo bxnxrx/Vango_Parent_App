@@ -12,7 +12,7 @@ import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/screens/auth/reset_password_screen.dart';
 import 'package:vango_parent_app/services/language_service.dart';
-import 'package:vango_parent_app/utils/auth_ui_helper.dart'; // ✅ UI Helper
+import 'package:vango_parent_app/utils/auth_ui_helper.dart';
 
 const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   AppLanguage.english: {
@@ -22,7 +22,7 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'phone_tab': 'Phone',
     'email_tab': 'Email',
     'phone_label': 'Phone Number',
-    'phone_hint': '+94 7X XXX XXXX',
+    'phone_hint': '7X XXX XXXX',
     'email_label': 'Email Address',
     'email_hint': 'name@example.com',
     'pass_label': 'Password',
@@ -33,17 +33,12 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'secure_badge': 'End-to-end encrypted',
     'reset_sent': 'Reset link sent to @email',
     'err_phone_req': 'Phone number is required',
-    'err_phone_inv': 'Invalid format (use +947XXXXXXXX)',
+    'err_phone_inv': 'Invalid format',
     'err_email_req': 'Email is required',
     'err_email_inv': 'Enter a valid email address',
     'err_pass_req': 'Password is required',
     'err_pass_min': 'Password must be at least 8 characters',
-    'err_network': 'Network error. Please check your connection.',
-    'err_invalid_creds': 'Incorrect email or password.',
-    'err_user_exists': 'An account with this email already exists.',
-    'err_too_many_req': 'Too many attempts. Please try again later.',
-    'err_unverified': 'Please verify your email before logging in.',
-    'err_generic': 'Something went wrong. Please try again.',
+    'err_user_not_found': 'No account found with this email.',
   },
   AppLanguage.sinhala: {
     'welcome': 'ආයුබෝවන්',
@@ -52,7 +47,7 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'phone_tab': 'දුරකථනය',
     'email_tab': 'විද්‍යුත් තැපෑල',
     'phone_label': 'දුරකථන අංකය',
-    'phone_hint': '+94 7X XXX XXXX',
+    'phone_hint': '7X XXX XXXX',
     'email_label': 'විද්‍යුත් තැපැල් ලිපිනය',
     'email_hint': 'name@example.com',
     'pass_label': 'මුරපදය',
@@ -61,19 +56,14 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'continue_btn': 'ඉදිරියට',
     'or': 'හෝ',
     'secure_badge': 'ආරක්ෂිතව සංකේතනය කර ඇත',
-    'reset_sent': 'මුරපද යළි පිහිටුවීමේ සබැඳිය @email වෙත යවන ලදී',
+    'reset_sent': 'මුරපද යළි පිහිටුවීමේ සබැඳිය යවන ලදී',
     'err_phone_req': 'දුරකථන අංකය අවශ්‍යයි',
-    'err_phone_inv': 'වැරදි ආකෘතියකි (+947XXXXXXXX භාවිතා කරන්න)',
+    'err_phone_inv': 'වැරදි ආකෘතියකි',
     'err_email_req': 'විද්‍යුත් තැපෑල අවශ්‍යයි',
     'err_email_inv': 'නිවැරදි විද්‍යුත් තැපෑලක් ඇතුලත් කරන්න',
     'err_pass_req': 'මුරපදය අවශ්‍යයි',
     'err_pass_min': 'මුරපදය අවම වශයෙන් අකුරු 8ක් විය යුතුය',
-    'err_network': 'ජාල දෝෂයකි. කරුණාකර ඔබගේ සම්බන්ධතාවය පරීක්ෂා කරන්න.',
-    'err_invalid_creds': 'විද්‍යුත් තැපෑල හෝ මුරපදය වැරදියි.',
-    'err_user_exists': 'මෙම විද්‍යුත් තැපෑල සහිත ගිණුමක් දැනටමත් පවතී.',
-    'err_too_many_req': 'උත්සාහයන් වැඩියි. කරුණාකර පසුව නැවත උත්සාහ කරන්න.',
-    'err_unverified': 'කරුණාකර පිවිසීමට පෙර ඔබගේ විද්‍යුත් තැපෑල තහවුරු කරන්න.',
-    'err_generic': 'දෝෂයක් සිදුවිය. කරුණාකර නැවත උත්සාහ කරන්න.',
+    'err_user_not_found': 'මෙම විද්‍යුත් තැපෑල සඳහා ගිණුමක් හමු නොවීය.',
   },
   AppLanguage.tamil: {
     'welcome': 'நல்வரவு',
@@ -82,7 +72,7 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'phone_tab': 'தொலைபேசி',
     'email_tab': 'மின்னஞ்சல்',
     'phone_label': 'தொலைபேசி எண்',
-    'phone_hint': '+94 7X XXX XXXX',
+    'phone_hint': '7X XXX XXXX',
     'email_label': 'மின்னஞ்சல் முகவரி',
     'email_hint': 'name@example.com',
     'pass_label': 'கடவுச்சொல்',
@@ -91,19 +81,14 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'continue_btn': 'தொடரவும்',
     'or': 'அல்லது',
     'secure_badge': 'பாதுகாப்பாக குறியாக்கம் செய்யப்பட்டது',
-    'reset_sent': 'கடவுச்சொல் மீட்டமைப்பு இணைப்பு @email க்கு அனுப்பப்பட்டது',
+    'reset_sent': 'கடவுச்சொல் மீட்டமைப்பு இணைப்பு அனுப்பப்பட்டது',
     'err_phone_req': 'தொலைபேசி எண் தேவை',
-    'err_phone_inv': 'தவறான வடிவம் (+947XXXXXXXX ஐப் பயன்படுத்தவும்)',
+    'err_phone_inv': 'தவறான வடிவம்',
     'err_email_req': 'மின்னஞ்சல் தேவை',
     'err_email_inv': 'சரியான மின்னஞ்சலை உள்ளிடவும்',
     'err_pass_req': 'கடவுச்சொல் தேவை',
     'err_pass_min': 'கடவுச்சொல் குறைந்தது 8 எழுத்துகளைக் கொண்டிருக்க வேண்டும்',
-    'err_network': 'நெட்வொர்க் பிழை. உங்கள் இணைப்பை சரிபார்க்கவும்.',
-    'err_invalid_creds': 'மின்னஞ்சல் அல்லது கடவுச்சொல் தவறானது.',
-    'err_user_exists': 'இந்த மின்னஞ்சலுடன் ஏற்கனவே ஒரு கணக்கு உள்ளது.',
-    'err_too_many_req': 'அதிக முயற்சிகள். பின்னர் மீண்டும் முயற்சிக்கவும்.',
-    'err_unverified': 'உள்நுழைவதற்கு முன் உங்கள் மின்னஞ்சலைச் சரிபார்க்கவும்.',
-    'err_generic': 'ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயற்சிக்கவும்.',
+    'err_user_not_found': 'இந்த மின்னஞ்சலுக்கு கணக்கு எதுவும் கிடைக்கவில்லை.',
   },
 };
 
@@ -133,9 +118,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   bool _isSubmitPressed = false;
 
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _phoneController = TextEditingController(
-    text: '+94',
-  );
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -170,22 +153,17 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   void _switchTab(bool toPhone) async {
     if (_isPhoneLogin == toPhone || _isLoading) return;
-
-    HapticFeedback.lightImpact();
+    HapticFeedback.selectionClick();
     await Future.delayed(const Duration(milliseconds: 150));
-
     if (!mounted) return;
-
-    setState(() {
-      _isPhoneLogin = toPhone;
-    });
+    setState(() => _isPhoneLogin = toPhone);
     _formKey.currentState?.reset();
   }
 
   String? _validatePhone(String? value) {
     if (value == null || value.trim().isEmpty) return _t('err_phone_req');
     final cleanPhone = value.replaceAll(' ', '');
-    final phoneRegex = RegExp(r'^\+94[0-9]{9}$');
+    final phoneRegex = RegExp(r'^[0-9]{9}$');
     if (!phoneRegex.hasMatch(cleanPhone)) return _t('err_phone_inv');
     return null;
   }
@@ -205,18 +183,18 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   Future<void> _handlePhoneLogin() async {
     if (_isLoading) return;
-
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.lightImpact();
+      HapticFeedback.heavyImpact();
       return;
     }
 
     _isLoading = true;
-    HapticFeedback.mediumImpact();
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
     setState(() {});
 
-    final phone = _phoneController.text.trim().replaceAll(' ', '');
+    var phone = _phoneController.text.trim().replaceAll(' ', '');
+    phone = '+94$phone';
 
     try {
       FirebaseAnalytics.instance.logEvent(
@@ -224,6 +202,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         parameters: {'method': 'phone'},
       );
       await Supabase.instance.client.auth.signInWithOtp(phone: phone);
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': 'phone', 'step': 'otp_sent'},
+      );
       widget.onOtpRequested(phone);
     } catch (e, stackTrace) {
       FirebaseCrashlytics.instance.recordError(
@@ -231,7 +213,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         stackTrace,
         reason: 'Phone Auth Failed',
       );
-      // ✅ Uses shared UI helper
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'phone', 'reason': e.toString()},
+      );
       AuthUiHelper.showMessage(
         context,
         _t(AuthUiHelper.parseErrorKey(e)),
@@ -244,14 +229,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   Future<void> _handleEmailLogin() async {
     if (_isLoading) return;
-
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.lightImpact();
+      HapticFeedback.heavyImpact();
       return;
     }
 
     _isLoading = true;
-    HapticFeedback.mediumImpact();
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
     setState(() {});
 
@@ -266,11 +250,23 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       final result = await AuthService.instance.signInOrSignUp(email, password);
 
       if (result.requiresEmailVerification) {
+        FirebaseAnalytics.instance.logEvent(
+          name: 'auth_success',
+          parameters: {'method': 'email', 'step': 'verification_sent'},
+        );
         widget.onEmailVerificationNeeded(email);
       } else {
+        FirebaseAnalytics.instance.logEvent(
+          name: 'auth_success',
+          parameters: {'method': 'email', 'step': 'logged_in'},
+        );
         await _checkStatusAndNotify();
       }
     } on AuthException catch (e, stackTrace) {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'email', 'reason': e.message},
+      );
       if (e.message.toLowerCase().contains('email not confirmed') ||
           e.code == 'email_not_confirmed') {
         try {
@@ -293,6 +289,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         );
       }
     } catch (e, stackTrace) {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'email', 'reason': e.toString()},
+      );
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -315,22 +315,48 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     final emailError = _validateEmail(email);
 
     if (emailError != null) {
-      HapticFeedback.lightImpact();
+      HapticFeedback.heavyImpact();
       AuthUiHelper.showMessage(context, emailError, isError: true);
       return;
     }
 
     _isLoading = true;
-    HapticFeedback.mediumImpact();
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
     setState(() {});
 
     try {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_attempt',
+        parameters: {'method': 'forgot_password'},
+      );
+
+      // ✅ ENTERPRISE DB CHECK: Validate email exists before sending reset
+      final res = await Supabase.instance.client
+          .from('parents')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+
+      if (res == null) {
+        HapticFeedback.heavyImpact();
+        AuthUiHelper.showMessage(
+          context,
+          _t('err_user_not_found'),
+          isError: true,
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
       await AuthService.instance.requestPasswordReset(email);
       if (!mounted) return;
 
-      final successMsg = _t('reset_sent').replaceAll('@email', email);
-      AuthUiHelper.showMessage(context, successMsg, isError: false);
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': 'forgot_password', 'step': 'reset_sent'},
+      );
+      AuthUiHelper.showMessage(context, _t('reset_sent'), isError: false);
 
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
@@ -341,6 +367,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         ),
       );
     } catch (e, stackTrace) {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'forgot_password', 'reason': e.toString()},
+      );
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -363,7 +393,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     if (_isLoading) return;
 
     _isLoading = true;
-    HapticFeedback.mediumImpact();
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
     setState(() {});
 
@@ -373,8 +403,16 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         parameters: {'method': provider},
       );
       await method();
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': provider},
+      );
       await _checkStatusAndNotify();
     } catch (e, stackTrace) {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': provider, 'reason': e.toString()},
+      );
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -409,6 +447,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   }
 
   Widget _buildLanguageSelector(bool isDark) {
+    // ✅ COLOR BUG FIX: Correctly adapts text/background depending on theme
     final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
     final selectedTextColor = isDark ? Colors.white : AppColors.accent;
     final unselectedTextColor = isDark
@@ -425,12 +464,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         ),
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
-            HapticFeedback.lightImpact();
+            HapticFeedback.selectionClick();
             LanguageService.instance.setLanguage(newValue);
-            FirebaseAnalytics.instance.logEvent(
-              name: 'auth_language_changed',
-              parameters: {'lang': newValue.name},
-            );
           },
           color: menuBgColor,
           shape: RoundedRectangleBorder(
@@ -585,7 +620,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                         ),
                                       ],
                                     ),
-                                    _buildLanguageSelector(isDark),
+                                    _buildLanguageSelector(
+                                      isDark,
+                                    ), // ✅ Passed isDark
                                   ],
                                 ),
                               ),
@@ -686,7 +723,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                       const SizedBox(height: 24),
                                       Semantics(
                                         button: true,
-                                        label: _t('continue_btn'),
+                                        label: _isLoading
+                                            ? "Loading, please wait"
+                                            : _t('continue_btn'),
                                         child: Listener(
                                           onPointerDown: (_) {
                                             if (!_isLoading)
@@ -883,10 +922,15 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         hint: _t('phone_hint'),
         icon: Icons.phone_android_rounded,
         inputType: TextInputType.phone,
-        autofillHints: const [AutofillHints.telephoneNumber],
+        autofillHints: const [AutofillHints.telephoneNumberNational],
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(9),
+        ],
         activeColor: activeColor,
         isDark: isDark,
         validator: _validatePhone,
+        prefixText: '+94 ',
       ),
     );
   }
@@ -948,13 +992,20 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     required String hint,
     required IconData icon,
     Iterable<String>? autofillHints,
+    List<TextInputFormatter>? inputFormatters,
     TextInputType inputType = TextInputType.text,
     bool isPassword = false,
+    bool isPasswordVisible = false,
+    VoidCallback? onToggleVisibility,
     required Color activeColor,
     required bool isDark,
     String? Function(String?)? validator,
+    bool readOnly = false,
+    String? prefixText,
   }) {
     final borderColor = isDark ? AppColors.darkStroke : Colors.grey.shade300;
+    final readOnlyBorder = isDark ? Colors.transparent : Colors.grey.shade200;
+    final readOnlyBg = isDark ? AppColors.darkBackground : Colors.grey.shade100;
     final textColor = isDark
         ? AppColors.darkTextPrimary
         : AppColors.textPrimary;
@@ -962,7 +1013,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         ? AppColors.darkTextSecondary
         : Colors.grey.shade500;
 
-    // ✅ ACCESSIBILITY FIX: Wrapped in Semantics
     return Semantics(
       label: label,
       textField: true,
@@ -974,11 +1024,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
             : TextInputAction.next,
         obscureText: isPassword && !_isPasswordVisible,
         autofillHints: autofillHints,
+        inputFormatters: inputFormatters,
         validator: validator,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
         style: AppTypography.body.copyWith(
-          color: textColor,
+          color: readOnly ? hintColor : textColor,
           fontWeight: FontWeight.w600,
         ),
         decoration: InputDecoration(
@@ -987,32 +1038,47 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           hintText: hint,
           hintStyle: AppTypography.body.copyWith(color: hintColor),
           prefixIcon: Icon(icon, color: hintColor, size: 22),
+          prefixText: prefixText,
+          prefixStyle: AppTypography.body.copyWith(
+            color: textColor,
+            fontWeight: FontWeight.w600,
+          ),
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
-                    _isPasswordVisible
+                    isPasswordVisible
                         ? Icons.visibility_off_rounded
                         : Icons.visibility_rounded,
                     color: hintColor,
                     size: 22,
                   ),
                   onPressed: () {
-                    HapticFeedback.lightImpact();
-                    setState(() => _isPasswordVisible = !_isPasswordVisible);
+                    HapticFeedback.selectionClick();
+                    if (onToggleVisibility != null) onToggleVisibility();
                   },
                 )
               : null,
+          filled: readOnly,
+          fillColor: readOnly
+              ? readOnlyBg
+              : (isDark ? AppColors.darkSurface : Colors.white),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,
             vertical: 18,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: borderColor, width: 1.5),
+            borderSide: BorderSide(
+              color: readOnly ? readOnlyBorder : borderColor,
+              width: 1.5,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: activeColor, width: 2),
+            borderSide: BorderSide(
+              color: readOnly ? readOnlyBorder : activeColor,
+              width: readOnly ? 1.5 : 2,
+            ),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
@@ -1118,7 +1184,6 @@ class _ToggleTab extends StatelessWidget {
 class _HeaderBackgroundPainter extends CustomPainter {
   final Color color;
   _HeaderBackgroundPainter({required this.color});
-
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;

@@ -9,7 +9,7 @@ import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
-import 'package:vango_parent_app/utils/auth_ui_helper.dart'; // ✅ UI Helper
+import 'package:vango_parent_app/utils/auth_ui_helper.dart';
 
 const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   AppLanguage.english: {
@@ -37,11 +37,11 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'err_name_req': 'Full Name is required',
     'err_name_min': 'Name must be at least 3 characters',
     'err_phone_req': 'Mobile Number is required',
-    'err_phone_inv': 'Invalid format (use 7XXXXXXXX)',
+    'err_phone_inv': 'Invalid format',
     'err_email_inv': 'Enter a valid email address',
     'err_rel_req': 'Please select your relationship type.',
     'err_form': 'Please check the form for errors.',
-    'err_generic': 'Something went wrong. Please try again.',
+    'err_generic': 'Something went wrong.',
   },
   AppLanguage.sinhala: {
     'title': 'පැතිකඩ සම්පූර්ණ කරන්න',
@@ -67,11 +67,11 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'err_name_req': 'සම්පූර්ණ නම අවශ්‍යයි',
     'err_name_min': 'නම අවම වශයෙන් අකුරු 3ක් විය යුතුය',
     'err_phone_req': 'දුරකථන අංකය අවශ්‍යයි',
-    'err_phone_inv': 'වැරදි ආකෘතියකි (7XXXXXXXX භාවිතා කරන්න)',
+    'err_phone_inv': 'වැරදි ආකෘතියකි',
     'err_email_inv': 'නිවැරදි විද්‍යුත් තැපෑලක් ඇතුලත් කරන්න',
     'err_rel_req': 'කරුණාකර සම්බන්ධතා වර්ගය තෝරන්න.',
     'err_form': 'කරුණාකර පෝරමයේ දෝෂ පරීක්ෂා කරන්න.',
-    'err_generic': 'දෝෂයක් සිදුවිය. කරුණාකර නැවත උත්සාහ කරන්න.',
+    'err_generic': 'දෝෂයක් සිදුවිය.',
   },
   AppLanguage.tamil: {
     'title': 'சுயவிவரத்தை முடிக்கவும்',
@@ -97,11 +97,11 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'err_name_req': 'முழு பெயர் தேவை',
     'err_name_min': 'பெயர் குறைந்தது 3 எழுத்துகளைக் கொண்டிருக்க வேண்டும்',
     'err_phone_req': 'தொலைபேசி எண் தேவை',
-    'err_phone_inv': 'தவறான வடிவம் (7XXXXXXXX ஐப் பயன்படுத்தவும்)',
+    'err_phone_inv': 'தவறான வடிவம்',
     'err_email_inv': 'சரியான மின்னஞ்சலை உள்ளிடவும்',
     'err_rel_req': 'உங்கள் உறவு வகையைத் தேர்ந்தெடுக்கவும்.',
     'err_form': 'படிவத்தில் உள்ள பிழைகளை சரிபார்க்கவும்.',
-    'err_generic': 'ஏதோ தவறு நடந்துவிட்டது. மீண்டும் முயற்சிக்கவும்.',
+    'err_generic': 'ஏதோ தவறு நடந்துவிட்டது.',
   },
 };
 
@@ -111,17 +111,14 @@ class CreateAccountScreen extends StatefulWidget {
     required this.onProfileCompleted,
     required this.onBack,
   });
-
   final VoidCallback onProfileCompleted;
   final VoidCallback onBack;
-
   @override
   State<CreateAccountScreen> createState() => _CreateAccountScreenState();
 }
 
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final _formKey = GlobalKey<FormState>();
-
   bool _submitting = false;
   bool _isSubmitPressed = false;
 
@@ -131,14 +128,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   bool _emailReadOnly = false;
   bool _phoneReadOnly = false;
-
   String? _selectedRelationship;
   final List<String> _relationshipTypes = ['Parent', 'Guardian', 'Other'];
 
   @override
   void initState() {
     super.initState();
-    FirebaseAnalytics.instance.logEvent(name: 'create_account_viewed');
+    FirebaseAnalytics.instance.logEvent(
+      name: 'auth_screen_viewed',
+      parameters: {'screen': 'create_account'},
+    );
     _autoDetectUser();
   }
 
@@ -153,18 +152,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           _emailReadOnly = true;
         }
 
+        // ✅ PHONE PARSING FIX: Handles both +94 and 94 variations safely
         if (user?.phone != null && user!.phone!.isNotEmpty) {
           String p = user.phone!;
-          if (p.startsWith('+94')) {
+          if (p.startsWith('+94'))
             p = p.substring(3);
-          }
+          else if (p.startsWith('94') && p.length == 11)
+            p = p.substring(2);
           _phoneController.text = p;
           _phoneReadOnly = true;
         } else if (cachedPhone != null && _phoneController.text.isEmpty) {
           String p = cachedPhone;
-          if (p.startsWith('+94')) {
+          if (p.startsWith('+94'))
             p = p.substring(3);
-          }
+          else if (p.startsWith('94') && p.length == 11)
+            p = p.substring(2);
           _phoneController.text = p;
         }
       });
@@ -219,19 +221,24 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     if (_submitting) return;
 
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.lightImpact();
+      HapticFeedback.heavyImpact();
       AuthUiHelper.showMessage(context, _t('err_form'), isError: true);
       return;
     }
     if (_selectedRelationship == null) {
-      HapticFeedback.lightImpact();
+      HapticFeedback.heavyImpact();
       AuthUiHelper.showMessage(context, _t('err_rel_req'), isError: true);
       return;
     }
 
     setState(() => _submitting = true);
-    HapticFeedback.mediumImpact();
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
+
+    FirebaseAnalytics.instance.logEvent(
+      name: 'auth_attempt',
+      parameters: {'method': 'create_account'},
+    );
 
     var phoneInput = _phoneController.text.trim().replaceAll(' ', '');
     phoneInput = '+94$phoneInput';
@@ -287,6 +294,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           stackTrace,
           reason: 'Failed to verify phone linked',
         );
+        FirebaseAnalytics.instance.logEvent(
+          name: 'auth_failure',
+          parameters: {
+            'method': 'create_account',
+            'reason': 'phone_link_failed',
+          },
+        );
         AuthUiHelper.showMessage(
           context,
           _t(AuthUiHelper.parseErrorKey(e)),
@@ -333,6 +347,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           stackTrace,
           reason: 'Failed to verify email linked',
         );
+        FirebaseAnalytics.instance.logEvent(
+          name: 'auth_failure',
+          parameters: {
+            'method': 'create_account',
+            'reason': 'email_link_failed',
+          },
+        );
         AuthUiHelper.showMessage(
           context,
           _t(AuthUiHelper.parseErrorKey(e)),
@@ -353,7 +374,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
 
       await AuthService.instance.markProfileCompleted();
-      FirebaseAnalytics.instance.logEvent(name: 'profile_completed');
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': 'create_account'},
+      );
 
       if (mounted) widget.onProfileCompleted();
     } catch (e, stackTrace) {
@@ -362,6 +386,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           e,
           stackTrace,
           reason: 'Failed to save parent profile',
+        );
+        FirebaseAnalytics.instance.logEvent(
+          name: 'auth_failure',
+          parameters: {
+            'method': 'create_account',
+            'reason': 'save_profile_failed',
+          },
         );
         AuthUiHelper.showMessage(
           context,
@@ -375,7 +406,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> _handleCancel() async {
-    HapticFeedback.lightImpact();
+    HapticFeedback.selectionClick();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkSurfaceStrong : Colors.white;
@@ -447,7 +478,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
   }
 
-  Widget _buildLanguageSelector() {
+  Widget _buildLanguageSelector(bool isDark) {
+    // ✅ COLOR FIX: Passes isDark locally
+    final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
+    final selectedTextColor = isDark ? Colors.white : AppColors.accent;
+    final unselectedTextColor = isDark
+        ? AppColors.darkTextSecondary
+        : Colors.grey.shade700;
+
     return Semantics(
       button: true,
       label: "Select Language",
@@ -458,14 +496,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ),
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
-            HapticFeedback.lightImpact();
+            HapticFeedback.selectionClick();
             LanguageService.instance.setLanguage(newValue);
-            FirebaseAnalytics.instance.logEvent(
-              name: 'lang_changed',
-              parameters: {'lang': newValue.name},
-            );
           },
-          color: AppColors.darkSurface,
+          color: menuBgColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -480,9 +514,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 child: Text(
                   _getLanguageName(lang),
                   style: AppTypography.body.copyWith(
-                    color: isSelected
-                        ? Colors.white
-                        : AppColors.darkTextSecondary,
+                    color: isSelected ? selectedTextColor : unselectedTextColor,
                     fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                   ),
                 ),
@@ -598,7 +630,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         ),
                                       ),
                                     ),
-                                    _buildLanguageSelector(),
+                                    _buildLanguageSelector(
+                                      isDark,
+                                    ), // ✅ Pass isDark locally
                                   ],
                                 ),
                               ),
@@ -692,6 +726,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         autofillHints: const [
                                           AutofillHints.telephoneNumberNational,
                                         ],
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
+                                          LengthLimitingTextInputFormatter(9),
+                                        ],
                                         isDark: isDark,
                                         activeColor: accentColor,
                                         validator: _validatePhone,
@@ -718,7 +757,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                       const SizedBox(height: 32),
                                       Semantics(
                                         button: true,
-                                        label: _t('continue_btn'),
+                                        label: _submitting
+                                            ? "Loading, please wait"
+                                            : _t('continue_btn'),
                                         child: Listener(
                                           onPointerDown: (_) {
                                             if (!_submitting)
@@ -807,6 +848,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     required String hint,
     required IconData icon,
     Iterable<String>? autofillHints,
+    List<TextInputFormatter>? inputFormatters,
     TextInputType inputType = TextInputType.text,
     bool isPassword = false,
     bool isPasswordVisible = false,
@@ -828,16 +870,20 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         : Colors.grey.shade500;
 
     return Semantics(
-      label: label, // ✅ ACCESSIBILITY FIX
+      label: label,
       textField: true,
       child: TextFormField(
         controller: controller,
         keyboardType: inputType,
-        keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
-        validator: validator,
-        readOnly: readOnly,
+        textInputAction: isPassword
+            ? TextInputAction.done
+            : TextInputAction.next,
+        obscureText: isPassword && !isPasswordVisible,
         autofillHints: autofillHints,
+        inputFormatters: inputFormatters,
+        validator: validator,
         autovalidateMode: AutovalidateMode.onUserInteraction,
+        keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
         style: AppTypography.body.copyWith(
           color: readOnly ? hintColor : textColor,
           fontWeight: FontWeight.w600,
@@ -850,9 +896,24 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           prefixIcon: Icon(icon, color: hintColor, size: 22),
           prefixText: prefixText,
           prefixStyle: AppTypography.body.copyWith(
-            color: readOnly ? hintColor : textColor,
+            color: textColor,
             fontWeight: FontWeight.w600,
           ),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    isPasswordVisible
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: hintColor,
+                    size: 22,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    if (onToggleVisibility != null) onToggleVisibility();
+                  },
+                )
+              : null,
           filled: readOnly,
           fillColor: readOnly
               ? readOnlyBg
@@ -864,14 +925,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: readOnly ? readOnlyBorder : borderColor,
+              color: readOnly ? Colors.transparent : borderColor,
               width: 1.5,
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: readOnly ? readOnlyBorder : activeColor,
+              color: readOnly ? Colors.transparent : activeColor,
               width: readOnly ? 1.5 : 2,
             ),
           ),
@@ -896,7 +957,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final hintColor = isDark
         ? AppColors.darkTextSecondary
         : Colors.grey.shade500;
-
     final List<String> localizedTypes = [
       _t('rel_parent'),
       _t('rel_guardian'),
@@ -904,7 +964,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     ];
 
     return Semantics(
-      label: _t('relationship'), // ✅ ACCESSIBILITY FIX
+      label: _t('relationship'),
       button: true,
       child: DropdownButtonFormField<String>(
         initialValue: _selectedRelationship != null
@@ -947,16 +1007,20 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
           ),
         ),
-        items: localizedTypes.map((displayType) {
-          return DropdownMenuItem(value: displayType, child: Text(displayType));
-        }).toList(),
+        items: localizedTypes
+            .map(
+              (displayType) => DropdownMenuItem(
+                value: displayType,
+                child: Text(displayType),
+              ),
+            )
+            .toList(),
         onChanged: (displayVal) {
-          if (displayVal != null) {
-            setState(() {
-              _selectedRelationship =
-                  _relationshipTypes[localizedTypes.indexOf(displayVal)];
-            });
-          }
+          if (displayVal != null)
+            setState(
+              () => _selectedRelationship =
+                  _relationshipTypes[localizedTypes.indexOf(displayVal)],
+            );
         },
       ),
     );
@@ -966,7 +1030,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 class _HeaderBackgroundPainter extends CustomPainter {
   final Color color;
   _HeaderBackgroundPainter({required this.color});
-
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;

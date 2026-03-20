@@ -8,7 +8,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
-import 'package:vango_parent_app/utils/auth_ui_helper.dart'; // ✅ UI Helper
+import 'package:vango_parent_app/utils/auth_ui_helper.dart';
 
 const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   AppLanguage.english: {
@@ -57,14 +57,12 @@ class OtpScreen extends StatefulWidget {
     this.onVerifyOverride,
     this.onResendOverride,
   });
-
   final String identifier;
   final bool isEmail;
   final Future<void> Function() onVerified;
   final VoidCallback onBack;
   final Future<void> Function(String code)? onVerifyOverride;
   final Future<void> Function()? onResendOverride;
-
   @override
   State<OtpScreen> createState() => _OtpScreenState();
 }
@@ -72,7 +70,6 @@ class OtpScreen extends StatefulWidget {
 class _OtpScreenState extends State<OtpScreen> {
   static const int _digits = 6;
   static const int _countdownSeconds = 60;
-
   final List<TextEditingController> _controllers = List.generate(
     _digits,
     (_) => TextEditingController(),
@@ -81,7 +78,6 @@ class _OtpScreenState extends State<OtpScreen> {
     _digits,
     (_) => FocusNode(),
   );
-
   Timer? _countdown;
   int _secondsLeft = _countdownSeconds;
   bool _isLoading = false;
@@ -91,13 +87,14 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void initState() {
     super.initState();
-    FirebaseAnalytics.instance.logEvent(name: 'otp_screen_viewed');
+    FirebaseAnalytics.instance.logEvent(
+      name: 'auth_screen_viewed',
+      parameters: {'screen': 'otp_verify'},
+    );
     _startCountdown();
-
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) _focusNodes[0].requestFocus();
     });
-
     for (var node in _focusNodes) {
       node.addListener(() => setState(() {}));
     }
@@ -118,7 +115,6 @@ class _OtpScreenState extends State<OtpScreen> {
   String _t(String key) =>
       _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
       key;
-
   String _getLanguageName(AppLanguage lang) {
     switch (lang) {
       case AppLanguage.english:
@@ -136,11 +132,10 @@ class _OtpScreenState extends State<OtpScreen> {
     _countdown = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       setState(() {
-        if (_secondsLeft > 0) {
+        if (_secondsLeft > 0)
           _secondsLeft--;
-        } else {
+        else
           timer.cancel();
-        }
       });
     });
   }
@@ -150,18 +145,20 @@ class _OtpScreenState extends State<OtpScreen> {
 
     final code = _controllers.map((c) => c.text).join();
     if (code.length < _digits) {
-      HapticFeedback.lightImpact();
+      HapticFeedback.heavyImpact();
       AuthUiHelper.showMessage(context, _t('err_req'), isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
-    HapticFeedback.mediumImpact();
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
 
     try {
-      FirebaseAnalytics.instance.logEvent(name: 'otp_verification_attempt');
-
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_attempt',
+        parameters: {'method': 'otp_verify'},
+      );
       if (widget.onVerifyOverride != null) {
         await widget.onVerifyOverride!(code);
       } else {
@@ -172,13 +169,20 @@ class _OtpScreenState extends State<OtpScreen> {
           phone: !widget.isEmail ? widget.identifier : null,
         );
       }
-
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': 'otp_verify'},
+      );
       if (mounted) await widget.onVerified();
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
         e,
         stack,
         reason: 'OTP Verification Failed',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'otp_verify', 'reason': e.toString()},
       );
       AuthUiHelper.showMessage(
         context,
@@ -198,25 +202,29 @@ class _OtpScreenState extends State<OtpScreen> {
     if (_secondsLeft > 0 || _resending) return;
 
     setState(() => _resending = true);
-    HapticFeedback.lightImpact();
+    HapticFeedback.selectionClick();
 
     try {
-      FirebaseAnalytics.instance.logEvent(name: 'otp_resend_attempt');
-
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_attempt',
+        parameters: {'method': 'otp_resend'},
+      );
       if (widget.onResendOverride != null) {
         await widget.onResendOverride!();
       } else {
-        if (widget.isEmail) {
+        if (widget.isEmail)
           await Supabase.instance.client.auth.signInWithOtp(
             email: widget.identifier,
           );
-        } else {
+        else
           await Supabase.instance.client.auth.signInWithOtp(
             phone: widget.identifier,
           );
-        }
       }
-
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': 'otp_resend'},
+      );
       AuthUiHelper.showMessage(context, _t('success_resend'), isError: false);
       _startCountdown();
     } catch (e, stack) {
@@ -224,6 +232,10 @@ class _OtpScreenState extends State<OtpScreen> {
         e,
         stack,
         reason: 'OTP Resend Failed',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'otp_resend', 'reason': e.toString()},
       );
       AuthUiHelper.showMessage(
         context,
@@ -235,9 +247,15 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
-  Widget _buildLanguageSelector() {
+  Widget _buildLanguageSelector(bool isDark) {
+    final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
+    final selectedTextColor = isDark ? Colors.white : AppColors.accent;
+    final unselectedTextColor = isDark
+        ? AppColors.darkTextSecondary
+        : Colors.grey.shade700;
+
     return Semantics(
-      button: true, // ✅ ACCESSIBILITY FIX
+      button: true,
       label: 'Select Language',
       child: Theme(
         data: Theme.of(context).copyWith(
@@ -246,14 +264,10 @@ class _OtpScreenState extends State<OtpScreen> {
         ),
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
-            HapticFeedback.lightImpact();
+            HapticFeedback.selectionClick();
             LanguageService.instance.setLanguage(newValue);
-            FirebaseAnalytics.instance.logEvent(
-              name: 'lang_changed',
-              parameters: {'lang': newValue.name},
-            );
           },
-          color: AppColors.darkSurface,
+          color: menuBgColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -268,9 +282,7 @@ class _OtpScreenState extends State<OtpScreen> {
                 child: Text(
                   _getLanguageName(lang),
                   style: AppTypography.body.copyWith(
-                    color: isSelected
-                        ? Colors.white
-                        : AppColors.darkTextSecondary,
+                    color: isSelected ? selectedTextColor : unselectedTextColor,
                     fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                   ),
                 ),
@@ -321,9 +333,6 @@ class _OtpScreenState extends State<OtpScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
-    final textColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
     final textSecondary = isDark
         ? AppColors.darkTextSecondary
         : AppColors.textSecondary;
@@ -386,7 +395,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                       label: 'Back',
                                       child: IconButton(
                                         onPressed: () {
-                                          HapticFeedback.lightImpact();
+                                          HapticFeedback.selectionClick();
                                           widget.onBack();
                                         },
                                         icon: const Icon(
@@ -395,7 +404,9 @@ class _OtpScreenState extends State<OtpScreen> {
                                         ),
                                       ),
                                     ),
-                                    _buildLanguageSelector(),
+                                    _buildLanguageSelector(
+                                      isDark,
+                                    ), // ✅ Added isDark parameter
                                   ],
                                 ),
                               ),
@@ -454,7 +465,6 @@ class _OtpScreenState extends State<OtpScreen> {
                                 ),
                                 child: Column(
                                   children: [
-                                    // OTP Boxes
                                     Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
@@ -468,8 +478,6 @@ class _OtpScreenState extends State<OtpScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 32),
-
-                                    // Resend Logic
                                     Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
@@ -482,7 +490,9 @@ class _OtpScreenState extends State<OtpScreen> {
                                         ),
                                         Semantics(
                                           button: true,
-                                          label: _t('resend_btn'),
+                                          label: _resending
+                                              ? "Loading, please wait"
+                                              : _t('resend_btn'),
                                           child: GestureDetector(
                                             onTap: _handleResend,
                                             child: Text(
@@ -505,11 +515,11 @@ class _OtpScreenState extends State<OtpScreen> {
                                       ],
                                     ),
                                     const SizedBox(height: 32),
-
-                                    // Verify Button
                                     Semantics(
                                       button: true,
-                                      label: _t('verify_btn'),
+                                      label: _isLoading
+                                          ? "Loading, please wait"
+                                          : _t('verify_btn'),
                                       child: Listener(
                                         onPointerDown: (_) {
                                           if (!_isLoading)
@@ -588,7 +598,6 @@ class _OtpScreenState extends State<OtpScreen> {
   Widget _buildOtpBox(int index, bool isDark, Color accentColor) {
     final isFocused = _focusNodes[index].hasFocus;
     final hasText = _controllers[index].text.isNotEmpty;
-
     final unselectedBg = isDark
         ? AppColors.darkBackground
         : Colors.grey.shade100;
@@ -596,7 +605,6 @@ class _OtpScreenState extends State<OtpScreen> {
         ? AppColors.darkStroke
         : Colors.grey.shade300;
 
-    // ✅ ACCESSIBILITY FIX: Wrapped in Semantics
     return Semantics(
       label: "OTP Digit ${index + 1}",
       textField: true,
@@ -624,6 +632,7 @@ class _OtpScreenState extends State<OtpScreen> {
             keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
             maxLength: 6,
             autofillHints: const [AutofillHints.oneTimeCode],
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: AppTypography.headline.copyWith(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -635,26 +644,26 @@ class _OtpScreenState extends State<OtpScreen> {
               contentPadding: EdgeInsets.zero,
             ),
             onChanged: (value) {
-              if (value.length > 1) {
-                final chars = value.split('');
+              // ✅ OTP PASTE FIX: Robust Regex mapping
+              final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digits.length > 1) {
+                final chars = digits.split('');
                 for (int i = 0; i < _digits; i++) {
                   if (i < chars.length) {
                     _controllers[i].text = chars[i];
+                    _controllers[i].selection = const TextSelection.collapsed(
+                      offset: 1,
+                    );
                   }
                 }
                 _focusNodes[_digits - 1].requestFocus();
-                if (chars.length == _digits) {
-                  _handleVerify();
-                }
+                if (chars.length >= _digits) _handleVerify();
                 return;
               }
-
-              if (value.isNotEmpty && index < _digits - 1) {
+              if (value.isNotEmpty && index < _digits - 1)
                 _focusNodes[index + 1].requestFocus();
-              }
-              if (value.isEmpty && index > 0) {
+              if (value.isEmpty && index > 0)
                 _focusNodes[index - 1].requestFocus();
-              }
             },
           ),
         ),
@@ -666,7 +675,6 @@ class _OtpScreenState extends State<OtpScreen> {
 class _HeaderBackgroundPainter extends CustomPainter {
   final Color color;
   _HeaderBackgroundPainter({required this.color});
-
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
