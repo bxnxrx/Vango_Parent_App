@@ -362,17 +362,17 @@ class _ChatTile extends StatelessWidget {
                           const SizedBox(height: 4), // Very tight gap, just like WhatsApp
                           if (unreadCount > 0)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                               decoration: BoxDecoration(
                                 color: accentColor,
                                 // Pill-shape handles "1" or "99+" smoothly
                                 borderRadius: BorderRadius.circular(12), 
                               ),
                               constraints: const BoxConstraints(
-                                minWidth: 20,
-                                minHeight: 20,
+                                minWidth: 22,
+                                minHeight: 22,
                               ),
-                              // A tightly bound Column centers the text safely without crashing
+                              // A tightly bound Column centers the text safely without stretching
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -392,7 +392,7 @@ class _ChatTile extends StatelessWidget {
                             )
                           else
                             // Transparent spacer prevents time text from jumping when read
-                            const SizedBox(height: 20), 
+                            const SizedBox(height: 22), 
                         ],
                       ),
                     ],
