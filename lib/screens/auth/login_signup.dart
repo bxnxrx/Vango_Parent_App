@@ -38,6 +38,7 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'err_email_inv': 'Enter a valid email address',
     'err_pass_req': 'Password is required',
     'err_pass_min': 'Password must be at least 8 characters',
+    'err_user_not_found': 'No account found with this email.',
   },
   AppLanguage.sinhala: {
     'welcome': 'ආයුබෝවන්',
@@ -62,6 +63,7 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'err_email_inv': 'නිවැරදි විද්‍යුත් තැපෑලක් ඇතුලත් කරන්න',
     'err_pass_req': 'මුරපදය අවශ්‍යයි',
     'err_pass_min': 'මුරපදය අවම වශයෙන් අකුරු 8ක් විය යුතුය',
+    'err_user_not_found': 'මෙම විද්‍යුත් තැපෑල සඳහා ගිණුමක් හමු නොවීය.',
   },
   AppLanguage.tamil: {
     'welcome': 'நல்வரவு',
@@ -86,6 +88,7 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
     'err_email_inv': 'சரியான மின்னஞ்சலை உள்ளிடவும்',
     'err_pass_req': 'கடவுச்சொல் தேவை',
     'err_pass_min': 'கடவுச்சொல் குறைந்தது 8 எழுத்துகளைக் கொண்டிருக்க வேண்டும்',
+    'err_user_not_found': 'இந்த மின்னஞ்சலுக்கு கணக்கு எதுவும் கிடைக்கவில்லை.',
   },
 };
 
@@ -119,6 +122,20 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    FirebaseAnalytics.instance.logEvent(name: 'auth_screen_viewed');
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   String _t(String key) =>
       _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
       key;
@@ -132,14 +149,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       case AppLanguage.tamil:
         return 'தமிழ்';
     }
-  }
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 
   void _switchTab(bool toPhone) async {
@@ -321,6 +330,25 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         name: 'auth_attempt',
         parameters: {'method': 'forgot_password'},
       );
+
+      // ✅ ENTERPRISE DB CHECK: Validate email exists before sending reset
+      final res = await Supabase.instance.client
+          .from('parents')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+
+      if (res == null) {
+        HapticFeedback.heavyImpact();
+        AuthUiHelper.showMessage(
+          context,
+          _t('err_user_not_found'),
+          isError: true,
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
       await AuthService.instance.requestPasswordReset(email);
       if (!mounted) return;
 
@@ -419,6 +447,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   }
 
   Widget _buildLanguageSelector(bool isDark) {
+    // ✅ COLOR BUG FIX: Correctly adapts text/background depending on theme
     final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
     final selectedTextColor = isDark ? Colors.white : AppColors.accent;
     final unselectedTextColor = isDark
@@ -553,9 +582,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
+                                padding: const EdgeInsets.only(
+                                  left: 28,
+                                  right: 28,
+                                  top: 12,
                                 ),
                                 child: Row(
                                   mainAxisAlignment:
@@ -590,7 +620,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                         ),
                                       ],
                                     ),
-                                    _buildLanguageSelector(isDark),
+                                    _buildLanguageSelector(
+                                      isDark,
+                                    ), // ✅ Passed isDark
                                   ],
                                 ),
                               ),
@@ -689,7 +721,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                               ),
                                       ),
                                       const SizedBox(height: 24),
-                                      // ✅ ACCESSIBILITY FIX: Loading semantics
                                       Semantics(
                                         button: true,
                                         label: _isLoading
@@ -892,7 +923,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         icon: Icons.phone_android_rounded,
         inputType: TextInputType.phone,
         autofillHints: const [AutofillHints.telephoneNumberNational],
-        // ✅ PHONE INPUT FIX: Strict enforcement
         inputFormatters: [
           FilteringTextInputFormatter.digitsOnly,
           LengthLimitingTextInputFormatter(9),
@@ -994,7 +1024,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
             : TextInputAction.next,
         obscureText: isPassword && !_isPasswordVisible,
         autofillHints: autofillHints,
-        inputFormatters: inputFormatters, // ✅ Added for strict formatting
+        inputFormatters: inputFormatters,
         validator: validator,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
@@ -1016,7 +1046,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
-                    _isPasswordVisible
+                    isPasswordVisible
                         ? Icons.visibility_off_rounded
                         : Icons.visibility_rounded,
                     color: hintColor,
@@ -1024,7 +1054,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                   ),
                   onPressed: () {
                     HapticFeedback.selectionClick();
-                    setState(() => _isPasswordVisible = !_isPasswordVisible);
+                    if (onToggleVisibility != null) onToggleVisibility();
                   },
                 )
               : null,
@@ -1154,7 +1184,6 @@ class _ToggleTab extends StatelessWidget {
 class _HeaderBackgroundPainter extends CustomPainter {
   final Color color;
   _HeaderBackgroundPainter({required this.color});
-
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;

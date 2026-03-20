@@ -94,6 +94,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   void initState() {
     super.initState();
+    FirebaseAnalytics.instance.logEvent(
+      name: 'auth_screen_viewed',
+      parameters: {'screen': 'reset_password'},
+    );
   }
 
   @override
@@ -147,7 +151,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     try {
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_attempt',
-        parameters: {'step': 'password_reset'},
+        parameters: {'method': 'password_reset'},
       );
 
       final otp = _otpController.text.trim();
@@ -164,7 +168,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_success',
-        parameters: {'step': 'password_reset'},
+        parameters: {'method': 'password_reset'},
       );
 
       if (!mounted) return;
@@ -181,7 +185,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       );
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_failure',
-        parameters: {'step': 'password_reset', 'reason': e.toString()},
+        parameters: {'method': 'password_reset', 'reason': e.toString()},
       );
       AuthUiHelper.showMessage(
         context,
@@ -193,7 +197,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     }
   }
 
-  Widget _buildLanguageSelector() {
+  Widget _buildLanguageSelector(bool isDark) {
+    final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
+    final selectedTextColor = isDark ? Colors.white : AppColors.accent;
+    final unselectedTextColor = isDark
+        ? AppColors.darkTextSecondary
+        : Colors.grey.shade700;
+
     return Semantics(
       button: true,
       label: 'Select Language',
@@ -207,7 +217,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             HapticFeedback.selectionClick();
             LanguageService.instance.setLanguage(newValue);
           },
-          color: AppColors.darkSurface,
+          color: menuBgColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -222,9 +232,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 child: Text(
                   _getLanguageName(lang),
                   style: AppTypography.body.copyWith(
-                    color: isSelected
-                        ? Colors.white
-                        : AppColors.darkTextSecondary,
+                    color: isSelected ? selectedTextColor : unselectedTextColor,
                     fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                   ),
                 ),
@@ -275,6 +283,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
     final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return ValueListenableBuilder<AppLanguage>(
@@ -340,7 +351,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         ),
                                       ),
                                     ),
-                                    _buildLanguageSelector(),
+                                    _buildLanguageSelector(
+                                      isDark,
+                                    ), // ✅ Added isDark Parameter
                                   ],
                                 ),
                               ),
@@ -425,7 +438,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                           FilteringTextInputFormatter
                                               .digitsOnly,
                                           LengthLimitingTextInputFormatter(6),
-                                        ], // ✅ STRICT FORMAT
+                                        ],
                                         isDark: isDark,
                                         activeColor: accentColor,
                                         validator: (val) =>
@@ -477,9 +490,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         button: true,
                                         label: _isLoading
                                             ? "Loading, please wait"
-                                            : _t(
-                                                'reset_btn',
-                                              ), // ✅ ACCESSIBILITY FIX
+                                            : _t('reset_btn'),
                                         child: Listener(
                                           onPointerDown: (_) {
                                             if (!_isLoading)

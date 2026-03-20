@@ -134,6 +134,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   @override
   void initState() {
     super.initState();
+    FirebaseAnalytics.instance.logEvent(
+      name: 'auth_screen_viewed',
+      parameters: {'screen': 'create_account'},
+    );
+    _autoDetectUser();
   }
 
   Future<void> _autoDetectUser() async {
@@ -147,14 +152,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           _emailReadOnly = true;
         }
 
+        // ✅ PHONE PARSING FIX: Handles both +94 and 94 variations safely
         if (user?.phone != null && user!.phone!.isNotEmpty) {
           String p = user.phone!;
-          if (p.startsWith('+94')) p = p.substring(3);
+          if (p.startsWith('+94'))
+            p = p.substring(3);
+          else if (p.startsWith('94') && p.length == 11)
+            p = p.substring(2);
           _phoneController.text = p;
           _phoneReadOnly = true;
         } else if (cachedPhone != null && _phoneController.text.isEmpty) {
           String p = cachedPhone;
-          if (p.startsWith('+94')) p = p.substring(3);
+          if (p.startsWith('+94'))
+            p = p.substring(3);
+          else if (p.startsWith('94') && p.length == 11)
+            p = p.substring(2);
           _phoneController.text = p;
         }
       });
@@ -193,7 +205,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   String? _validatePhone(String? value) {
     if (value == null || value.trim().isEmpty) return _t('err_phone_req');
     final cleanPhone = value.replaceAll(' ', '');
-    // ✅ PHONE FIX: Strict 9 digits only.
     final phoneRegex = RegExp(r'^[0-9]{9}$');
     if (!phoneRegex.hasMatch(cleanPhone)) return _t('err_phone_inv');
     return null;
@@ -226,7 +237,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
     FirebaseAnalytics.instance.logEvent(
       name: 'auth_attempt',
-      parameters: {'step': 'profile_create'},
+      parameters: {'method': 'create_account'},
     );
 
     var phoneInput = _phoneController.text.trim().replaceAll(' ', '');
@@ -285,7 +296,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         );
         FirebaseAnalytics.instance.logEvent(
           name: 'auth_failure',
-          parameters: {'step': 'profile_create', 'reason': 'phone_link_failed'},
+          parameters: {
+            'method': 'create_account',
+            'reason': 'phone_link_failed',
+          },
         );
         AuthUiHelper.showMessage(
           context,
@@ -335,7 +349,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         );
         FirebaseAnalytics.instance.logEvent(
           name: 'auth_failure',
-          parameters: {'step': 'profile_create', 'reason': 'email_link_failed'},
+          parameters: {
+            'method': 'create_account',
+            'reason': 'email_link_failed',
+          },
         );
         AuthUiHelper.showMessage(
           context,
@@ -359,7 +376,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       await AuthService.instance.markProfileCompleted();
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_success',
-        parameters: {'step': 'profile_create'},
+        parameters: {'method': 'create_account'},
       );
 
       if (mounted) widget.onProfileCompleted();
@@ -373,7 +390,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         FirebaseAnalytics.instance.logEvent(
           name: 'auth_failure',
           parameters: {
-            'step': 'profile_create',
+            'method': 'create_account',
             'reason': 'save_profile_failed',
           },
         );
@@ -461,7 +478,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
   }
 
-  Widget _buildLanguageSelector() {
+  Widget _buildLanguageSelector(bool isDark) {
+    // ✅ COLOR FIX: Passes isDark locally
+    final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
+    final selectedTextColor = isDark ? Colors.white : AppColors.accent;
+    final unselectedTextColor = isDark
+        ? AppColors.darkTextSecondary
+        : Colors.grey.shade700;
+
     return Semantics(
       button: true,
       label: "Select Language",
@@ -475,7 +499,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             HapticFeedback.selectionClick();
             LanguageService.instance.setLanguage(newValue);
           },
-          color: AppColors.darkSurface,
+          color: menuBgColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -490,9 +514,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 child: Text(
                   _getLanguageName(lang),
                   style: AppTypography.body.copyWith(
-                    color: isSelected
-                        ? Colors.white
-                        : AppColors.darkTextSecondary,
+                    color: isSelected ? selectedTextColor : unselectedTextColor,
                     fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                   ),
                 ),
@@ -608,7 +630,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         ),
                                       ),
                                     ),
-                                    _buildLanguageSelector(),
+                                    _buildLanguageSelector(
+                                      isDark,
+                                    ), // ✅ Pass isDark locally
                                   ],
                                 ),
                               ),
@@ -702,7 +726,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         autofillHints: const [
                                           AutofillHints.telephoneNumberNational,
                                         ],
-                                        // ✅ PHONE INPUT FIX: Strict enforcement
                                         inputFormatters: [
                                           FilteringTextInputFormatter
                                               .digitsOnly,
@@ -732,7 +755,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         readOnly: _emailReadOnly,
                                       ),
                                       const SizedBox(height: 32),
-                                      // ✅ ACCESSIBILITY FIX: Loading semantics
                                       Semantics(
                                         button: true,
                                         label: _submitting
