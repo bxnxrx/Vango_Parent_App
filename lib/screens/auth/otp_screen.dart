@@ -102,12 +102,10 @@ class _OtpScreenState extends State<OtpScreen> {
     FirebaseAnalytics.instance.logEvent(name: 'otp_screen_viewed');
     _startCountdown();
 
-    // Auto-focus first field
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) _focusNodes[0].requestFocus();
     });
 
-    // Add listeners for rich UI updates (highlighting active box)
     for (var node in _focusNodes) {
       node.addListener(() => setState(() {}));
     }
@@ -246,7 +244,6 @@ class _OtpScreenState extends State<OtpScreen> {
         reason: 'OTP Verification Failed',
       );
       _showMessage(_parseError(e), isError: true);
-      // Clear fields on error
       for (var c in _controllers) {
         c.clear();
       }
@@ -447,7 +444,8 @@ class _OtpScreenState extends State<OtpScreen> {
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 40),
+                              // ✅ UNIFIED SPACING
+                              const SizedBox(height: 20),
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 28,
@@ -461,6 +459,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                         color: Colors.white,
                                         fontSize: 32,
                                         fontWeight: FontWeight.bold,
+                                        height: 1.1,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
@@ -471,15 +470,15 @@ class _OtpScreenState extends State<OtpScreen> {
                                           alpha: 0.9,
                                         ),
                                         fontSize: 15,
-                                        height: 1.4,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
+                              // ✅ UNIFIED SPACING
                               SizedBox(
                                 height:
-                                    MediaQuery.of(context).size.height * 0.06,
+                                    MediaQuery.of(context).size.height * 0.08,
                               ),
                               Container(
                                 width: double.infinity,
@@ -660,7 +659,8 @@ class _OtpScreenState extends State<OtpScreen> {
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
-          maxLength: 6, // Allow pasting full code
+          maxLength: 6,
+          autofillHints: const [AutofillHints.oneTimeCode],
           style: AppTypography.headline.copyWith(
             fontSize: 22,
             fontWeight: FontWeight.bold,
@@ -672,7 +672,6 @@ class _OtpScreenState extends State<OtpScreen> {
             contentPadding: EdgeInsets.zero,
           ),
           onChanged: (value) {
-            // Enterprise Paste Handling: If user pastes 6 digits
             if (value.length > 1) {
               final chars = value.split('');
               for (int i = 0; i < _digits; i++) {
@@ -682,7 +681,7 @@ class _OtpScreenState extends State<OtpScreen> {
               }
               _focusNodes[_digits - 1].requestFocus();
               if (chars.length == _digits) {
-                _handleVerify(); // Auto submit
+                _handleVerify();
               }
               return;
             }
@@ -700,6 +699,7 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 }
 
+// ✅ UNIFIED PAINTER: Same exact curves as Create Account / Login
 class _HeaderBackgroundPainter extends CustomPainter {
   final Color color;
   _HeaderBackgroundPainter({required this.color});
@@ -708,8 +708,8 @@ class _HeaderBackgroundPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
     final path = Path();
-    path.lineTo(0, 250);
-    path.quadraticBezierTo(size.width / 2, 330, size.width, 250);
+    path.lineTo(0, 370);
+    path.quadraticBezierTo(size.width / 2, 450, size.width, 370);
     path.lineTo(size.width, 0);
     path.close();
     canvas.drawPath(path, paint);
