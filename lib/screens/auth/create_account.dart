@@ -134,8 +134,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   @override
   void initState() {
     super.initState();
-    FirebaseAnalytics.instance.logEvent(name: 'create_account_viewed');
-    _autoDetectUser();
   }
 
   Future<void> _autoDetectUser() async {
@@ -195,6 +193,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   String? _validatePhone(String? value) {
     if (value == null || value.trim().isEmpty) return _t('err_phone_req');
     final cleanPhone = value.replaceAll(' ', '');
+    // ✅ PHONE FIX: Strict 9 digits only.
     final phoneRegex = RegExp(r'^[0-9]{9}$');
     if (!phoneRegex.hasMatch(cleanPhone)) return _t('err_phone_inv');
     return null;
@@ -211,19 +210,24 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     if (_submitting) return;
 
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.heavyImpact(); // ✅ HAPTIC: Error
+      HapticFeedback.heavyImpact();
       AuthUiHelper.showMessage(context, _t('err_form'), isError: true);
       return;
     }
     if (_selectedRelationship == null) {
-      HapticFeedback.heavyImpact(); // ✅ HAPTIC: Error
+      HapticFeedback.heavyImpact();
       AuthUiHelper.showMessage(context, _t('err_rel_req'), isError: true);
       return;
     }
 
     setState(() => _submitting = true);
-    HapticFeedback.selectionClick(); // ✅ HAPTIC: Action
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
+
+    FirebaseAnalytics.instance.logEvent(
+      name: 'auth_attempt',
+      parameters: {'step': 'profile_create'},
+    );
 
     var phoneInput = _phoneController.text.trim().replaceAll(' ', '');
     phoneInput = '+94$phoneInput';
@@ -279,6 +283,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           stackTrace,
           reason: 'Failed to verify phone linked',
         );
+        FirebaseAnalytics.instance.logEvent(
+          name: 'auth_failure',
+          parameters: {'step': 'profile_create', 'reason': 'phone_link_failed'},
+        );
         AuthUiHelper.showMessage(
           context,
           _t(AuthUiHelper.parseErrorKey(e)),
@@ -325,6 +333,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           stackTrace,
           reason: 'Failed to verify email linked',
         );
+        FirebaseAnalytics.instance.logEvent(
+          name: 'auth_failure',
+          parameters: {'step': 'profile_create', 'reason': 'email_link_failed'},
+        );
         AuthUiHelper.showMessage(
           context,
           _t(AuthUiHelper.parseErrorKey(e)),
@@ -345,7 +357,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
 
       await AuthService.instance.markProfileCompleted();
-      FirebaseAnalytics.instance.logEvent(name: 'profile_completed');
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'step': 'profile_create'},
+      );
 
       if (mounted) widget.onProfileCompleted();
     } catch (e, stackTrace) {
@@ -354,6 +369,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           e,
           stackTrace,
           reason: 'Failed to save parent profile',
+        );
+        FirebaseAnalytics.instance.logEvent(
+          name: 'auth_failure',
+          parameters: {
+            'step': 'profile_create',
+            'reason': 'save_profile_failed',
+          },
         );
         AuthUiHelper.showMessage(
           context,
@@ -367,7 +389,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> _handleCancel() async {
-    HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
+    HapticFeedback.selectionClick();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkSurfaceStrong : Colors.white;
@@ -450,7 +472,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ),
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
-            HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
+            HapticFeedback.selectionClick();
             LanguageService.instance.setLanguage(newValue);
           },
           color: AppColors.darkSurface,
@@ -680,6 +702,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         autofillHints: const [
                                           AutofillHints.telephoneNumberNational,
                                         ],
+                                        // ✅ PHONE INPUT FIX: Strict enforcement
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
+                                          LengthLimitingTextInputFormatter(9),
+                                        ],
                                         isDark: isDark,
                                         activeColor: accentColor,
                                         validator: _validatePhone,
@@ -704,9 +732,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         readOnly: _emailReadOnly,
                                       ),
                                       const SizedBox(height: 32),
+                                      // ✅ ACCESSIBILITY FIX: Loading semantics
                                       Semantics(
                                         button: true,
-                                        label: _t('continue_btn'),
+                                        label: _submitting
+                                            ? "Loading, please wait"
+                                            : _t('continue_btn'),
                                         child: Listener(
                                           onPointerDown: (_) {
                                             if (!_submitting)
@@ -795,6 +826,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     required String hint,
     required IconData icon,
     Iterable<String>? autofillHints,
+    List<TextInputFormatter>? inputFormatters,
     TextInputType inputType = TextInputType.text,
     bool isPassword = false,
     bool isPasswordVisible = false,
@@ -826,6 +858,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             : TextInputAction.next,
         obscureText: isPassword && !isPasswordVisible,
         autofillHints: autofillHints,
+        inputFormatters: inputFormatters,
         validator: validator,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
@@ -854,7 +887,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     size: 22,
                   ),
                   onPressed: () {
-                    HapticFeedback.selectionClick(); // ✅ HAPTIC: UI Interaction
+                    HapticFeedback.selectionClick();
                     if (onToggleVisibility != null) onToggleVisibility();
                   },
                 )

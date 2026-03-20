@@ -119,20 +119,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    FirebaseAnalytics.instance.logEvent(name: 'auth_screen_viewed');
-  }
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
   String _t(String key) =>
       _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
       key;
@@ -148,17 +134,20 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   void _switchTab(bool toPhone) async {
     if (_isPhoneLogin == toPhone || _isLoading) return;
-
-    HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
+    HapticFeedback.selectionClick();
     await Future.delayed(const Duration(milliseconds: 150));
-
     if (!mounted) return;
-
-    setState(() {
-      _isPhoneLogin = toPhone;
-    });
+    setState(() => _isPhoneLogin = toPhone);
     _formKey.currentState?.reset();
   }
 
@@ -185,14 +174,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   Future<void> _handlePhoneLogin() async {
     if (_isLoading) return;
-
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.heavyImpact(); // ✅ HAPTIC: Error
+      HapticFeedback.heavyImpact();
       return;
     }
 
     _isLoading = true;
-    HapticFeedback.selectionClick(); // ✅ HAPTIC: Button Action
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
     setState(() {});
 
@@ -205,12 +193,20 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         parameters: {'method': 'phone'},
       );
       await Supabase.instance.client.auth.signInWithOtp(phone: phone);
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': 'phone', 'step': 'otp_sent'},
+      );
       widget.onOtpRequested(phone);
     } catch (e, stackTrace) {
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
         reason: 'Phone Auth Failed',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'phone', 'reason': e.toString()},
       );
       AuthUiHelper.showMessage(
         context,
@@ -224,14 +220,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   Future<void> _handleEmailLogin() async {
     if (_isLoading) return;
-
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.heavyImpact(); // ✅ HAPTIC: Error
+      HapticFeedback.heavyImpact();
       return;
     }
 
     _isLoading = true;
-    HapticFeedback.selectionClick(); // ✅ HAPTIC: Button Action
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
     setState(() {});
 
@@ -246,11 +241,23 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       final result = await AuthService.instance.signInOrSignUp(email, password);
 
       if (result.requiresEmailVerification) {
+        FirebaseAnalytics.instance.logEvent(
+          name: 'auth_success',
+          parameters: {'method': 'email', 'step': 'verification_sent'},
+        );
         widget.onEmailVerificationNeeded(email);
       } else {
+        FirebaseAnalytics.instance.logEvent(
+          name: 'auth_success',
+          parameters: {'method': 'email', 'step': 'logged_in'},
+        );
         await _checkStatusAndNotify();
       }
     } on AuthException catch (e, stackTrace) {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'email', 'reason': e.message},
+      );
       if (e.message.toLowerCase().contains('email not confirmed') ||
           e.code == 'email_not_confirmed') {
         try {
@@ -273,6 +280,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         );
       }
     } catch (e, stackTrace) {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'email', 'reason': e.toString()},
+      );
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -295,20 +306,28 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     final emailError = _validateEmail(email);
 
     if (emailError != null) {
-      HapticFeedback.heavyImpact(); // ✅ HAPTIC: Error
+      HapticFeedback.heavyImpact();
       AuthUiHelper.showMessage(context, emailError, isError: true);
       return;
     }
 
     _isLoading = true;
-    HapticFeedback.selectionClick(); // ✅ HAPTIC: Button Action
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
     setState(() {});
 
     try {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_attempt',
+        parameters: {'method': 'forgot_password'},
+      );
       await AuthService.instance.requestPasswordReset(email);
       if (!mounted) return;
 
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': 'forgot_password', 'step': 'reset_sent'},
+      );
       AuthUiHelper.showMessage(context, _t('reset_sent'), isError: false);
 
       await Future.delayed(const Duration(milliseconds: 300));
@@ -320,6 +339,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         ),
       );
     } catch (e, stackTrace) {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'forgot_password', 'reason': e.toString()},
+      );
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -342,7 +365,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     if (_isLoading) return;
 
     _isLoading = true;
-    HapticFeedback.selectionClick(); // ✅ HAPTIC: Button Action
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
     setState(() {});
 
@@ -352,8 +375,16 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         parameters: {'method': provider},
       );
       await method();
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': provider},
+      );
       await _checkStatusAndNotify();
     } catch (e, stackTrace) {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': provider, 'reason': e.toString()},
+      );
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -404,7 +435,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         ),
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
-            HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
+            HapticFeedback.selectionClick();
             LanguageService.instance.setLanguage(newValue);
           },
           color: menuBgColor,
@@ -522,10 +553,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 28,
-                                  right: 28,
-                                  top: 12,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
                                 ),
                                 child: Row(
                                   mainAxisAlignment:
@@ -659,9 +689,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                               ),
                                       ),
                                       const SizedBox(height: 24),
+                                      // ✅ ACCESSIBILITY FIX: Loading semantics
                                       Semantics(
                                         button: true,
-                                        label: _t('continue_btn'),
+                                        label: _isLoading
+                                            ? "Loading, please wait"
+                                            : _t('continue_btn'),
                                         child: Listener(
                                           onPointerDown: (_) {
                                             if (!_isLoading)
@@ -859,6 +892,11 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         icon: Icons.phone_android_rounded,
         inputType: TextInputType.phone,
         autofillHints: const [AutofillHints.telephoneNumberNational],
+        // ✅ PHONE INPUT FIX: Strict enforcement
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(9),
+        ],
         activeColor: activeColor,
         isDark: isDark,
         validator: _validatePhone,
@@ -924,8 +962,11 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     required String hint,
     required IconData icon,
     Iterable<String>? autofillHints,
+    List<TextInputFormatter>? inputFormatters,
     TextInputType inputType = TextInputType.text,
     bool isPassword = false,
+    bool isPasswordVisible = false,
+    VoidCallback? onToggleVisibility,
     required Color activeColor,
     required bool isDark,
     String? Function(String?)? validator,
@@ -953,6 +994,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
             : TextInputAction.next,
         obscureText: isPassword && !_isPasswordVisible,
         autofillHints: autofillHints,
+        inputFormatters: inputFormatters, // ✅ Added for strict formatting
         validator: validator,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
@@ -981,7 +1023,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                     size: 22,
                   ),
                   onPressed: () {
-                    HapticFeedback.selectionClick(); // ✅ HAPTIC: Button
+                    HapticFeedback.selectionClick();
                     setState(() => _isPasswordVisible = !_isPasswordVisible);
                   },
                 )

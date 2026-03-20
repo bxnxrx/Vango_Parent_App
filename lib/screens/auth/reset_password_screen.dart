@@ -94,7 +94,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   void initState() {
     super.initState();
-    FirebaseAnalytics.instance.logEvent(name: 'reset_password_viewed');
   }
 
   @override
@@ -137,23 +136,35 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (_isLoading) return;
 
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.heavyImpact(); // ✅ HAPTIC: Error
+      HapticFeedback.heavyImpact();
       return;
     }
 
     setState(() => _isLoading = true);
-    HapticFeedback.selectionClick(); // ✅ HAPTIC: Button Action
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
 
     try {
-      FirebaseAnalytics.instance.logEvent(name: 'password_reset_attempt');
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_attempt',
+        parameters: {'step': 'password_reset'},
+      );
+
+      final otp = _otpController.text.trim();
+      final newPassword = _passwordController.text.trim();
+
       await Supabase.instance.client.auth.verifyOTP(
         email: widget.email,
-        token: _otpController.text.trim(),
+        token: otp,
         type: OtpType.recovery,
       );
       await Supabase.instance.client.auth.updateUser(
-        UserAttributes(password: _passwordController.text.trim()),
+        UserAttributes(password: newPassword),
+      );
+
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'step': 'password_reset'},
       );
 
       if (!mounted) return;
@@ -167,6 +178,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         e,
         stack,
         reason: 'Password Reset Failed',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'step': 'password_reset', 'reason': e.toString()},
       );
       AuthUiHelper.showMessage(
         context,
@@ -189,7 +204,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         ),
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
-            HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
+            HapticFeedback.selectionClick();
             LanguageService.instance.setLanguage(newValue);
           },
           color: AppColors.darkSurface,
@@ -316,7 +331,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                       label: 'Back',
                                       child: IconButton(
                                         onPressed: () {
-                                          HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
+                                          HapticFeedback.selectionClick();
                                           Navigator.pop(context);
                                         },
                                         icon: const Icon(
@@ -406,6 +421,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         autofillHints: const [
                                           AutofillHints.oneTimeCode,
                                         ],
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
+                                          LengthLimitingTextInputFormatter(6),
+                                        ], // ✅ STRICT FORMAT
                                         isDark: isDark,
                                         activeColor: accentColor,
                                         validator: (val) =>
@@ -455,7 +475,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                       const SizedBox(height: 32),
                                       Semantics(
                                         button: true,
-                                        label: _t('reset_btn'),
+                                        label: _isLoading
+                                            ? "Loading, please wait"
+                                            : _t(
+                                                'reset_btn',
+                                              ), // ✅ ACCESSIBILITY FIX
                                         child: Listener(
                                           onPointerDown: (_) {
                                             if (!_isLoading)
@@ -544,6 +568,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     required IconData icon,
     TextInputType inputType = TextInputType.text,
     Iterable<String>? autofillHints,
+    List<TextInputFormatter>? inputFormatters,
     bool isPassword = false,
     bool isPasswordVisible = false,
     VoidCallback? onToggleVisibility,
@@ -570,6 +595,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             : TextInputAction.next,
         obscureText: isPassword && !isPasswordVisible,
         autofillHints: autofillHints,
+        inputFormatters: inputFormatters,
         validator: validator,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
@@ -593,7 +619,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     size: 22,
                   ),
                   onPressed: () {
-                    HapticFeedback.selectionClick(); // ✅ HAPTIC: UI Interaction
+                    HapticFeedback.selectionClick();
                     if (onToggleVisibility != null) onToggleVisibility();
                   },
                 )

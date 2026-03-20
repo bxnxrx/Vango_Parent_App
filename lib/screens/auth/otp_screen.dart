@@ -87,14 +87,6 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void initState() {
     super.initState();
-    FirebaseAnalytics.instance.logEvent(name: 'otp_screen_viewed');
-    _startCountdown();
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) _focusNodes[0].requestFocus();
-    });
-    for (var node in _focusNodes) {
-      node.addListener(() => setState(() {}));
-    }
   }
 
   @override
@@ -129,11 +121,10 @@ class _OtpScreenState extends State<OtpScreen> {
     _countdown = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       setState(() {
-        if (_secondsLeft > 0) {
+        if (_secondsLeft > 0)
           _secondsLeft--;
-        } else {
+        else
           timer.cancel();
-        }
       });
     });
   }
@@ -143,17 +134,20 @@ class _OtpScreenState extends State<OtpScreen> {
 
     final code = _controllers.map((c) => c.text).join();
     if (code.length < _digits) {
-      HapticFeedback.heavyImpact(); // ✅ HAPTIC: Error
+      HapticFeedback.heavyImpact();
       AuthUiHelper.showMessage(context, _t('err_req'), isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
-    HapticFeedback.selectionClick(); // ✅ HAPTIC: Button Submit
+    HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
 
     try {
-      FirebaseAnalytics.instance.logEvent(name: 'otp_verification_attempt');
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_attempt',
+        parameters: {'step': 'otp_verify'},
+      );
       if (widget.onVerifyOverride != null) {
         await widget.onVerifyOverride!(code);
       } else {
@@ -164,12 +158,20 @@ class _OtpScreenState extends State<OtpScreen> {
           phone: !widget.isEmail ? widget.identifier : null,
         );
       }
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'step': 'otp_verify'},
+      );
       if (mounted) await widget.onVerified();
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
         e,
         stack,
         reason: 'OTP Verification Failed',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'step': 'otp_verify', 'reason': e.toString()},
       );
       AuthUiHelper.showMessage(
         context,
@@ -189,23 +191,29 @@ class _OtpScreenState extends State<OtpScreen> {
     if (_secondsLeft > 0 || _resending) return;
 
     setState(() => _resending = true);
-    HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation/Action
+    HapticFeedback.selectionClick();
 
     try {
-      FirebaseAnalytics.instance.logEvent(name: 'otp_resend_attempt');
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_attempt',
+        parameters: {'step': 'otp_resend'},
+      );
       if (widget.onResendOverride != null) {
         await widget.onResendOverride!();
       } else {
-        if (widget.isEmail) {
+        if (widget.isEmail)
           await Supabase.instance.client.auth.signInWithOtp(
             email: widget.identifier,
           );
-        } else {
+        else
           await Supabase.instance.client.auth.signInWithOtp(
             phone: widget.identifier,
           );
-        }
       }
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'step': 'otp_resend'},
+      );
       AuthUiHelper.showMessage(context, _t('success_resend'), isError: false);
       _startCountdown();
     } catch (e, stack) {
@@ -213,6 +221,10 @@ class _OtpScreenState extends State<OtpScreen> {
         e,
         stack,
         reason: 'OTP Resend Failed',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'step': 'otp_resend', 'reason': e.toString()},
       );
       AuthUiHelper.showMessage(
         context,
@@ -235,7 +247,7 @@ class _OtpScreenState extends State<OtpScreen> {
         ),
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
-            HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
+            HapticFeedback.selectionClick();
             LanguageService.instance.setLanguage(newValue);
           },
           color: AppColors.darkSurface,
@@ -306,9 +318,6 @@ class _OtpScreenState extends State<OtpScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
-    final textColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
     final textSecondary = isDark
         ? AppColors.darkTextSecondary
         : AppColors.textSecondary;
@@ -464,7 +473,11 @@ class _OtpScreenState extends State<OtpScreen> {
                                         ),
                                         Semantics(
                                           button: true,
-                                          label: _t('resend_btn'),
+                                          label: _resending
+                                              ? "Loading, please wait"
+                                              : _t(
+                                                  'resend_btn',
+                                                ), // ✅ ACCESSIBILITY FIX
                                           child: GestureDetector(
                                             onTap: _handleResend,
                                             child: Text(
@@ -489,7 +502,11 @@ class _OtpScreenState extends State<OtpScreen> {
                                     const SizedBox(height: 32),
                                     Semantics(
                                       button: true,
-                                      label: _t('verify_btn'),
+                                      label: _isLoading
+                                          ? "Loading, please wait"
+                                          : _t(
+                                              'verify_btn',
+                                            ), // ✅ ACCESSIBILITY FIX
                                       child: Listener(
                                         onPointerDown: (_) {
                                           if (!_isLoading)
@@ -602,6 +619,8 @@ class _OtpScreenState extends State<OtpScreen> {
             keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
             maxLength: 6,
             autofillHints: const [AutofillHints.oneTimeCode],
+            // ✅ OTP INPUT FIX: Extra strict formatters
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: AppTypography.headline.copyWith(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -622,12 +641,10 @@ class _OtpScreenState extends State<OtpScreen> {
                 if (chars.length == _digits) _handleVerify();
                 return;
               }
-              if (value.isNotEmpty && index < _digits - 1) {
+              if (value.isNotEmpty && index < _digits - 1)
                 _focusNodes[index + 1].requestFocus();
-              }
-              if (value.isEmpty && index > 0) {
+              if (value.isEmpty && index > 0)
                 _focusNodes[index - 1].requestFocus();
-              }
             },
           ),
         ),
