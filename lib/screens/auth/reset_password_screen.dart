@@ -1,11 +1,75 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:vango_parent_app/services/auth_service.dart';
-// Removed unused app_colors import
+import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+
+import 'package:vango_parent_app/theme/app_colors.dart';
+import 'package:vango_parent_app/theme/app_typography.dart';
+import 'package:vango_parent_app/services/language_service.dart';
+
+const Map<AppLanguage, Map<String, String>> _localizedStrings = {
+  AppLanguage.english: {
+    'title': 'Create New Password',
+    'subtitle':
+        'Enter the OTP sent to your email and your new secure password.',
+    'otp_label': 'Reset Code (OTP)',
+    'otp_hint': '6-digit code',
+    'new_pass_label': 'New Password',
+    'new_pass_hint': '********',
+    'reset_btn': 'Set New Password',
+    'err_otp_req': 'OTP code is required',
+    'err_pass_req': 'Password is required',
+    'err_pass_len': 'Password must be at least 8 characters',
+    'err_pass_up': 'Must contain at least one uppercase letter',
+    'err_pass_low': 'Must contain at least one lowercase letter',
+    'err_invalid': 'Invalid or expired OTP code.',
+    'err_network': 'Network error. Please check your connection.',
+    'err_generic': 'Password reset failed. Please try again.',
+    'success_reset': 'Password successfully reset! Please log in.',
+  },
+  AppLanguage.sinhala: {
+    'title': 'නව මුරපදයක් සාදන්න',
+    'subtitle':
+        'ඔබගේ විද්‍යුත් තැපෑලට යැවූ OTP කේතය සහ නව මුරපදය ඇතුළත් කරන්න.',
+    'otp_label': 'යළි පිහිටුවීමේ කේතය (OTP)',
+    'otp_hint': 'ඉලක්කම් 6ක කේතය',
+    'new_pass_label': 'නව මුරපදය',
+    'new_pass_hint': '********',
+    'reset_btn': 'නව මුරපදය සකසන්න',
+    'err_otp_req': 'OTP කේතය අවශ්‍යයි',
+    'err_pass_req': 'මුරපදය අවශ්‍යයි',
+    'err_pass_len': 'මුරපදය අවම වශයෙන් අකුරු 8ක් විය යුතුය',
+    'err_pass_up': 'අවම වශයෙන් එක් කැපිටල් අකුරක් අඩංගු විය යුතුය',
+    'err_pass_low': 'අවම වශයෙන් එක් සිම්පල් අකුරක් අඩංගු විය යුතුය',
+    'err_invalid': 'වැරදි හෝ කල් ඉකුත් වූ OTP කේතයකි.',
+    'err_network': 'ජාල දෝෂයකි. ඔබගේ සම්බන්ධතාවය පරීක්ෂා කරන්න.',
+    'err_generic': 'මුරපදය යළි පිහිටුවීම අසාර්ථකයි.',
+    'success_reset': 'මුරපදය සාර්ථකව යළි පිහිටුවන ලදී! කරුණාකර ලොග් වන්න.',
+  },
+  AppLanguage.tamil: {
+    'title': 'புதிய கடவுச்சொல்லை உருவாக்கு',
+    'subtitle':
+        'மின்னஞ்சலுக்கு அனுப்பப்பட்ட OTP மற்றும் புதிய கடவுச்சொல்லை உள்ளிடவும்.',
+    'otp_label': 'மீட்டமைப்பு குறியீடு (OTP)',
+    'otp_hint': '6 இலக்க குறியீடு',
+    'new_pass_label': 'புதிய கடவுச்சொல்',
+    'new_pass_hint': '********',
+    'reset_btn': 'கடவுச்சொல்லை அமைக்கவும்',
+    'err_otp_req': 'OTP குறியீடு தேவை',
+    'err_pass_req': 'கடவுச்சொல் தேவை',
+    'err_pass_len': 'கடவுச்சொல் குறைந்தது 8 எழுத்துகளைக் கொண்டிருக்க வேண்டும்',
+    'err_pass_up': 'குறைந்தது ஒரு பெரிய எழுத்து இருக்க வேண்டும்',
+    'err_pass_low': 'குறைந்தது ஒரு சிறிய எழுத்து இருக்க வேண்டும்',
+    'err_invalid': 'தவறான அல்லது காலாவதியான OTP.',
+    'err_network': 'நெட்வொர்க் பிழை. இணைப்பை சரிபார்க்கவும்.',
+    'err_generic': 'கடவுச்சொல் மீட்டமைப்பு தோல்வியடைந்தது.',
+    'success_reset': 'கடவுச்சொல் வெற்றிகரமாக மாற்றப்பட்டது! உள்நுழையவும்.',
+  },
+};
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key, required this.email});
-
   final String email;
 
   @override
@@ -19,6 +83,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   bool _isLoading = false;
   bool _isPasswordVisible = false;
+  bool _isSubmitPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    FirebaseAnalytics.instance.logEvent(name: 'reset_password_viewed');
+  }
 
   @override
   void dispose() {
@@ -27,185 +98,193 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  String _t(String key) =>
+      _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
+      key;
+
+  String _getLanguageName(AppLanguage lang) {
+    switch (lang) {
+      case AppLanguage.english:
+        return 'English';
+      case AppLanguage.sinhala:
+        return 'සිංහල';
+      case AppLanguage.tamil:
+        return 'தமிழ்';
+    }
   }
 
-  // Reuse the strong password validator
+  String _parseError(dynamic error) {
+    if (error is AuthException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('invalid') || msg.contains('expired'))
+        return _t('err_invalid');
+    }
+    final errStr = error.toString().toLowerCase();
+    if (errStr.contains('network') || errStr.contains('socket'))
+      return _t('err_network');
+    return _t('err_generic');
+  }
+
+  void _showMessage(String message, {bool isError = true}) {
+    if (!mounted) return;
+    HapticFeedback.heavyImpact();
+
+    final bgColor = isError
+        ? Theme.of(context).colorScheme.error
+        : Colors.green.shade700;
+    final icon = isError
+        ? Icons.error_outline_rounded
+        : Icons.check_circle_outline_rounded;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(icon, color: Colors.white, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: AppTypography.body.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: bgColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.only(bottom: 30, left: 20, right: 20),
+          elevation: 6,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+  }
+
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Password is required';
-    }
-    if (value.length < 8) {
-      return 'Password must be at least 8 characters';
-    }
-    if (!value.contains(RegExp(r'[A-Z]'))) {
-      return 'Must contain at least one uppercase letter';
-    }
-    if (!value.contains(RegExp(r'[a-z]'))) {
-      return 'Must contain at least one lowercase letter';
-    }
-    if (!value.contains(RegExp(r'[0-9]'))) {
-      return 'Must contain at least one number';
-    }
-    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
-      return 'Must contain at least one special character';
-    }
+    if (value == null || value.isEmpty) return _t('err_pass_req');
+    if (value.length < 8) return _t('err_pass_len');
+    if (!value.contains(RegExp(r'[A-Z]'))) return _t('err_pass_up');
+    if (!value.contains(RegExp(r'[a-z]'))) return _t('err_pass_low');
     return null;
   }
 
   Future<void> _handleReset() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isLoading) return;
+
+    if (!_formKey.currentState!.validate()) {
+      HapticFeedback.lightImpact();
+      return;
+    }
 
     setState(() => _isLoading = true);
+    HapticFeedback.mediumImpact();
+    FocusScope.of(context).unfocus();
 
     try {
-      // 1. Verify the OTP Code (Type: Recovery)
-      await AuthService.instance.verifyRecoveryOtp(
+      FirebaseAnalytics.instance.logEvent(name: 'password_reset_attempt');
+
+      final otp = _otpController.text.trim();
+      final newPassword = _passwordController.text.trim();
+
+      // 1. Verify the OTP
+      await Supabase.instance.client.auth.verifyOTP(
         email: widget.email,
-        token: _otpController.text.trim(),
+        token: otp,
+        type: OtpType.recovery,
       );
 
-      // 2. Set the new password
-      await AuthService.instance.updateUserPassword(
-        _passwordController.text.trim(),
+      // 2. Update the password
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(password: newPassword),
       );
 
-      _showMessage('Password updated successfully! Please log in.');
+      if (!mounted) return;
+      _showMessage(_t('success_reset'), isError: false);
 
-      if (mounted) {
-        // Pop back to login screen
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      _showMessage('Failed to reset password: $e');
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+
+      // Pop back to login screen
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (e, stack) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stack,
+        reason: 'Password Reset Failed',
+      );
+      _showMessage(_parseError(e), isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    const Color vangoBlue = Color(0xFF2D325A);
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+  Widget _buildLanguageSelector() {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: PopupMenuButton<AppLanguage>(
+        onSelected: (AppLanguage newValue) {
+          HapticFeedback.lightImpact();
+          LanguageService.instance.setLanguage(newValue);
+        },
+        color: AppColors.darkSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 8,
+        offset: const Offset(0, 45),
+        itemBuilder: (context) => AppLanguage.values.map((lang) {
+          final isSelected =
+              LanguageService.instance.currentLanguage.value == lang;
+          return PopupMenuItem<AppLanguage>(
+            value: lang,
+            child: Center(
+              child: Text(
+                _getLanguageName(lang),
+                style: AppTypography.body.copyWith(
+                  color: isSelected
+                      ? Colors.white
+                      : AppColors.darkTextSecondary,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              const Icon(Icons.language_rounded, color: Colors.white, size: 16),
+              const SizedBox(width: 6),
               Text(
-                'Reset Password',
-                style: GoogleFonts.inter(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: vangoBlue,
+                _getLanguageName(
+                  LanguageService.instance.currentLanguage.value,
+                ),
+                style: AppTypography.label.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Enter the code sent to ${widget.email} and create your new password.',
-                style: GoogleFonts.inter(
-                  color: Colors.grey.shade600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // OTP Field
-              TextFormField(
-                controller: _otpController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                validator: (value) {
-                  if (value == null || value.trim().length < 6) {
-                    return 'Enter the valid 6-digit code';
-                  }
-                  return null;
-                },
-                decoration: InputDecoration(
-                  labelText: 'Verification Code',
-                  counterText: "",
-                  prefixIcon: const Icon(Icons.security, color: Colors.grey),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // New Password Field
-              TextFormField(
-                controller: _passwordController,
-                obscureText: !_isPasswordVisible,
-                validator: _validatePassword,
-                decoration: InputDecoration(
-                  labelText: 'New Password',
-                  prefixIcon: const Icon(
-                    Icons.lock_outline,
-                    color: Colors.grey,
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isPasswordVisible
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      color: Colors.grey,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      });
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Action Button
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleReset,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: vangoBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Text(
-                          'Set New Password',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Colors.white,
+                size: 16,
               ),
             ],
           ),
@@ -213,4 +292,361 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
+    final cardColor = isDark ? AppColors.darkSurface : Colors.white;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
+    final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
+
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: LanguageService.instance.currentLanguage,
+      builder: (context, currentLang, child) {
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light.copyWith(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: bgColor,
+            systemNavigationBarIconBrightness: isDark
+                ? Brightness.light
+                : Brightness.dark,
+          ),
+          child: Scaffold(
+            backgroundColor: bgColor,
+            resizeToAvoidBottomInset: false,
+            body: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: CustomPaint(
+                painter: _HeaderBackgroundPainter(
+                  color: isDark
+                      ? AppColors.darkSurfaceStrong
+                      : AppColors.accent,
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: AbsorbPointer(
+                    absorbing: _isLoading,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 500),
+                        child: SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          padding: EdgeInsets.only(
+                            bottom:
+                                MediaQuery.of(context).viewInsets.bottom +
+                                MediaQuery.of(context).padding.bottom +
+                                32,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Semantics(
+                                      button: true,
+                                      label: 'Back',
+                                      child: IconButton(
+                                        onPressed: () {
+                                          HapticFeedback.lightImpact();
+                                          Navigator.pop(context);
+                                        },
+                                        icon: const Icon(
+                                          Icons.arrow_back_ios_new_rounded,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    _buildLanguageSelector(),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 28,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _t('title'),
+                                      style: AppTypography.headline.copyWith(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _t('subtitle'),
+                                      style: AppTypography.body.copyWith(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.08,
+                              ),
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                padding: const EdgeInsets.all(28),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(32),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: isDark ? 0.5 : 0.15,
+                                      ),
+                                      blurRadius: 30,
+                                      offset: const Offset(0, 15),
+                                    ),
+                                  ],
+                                ),
+                                child: Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        widget.email,
+                                        style: AppTypography.headline.copyWith(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          color: accentColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 28),
+
+                                      // OTP Field
+                                      _buildTextField(
+                                        controller: _otpController,
+                                        label: _t('otp_label'),
+                                        hint: _t('otp_hint'),
+                                        icon: Icons.password_rounded,
+                                        inputType: TextInputType.number,
+                                        isDark: isDark,
+                                        activeColor: accentColor,
+                                        validator: (val) =>
+                                            val == null || val.isEmpty
+                                            ? _t('err_otp_req')
+                                            : null,
+                                      ),
+                                      const SizedBox(height: 20),
+
+                                      // New Password Field
+                                      _buildTextField(
+                                        controller: _passwordController,
+                                        label: _t('new_pass_label'),
+                                        hint: _t('new_pass_hint'),
+                                        icon: Icons.lock_outline_rounded,
+                                        isPassword: true,
+                                        isDark: isDark,
+                                        activeColor: accentColor,
+                                        validator: _validatePassword,
+                                      ),
+                                      const SizedBox(height: 32),
+
+                                      // Submit Button
+                                      Semantics(
+                                        button: true,
+                                        child: Listener(
+                                          onPointerDown: (_) {
+                                            if (!_isLoading)
+                                              setState(
+                                                () => _isSubmitPressed = true,
+                                              );
+                                          },
+                                          onPointerUp: (_) {
+                                            if (!_isLoading)
+                                              setState(
+                                                () => _isSubmitPressed = false,
+                                              );
+                                          },
+                                          child: AnimatedScale(
+                                            scale: _isSubmitPressed
+                                                ? 0.96
+                                                : 1.0,
+                                            duration: const Duration(
+                                              milliseconds: 150,
+                                            ),
+                                            curve: Curves.easeInOut,
+                                            child: SizedBox(
+                                              width: double.infinity,
+                                              height: 56,
+                                              child: ElevatedButton(
+                                                onPressed: _isLoading
+                                                    ? null
+                                                    : _handleReset,
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: accentColor,
+                                                  foregroundColor: Colors.white,
+                                                  elevation: 0,
+                                                  textStyle: AppTypography.title
+                                                      .copyWith(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          20,
+                                                        ),
+                                                  ),
+                                                ),
+                                                child: _isLoading
+                                                    ? const SizedBox(
+                                                        width: 24,
+                                                        height: 24,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              color:
+                                                                  Colors.white,
+                                                              strokeWidth: 3,
+                                                            ),
+                                                      )
+                                                    : Text(_t('reset_btn')),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType inputType = TextInputType.text,
+    bool isPassword = false,
+    required Color activeColor,
+    required bool isDark,
+    String? Function(String?)? validator,
+  }) {
+    final borderColor = isDark ? AppColors.darkStroke : Colors.grey.shade300;
+    final textColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final hintColor = isDark
+        ? AppColors.darkTextSecondary
+        : Colors.grey.shade500;
+
+    return TextFormField(
+      controller: controller,
+      keyboardType: inputType,
+      textInputAction: isPassword ? TextInputAction.done : TextInputAction.next,
+      obscureText: isPassword && !_isPasswordVisible,
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
+      style: AppTypography.body.copyWith(
+        color: textColor,
+        fontWeight: FontWeight.w600,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: AppTypography.body.copyWith(color: hintColor),
+        hintText: hint,
+        hintStyle: AppTypography.body.copyWith(color: hintColor),
+        prefixIcon: Icon(icon, color: hintColor, size: 22),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  _isPasswordVisible
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                  color: hintColor,
+                  size: 22,
+                ),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _isPasswordVisible = !_isPasswordVisible);
+                },
+              )
+            : null,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 18,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: borderColor, width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: activeColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderBackgroundPainter extends CustomPainter {
+  final Color color;
+  _HeaderBackgroundPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final path = Path();
+    path.lineTo(0, 250);
+    path.quadraticBezierTo(size.width / 2, 330, size.width, 250);
+    path.lineTo(size.width, 0);
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

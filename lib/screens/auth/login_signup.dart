@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart'; // ✅ Added Crashlytics
 
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/services/app_config.dart';
@@ -105,9 +106,8 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   },
 };
 
-const String _googleIconSvg = '''
-<svg xmlns="http://www.w3.org/2000/svg" width="800px" height="800px" viewBox="-3 0 262 262" preserveAspectRatio="xMidYMid"><path d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027" fill="#4285F4"/><path d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1" fill="#34A853"/><path d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782" fill="#FBBC05"/><path d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251" fill="#EB4335"/></svg>
-''';
+const String _googleIconSvg =
+    '''<svg xmlns="http://www.w3.org/2000/svg" width="800px" height="800px" viewBox="-3 0 262 262" preserveAspectRatio="xMidYMid"><path d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027" fill="#4285F4"/><path d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1" fill="#34A853"/><path d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782" fill="#FBBC05"/><path d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251" fill="#EB4335"/></svg>''';
 
 class LoginSignupScreen extends StatefulWidget {
   const LoginSignupScreen({
@@ -183,7 +183,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         return _t('err_unverified');
       if (msg.contains('password should be')) return _t('err_pass_min');
     }
-
     final errStr = error.toString().toLowerCase();
     if (errStr.contains('network') ||
         errStr.contains('socket') ||
@@ -191,17 +190,19 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         errStr.contains('clientexception')) {
       return _t('err_network');
     }
-
     return _t('err_generic');
   }
 
   void _showMessage(String message, {bool isError = true}) {
     if (!mounted) return;
 
-    // HAPTIC STANDARDIZATION: Heavy impact for success/errors
+    // ✅ HAPTIC FIX: Heavy impact for alerts/errors
     HapticFeedback.heavyImpact();
 
-    final bgColor = isError ? const Color(0xFFB3261E) : const Color(0xFF2E7D32);
+    // ✅ COLOR THEME FIX: Uses system theme for error, standard green for success
+    final bgColor = isError
+        ? Theme.of(context).colorScheme.error
+        : Colors.green.shade700;
     final icon = isError
         ? Icons.error_outline_rounded
         : Icons.check_circle_outline_rounded;
@@ -242,9 +243,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   void _switchTab(bool toPhone) async {
     if (_isPhoneLogin == toPhone || _isLoading) return;
 
-    // HAPTIC STANDARDIZATION: Light impact for navigation/tabs
+    // ✅ HAPTIC FIX: Light impact for navigation
     HapticFeedback.lightImpact();
-    await Future.delayed(const Duration(milliseconds: 120));
+    // ✅ TIMING FIX: Micro interactions = 150ms
+    await Future.delayed(const Duration(milliseconds: 150));
 
     if (!mounted) return;
 
@@ -284,7 +286,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     }
 
     _isLoading = true;
-    // HAPTIC STANDARDIZATION: Medium impact for form submission
+    // ✅ HAPTIC FIX: Medium impact for submit
     HapticFeedback.mediumImpact();
     FocusScope.of(context).unfocus();
     setState(() {});
@@ -298,7 +300,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
       await Supabase.instance.client.auth.signInWithOtp(phone: phone);
       widget.onOtpRequested(phone);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // ✅ GLOBAL LOGGING FIX
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Phone Auth Failed',
+      );
       _showMessage(_parseError(e), isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -333,7 +341,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       } else {
         await _checkStatusAndNotify();
       }
-    } on AuthException catch (e) {
+    } on AuthException catch (e, stackTrace) {
       if (e.message.toLowerCase().contains('email not confirmed') ||
           e.code == 'email_not_confirmed') {
         try {
@@ -344,9 +352,19 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         } catch (_) {}
         widget.onEmailVerificationNeeded(email);
       } else {
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stackTrace,
+          reason: 'Email Auth Failed',
+        );
         _showMessage(_parseError(e), isError: true);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Email Auth Exception',
+      );
       _showMessage(_parseError(e), isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -377,8 +395,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       final successMsg = _t('reset_sent').replaceAll('@email', email);
       _showMessage(successMsg, isError: false);
 
-      // ANIMATION STANDARDIZATION: 400ms delay for navigation
-      await Future.delayed(const Duration(milliseconds: 400));
+      // ✅ TIMING FIX: Page Transitions = 300ms
+      await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
 
       Navigator.of(context).push(
@@ -386,7 +404,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           builder: (context) => ResetPasswordScreen(email: email),
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Forgot Password Request Failed',
+      );
       _showMessage(_parseError(e), isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -411,7 +434,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
       await method();
       await _checkStatusAndNotify();
-    } catch (e) {
+    } catch (e, stackTrace) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Social Auth Failed',
+      );
       _showMessage(_parseError(e), isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -422,7 +450,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     try {
       final status = await AuthService.instance.fetchOnboardingStatus();
       widget.onAuthenticated(status);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Auth Status Check Failed',
+      );
       _showMessage(_parseError(e), isError: true);
     }
   }
@@ -434,68 +467,78 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         ? AppColors.darkTextSecondary
         : Colors.grey.shade700;
 
-    return Theme(
-      data: Theme.of(context).copyWith(
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-      ),
-      child: PopupMenuButton<AppLanguage>(
-        onSelected: (AppLanguage newValue) {
-          HapticFeedback.lightImpact();
-          LanguageService.instance.setLanguage(newValue);
-          FirebaseAnalytics.instance.logEvent(
-            name: 'auth_language_changed',
-            parameters: {'lang': newValue.name},
-          );
-        },
-        color: menuBgColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 8,
-        offset: const Offset(0, 45),
-        itemBuilder: (context) => AppLanguage.values.map((lang) {
-          final isSelected =
-              LanguageService.instance.currentLanguage.value == lang;
-          return PopupMenuItem<AppLanguage>(
-            value: lang,
-            child: Center(
-              child: Text(
-                _getLanguageName(lang),
-                style: AppTypography.body.copyWith(
-                  color: isSelected ? selectedTextColor : unselectedTextColor,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
+    return Semantics(
+      button: true, // ✅ ACCESSIBILITY FIX
+      label: "Select Language",
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+        ),
+        child: PopupMenuButton<AppLanguage>(
+          onSelected: (AppLanguage newValue) {
+            HapticFeedback.lightImpact();
+            LanguageService.instance.setLanguage(newValue);
+            FirebaseAnalytics.instance.logEvent(
+              name: 'auth_language_changed',
+              parameters: {'lang': newValue.name},
+            );
+          },
+          color: menuBgColor,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.language_rounded, color: Colors.white, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                _getLanguageName(
-                  LanguageService.instance.currentLanguage.value,
+          elevation: 8,
+          offset: const Offset(0, 45),
+          itemBuilder: (context) => AppLanguage.values.map((lang) {
+            final isSelected =
+                LanguageService.instance.currentLanguage.value == lang;
+            return PopupMenuItem<AppLanguage>(
+              value: lang,
+              child: Center(
+                child: Text(
+                  _getLanguageName(lang),
+                  style: AppTypography.body.copyWith(
+                    color: isSelected ? selectedTextColor : unselectedTextColor,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                  ),
                 ),
-                style: AppTypography.label.copyWith(
+              ),
+            );
+          }).toList(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.language_rounded,
                   color: Colors.white,
-                  fontWeight: FontWeight.w600,
+                  size: 16,
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Colors.white,
-                size: 16,
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  _getLanguageName(
+                    LanguageService.instance.currentLanguage.value,
+                  ),
+                  style: AppTypography.label.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -513,8 +556,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     final textSecondary = isDark
         ? AppColors.darkTextSecondary
         : AppColors.textSecondary;
-
-    // THEME FIX: No hardcoded Hex colors. Uses centralized AppColors.
     final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return ValueListenableBuilder<AppLanguage>(
@@ -548,7 +589,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                         constraints: const BoxConstraints(maxWidth: 500),
                         child: SingleChildScrollView(
                           physics: const ClampingScrollPhysics(),
-                          // SAFE BOTTOM SPACING FIX: Includes home indicator padding + keyboard
                           padding: EdgeInsets.only(
                             bottom:
                                 MediaQuery.of(context).viewInsets.bottom +
@@ -680,9 +720,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                       ),
                                       const SizedBox(height: 28),
                                       AnimatedSwitcher(
-                                        // ANIMATION STANDARDIZATION
+                                        // ✅ TIMING FIX: Feature Transitions = 400ms
                                         duration: const Duration(
-                                          milliseconds: 300,
+                                          milliseconds: 400,
                                         ),
                                         switchInCurve: Curves.easeOutCubic,
                                         switchOutCurve: Curves.easeInCubic,
@@ -697,61 +737,69 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                               ),
                                       ),
                                       const SizedBox(height: 24),
-                                      Listener(
-                                        onPointerDown: (_) {
-                                          if (!_isLoading)
-                                            setState(
-                                              () => _isSubmitPressed = true,
-                                            );
-                                        },
-                                        onPointerUp: (_) {
-                                          if (!_isLoading)
-                                            setState(
-                                              () => _isSubmitPressed = false,
-                                            );
-                                        },
-                                        child: AnimatedScale(
-                                          scale: _isSubmitPressed ? 0.96 : 1.0,
-                                          // ANIMATION STANDARDIZATION
-                                          duration: const Duration(
-                                            milliseconds: 150,
-                                          ),
-                                          curve: Curves.easeInOut,
-                                          child: SizedBox(
-                                            width: double.infinity,
-                                            height: 56,
-                                            child: ElevatedButton(
-                                              onPressed: _isLoading
-                                                  ? null
-                                                  : (_isPhoneLogin
-                                                        ? _handlePhoneLogin
-                                                        : _handleEmailLogin),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: accentColor,
-                                                foregroundColor: Colors.white,
-                                                elevation: 0,
-                                                textStyle: AppTypography.title
-                                                    .copyWith(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
+                                      Semantics(
+                                        button: true, // ✅ ACCESSIBILITY FIX
+                                        child: Listener(
+                                          onPointerDown: (_) {
+                                            if (!_isLoading)
+                                              setState(
+                                                () => _isSubmitPressed = true,
+                                              );
+                                          },
+                                          onPointerUp: (_) {
+                                            if (!_isLoading)
+                                              setState(
+                                                () => _isSubmitPressed = false,
+                                              );
+                                          },
+                                          child: AnimatedScale(
+                                            scale: _isSubmitPressed
+                                                ? 0.96
+                                                : 1.0,
+                                            // ✅ TIMING FIX: Micro interactions = 150ms
+                                            duration: const Duration(
+                                              milliseconds: 150,
+                                            ),
+                                            curve: Curves.easeInOut,
+                                            child: SizedBox(
+                                              width: double.infinity,
+                                              height: 56,
+                                              child: ElevatedButton(
+                                                onPressed: _isLoading
+                                                    ? null
+                                                    : (_isPhoneLogin
+                                                          ? _handlePhoneLogin
+                                                          : _handleEmailLogin),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: accentColor,
+                                                  foregroundColor: Colors.white,
+                                                  elevation: 0,
+                                                  textStyle: AppTypography.title
+                                                      .copyWith(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          20,
+                                                        ),
+                                                  ),
                                                 ),
+                                                child: _isLoading
+                                                    ? const SizedBox(
+                                                        width: 24,
+                                                        height: 24,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              color:
+                                                                  Colors.white,
+                                                              strokeWidth: 3,
+                                                            ),
+                                                      )
+                                                    : Text(_t('continue_btn')),
                                               ),
-                                              child: _isLoading
-                                                  ? const SizedBox(
-                                                      width: 24,
-                                                      height: 24,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            color: Colors.white,
-                                                            strokeWidth: 3,
-                                                          ),
-                                                    )
-                                                  : Text(_t('continue_btn')),
                                             ),
                                           ),
                                         ),
@@ -822,6 +870,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                                 width: 24,
                                               ),
                                               isDark: isDark,
+                                              label: "Google",
                                               onPressed: _isLoading
                                                   ? null
                                                   : () => _handleSocialLogin(
@@ -844,6 +893,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                                   color: textColor,
                                                 ),
                                                 isDark: isDark,
+                                                label: "Apple",
                                                 onPressed: _isLoading
                                                     ? null
                                                     : () => _handleSocialLogin(
@@ -1026,25 +1076,30 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   Widget _buildSocialButton({
     required Widget icon,
     required bool isDark,
+    required String label,
     required VoidCallback? onPressed,
   }) {
-    return SizedBox(
-      height: 56,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(
-            color: isDark ? AppColors.darkStroke : Colors.grey.shade300,
-            width: 1.5,
+    return Semantics(
+      button: true, // ✅ ACCESSIBILITY FIX
+      label: "Login with $label",
+      child: SizedBox(
+        height: 56,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(
+              color: isDark ? AppColors.darkStroke : Colors.grey.shade300,
+              width: 1.5,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: isDark
+                ? AppColors.darkSurfaceStrong
+                : Colors.transparent,
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          backgroundColor: isDark
-              ? AppColors.darkSurfaceStrong
-              : Colors.transparent,
+          child: icon,
         ),
-        child: icon,
       ),
     );
   }
@@ -1065,35 +1120,41 @@ class _ToggleTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        // ANIMATION STANDARDIZATION
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? (isDark ? AppColors.darkSurfaceStrong : Colors.white)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : [],
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: AppTypography.body.copyWith(
-            fontSize: 15,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+    return Semantics(
+      button: true, // ✅ ACCESSIBILITY FIX
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          // ✅ TIMING FIX: Micro interactions = 150ms
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
             color: isSelected
-                ? (isDark ? Colors.white : Colors.black)
-                : (isDark ? AppColors.darkTextSecondary : Colors.grey.shade600),
+                ? (isDark ? AppColors.darkSurfaceStrong : Colors.white)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: AppTypography.body.copyWith(
+              fontSize: 15,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected
+                  ? (isDark ? Colors.white : Colors.black)
+                  : (isDark
+                        ? AppColors.darkTextSecondary
+                        : Colors.grey.shade600),
+            ),
           ),
         ),
       ),
