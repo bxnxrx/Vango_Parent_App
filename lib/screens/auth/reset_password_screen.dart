@@ -7,7 +7,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
-import 'package:vango_parent_app/utils/auth_ui_helper.dart'; // ✅ UI Helper
+import 'package:vango_parent_app/utils/auth_ui_helper.dart';
 
 const Map<AppLanguage, Map<String, String>> _localizedStrings = {
   AppLanguage.english: {
@@ -75,7 +75,6 @@ const Map<AppLanguage, Map<String, String>> _localizedStrings = {
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key, required this.email});
   final String email;
-
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
@@ -109,7 +108,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   String _t(String key) =>
       _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
       key;
-
   String _getLanguageName(AppLanguage lang) {
     switch (lang) {
       case AppLanguage.english:
@@ -139,30 +137,23 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (_isLoading) return;
 
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.lightImpact();
+      HapticFeedback.heavyImpact(); // ✅ HAPTIC: Error
       return;
     }
 
     setState(() => _isLoading = true);
-    HapticFeedback.mediumImpact();
+    HapticFeedback.selectionClick(); // ✅ HAPTIC: Button Action
     FocusScope.of(context).unfocus();
 
     try {
       FirebaseAnalytics.instance.logEvent(name: 'password_reset_attempt');
-
-      final otp = _otpController.text.trim();
-      final newPassword = _passwordController.text.trim();
-
-      // 1. Verify the OTP
       await Supabase.instance.client.auth.verifyOTP(
         email: widget.email,
-        token: otp,
+        token: _otpController.text.trim(),
         type: OtpType.recovery,
       );
-
-      // 2. Update the password
       await Supabase.instance.client.auth.updateUser(
-        UserAttributes(password: newPassword),
+        UserAttributes(password: _passwordController.text.trim()),
       );
 
       if (!mounted) return;
@@ -170,7 +161,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
       await Future.delayed(const Duration(milliseconds: 1500));
       if (!mounted) return;
-
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
@@ -190,7 +180,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   Widget _buildLanguageSelector() {
     return Semantics(
-      button: true, // ✅ ACCESSIBILITY FIX
+      button: true,
       label: 'Select Language',
       child: Theme(
         data: Theme.of(context).copyWith(
@@ -199,12 +189,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         ),
         child: PopupMenuButton<AppLanguage>(
           onSelected: (AppLanguage newValue) {
-            HapticFeedback.lightImpact();
+            HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
             LanguageService.instance.setLanguage(newValue);
-            FirebaseAnalytics.instance.logEvent(
-              name: 'lang_changed',
-              parameters: {'lang': newValue.name},
-            );
           },
           color: AppColors.darkSurface,
           shape: RoundedRectangleBorder(
@@ -274,9 +260,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
-    final textColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
     final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return ValueListenableBuilder<AppLanguage>(
@@ -333,7 +316,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                       label: 'Back',
                                       child: IconButton(
                                         onPressed: () {
-                                          HapticFeedback.lightImpact();
+                                          HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
                                           Navigator.pop(context);
                                         },
                                         icon: const Icon(
@@ -414,8 +397,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 28),
-
-                                      // OTP Field
                                       _buildTextField(
                                         controller: _otpController,
                                         label: _t('otp_label'),
@@ -424,7 +405,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         inputType: TextInputType.number,
                                         autofillHints: const [
                                           AutofillHints.oneTimeCode,
-                                        ], // ✅ AUTOFILL ONE TIME CODE
+                                        ],
                                         isDark: isDark,
                                         activeColor: accentColor,
                                         validator: (val) =>
@@ -433,8 +414,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                             : null,
                                       ),
                                       const SizedBox(height: 20),
-
-                                      // New Password Field
                                       _buildTextField(
                                         controller: _passwordController,
                                         label: _t('new_pass_label'),
@@ -444,20 +423,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         isPasswordVisible: _isPasswordVisible,
                                         autofillHints: const [
                                           AutofillHints.newPassword,
-                                        ], // ✅ AUTOFILL NEW PASSWORD
-                                        onToggleVisibility: () {
-                                          setState(
-                                            () => _isPasswordVisible =
-                                                !_isPasswordVisible,
-                                          );
-                                        },
+                                        ],
+                                        onToggleVisibility: () => setState(
+                                          () => _isPasswordVisible =
+                                              !_isPasswordVisible,
+                                        ),
                                         isDark: isDark,
                                         activeColor: accentColor,
                                         validator: _validatePassword,
                                       ),
                                       const SizedBox(height: 20),
-
-                                      // Confirm Password Field
                                       _buildTextField(
                                         controller: _confirmPasswordController,
                                         label: _t('confirm_pass_label'),
@@ -468,25 +443,19 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                             _isConfirmPasswordVisible,
                                         autofillHints: const [
                                           AutofillHints.newPassword,
-                                        ], // ✅ AUTOFILL NEW PASSWORD
-                                        onToggleVisibility: () {
-                                          setState(
-                                            () => _isConfirmPasswordVisible =
-                                                !_isConfirmPasswordVisible,
-                                          );
-                                        },
+                                        ],
+                                        onToggleVisibility: () => setState(
+                                          () => _isConfirmPasswordVisible =
+                                              !_isConfirmPasswordVisible,
+                                        ),
                                         isDark: isDark,
                                         activeColor: accentColor,
                                         validator: _validateConfirmPassword,
                                       ),
                                       const SizedBox(height: 32),
-
-                                      // Submit Button
                                       Semantics(
                                         button: true,
-                                        label: _t(
-                                          'reset_btn',
-                                        ), // ✅ ACCESSIBILITY FIX
+                                        label: _t('reset_btn'),
                                         child: Listener(
                                           onPointerDown: (_) {
                                             if (!_isLoading)
@@ -590,7 +559,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         ? AppColors.darkTextSecondary
         : Colors.grey.shade500;
 
-    // ✅ ACCESSIBILITY FIX
     return Semantics(
       label: label,
       textField: true,
@@ -625,7 +593,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     size: 22,
                   ),
                   onPressed: () {
-                    HapticFeedback.lightImpact();
+                    HapticFeedback.selectionClick(); // ✅ HAPTIC: UI Interaction
                     if (onToggleVisibility != null) onToggleVisibility();
                   },
                 )
@@ -659,7 +627,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 class _HeaderBackgroundPainter extends CustomPainter {
   final Color color;
   _HeaderBackgroundPainter({required this.color});
-
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
