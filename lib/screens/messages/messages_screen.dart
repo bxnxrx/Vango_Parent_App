@@ -345,48 +345,55 @@ class _ChatTile extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // ✨ FIXED ALIGNMENT SECTION
-                      SizedBox(
-                        width: 55, 
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _timeLabel(chatData['lastMessageTime'] as Timestamp?),
-                              style: AppTypography.label.copyWith(
-                                fontSize: 11,
-                                color: unreadCount > 0 ? accentColor : secondaryTextColor,
-                                fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
-                              ),
+                      // ✨ WHATSAPP-STYLE ALIGNMENT
+                      Column(
+                        mainAxisSize: MainAxisSize.min, // Hugs the content tightly
+                        crossAxisAlignment: CrossAxisAlignment.end, // Aligns to the far right
+                        mainAxisAlignment: MainAxisAlignment.center, // Centers vertically
+                        children: [
+                          Text(
+                            _timeLabel(chatData['lastMessageTime'] as Timestamp?),
+                            style: AppTypography.label.copyWith(
+                              fontSize: 11,
+                              color: unreadCount > 0 ? accentColor : secondaryTextColor,
+                              fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.w500,
                             ),
-                            if (unreadCount > 0) ...[
-                              const SizedBox(height: 6), 
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: accentColor,
-                                  shape: BoxShape.circle,
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 22,
-                                  minHeight: 22,
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  unreadCount > 99 ? '99+' : unreadCount.toString(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                          ),
+                          const SizedBox(height: 4), // Very tight gap, just like WhatsApp
+                          if (unreadCount > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: accentColor,
+                                // Pill-shape handles "1" or "99+" smoothly
+                                borderRadius: BorderRadius.circular(12), 
                               ),
-                            ] else 
-                              const SizedBox(height: 28), // Placeholder for alignment
-                          ],
-                        ),
+                              constraints: const BoxConstraints(
+                                minWidth: 20,
+                                minHeight: 20,
+                              ),
+                              // A tightly bound Column centers the text safely without crashing
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.0, // Removes default flutter text margin
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            // Transparent spacer prevents time text from jumping when read
+                            const SizedBox(height: 20), 
+                        ],
                       ),
                     ],
                   ),
