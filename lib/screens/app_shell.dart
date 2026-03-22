@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vango_parent_app/screens/finder/finder_screen.dart';
 import 'package:vango_parent_app/screens/home/home_screen.dart';
 import 'package:vango_parent_app/screens/messages/messages_screen.dart';
+import 'package:vango_parent_app/supportbot/supportbot_fab.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 
 class AppShell extends StatefulWidget {
@@ -34,6 +35,11 @@ class _AppShellState extends State<AppShell> {
       key: _scaffoldKey,
       drawer: _buildDrawer(),
       body: SafeArea(child: pages[_index]),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: const Padding(
+        padding: EdgeInsets.only(bottom: 72),
+        child: SupportbotFab(),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: _selectTab,
