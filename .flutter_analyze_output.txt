@@ -1,0 +1,241 @@
+﻿flutter : Package google_api_headers:ios references google_api_headers:ios as 
+the default plugin, but it does not provide an inline implementation.
+At line:1 char:19
++ $analysisOutput = flutter analyze 2>&1; $analysisOutput | Out-File -F ...
++                   ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Package google_...implementation. 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: ios: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: ios:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:linux references google_api_headers:linux as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: linux: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: linux:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:macos references google_api_headers:macos as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: macos: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: macos:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:windows references google_api_headers:windows as 
+the default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: windows: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: windows:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:ios references google_api_headers:ios as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: ios: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: ios:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:linux references google_api_headers:linux as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: linux: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: linux:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:macos references google_api_headers:macos as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: macos: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: macos:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:windows references google_api_headers:windows as 
+the default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: windows: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: windows:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:ios references google_api_headers:ios as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: ios: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: ios:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:linux references google_api_headers:linux as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: linux: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: linux:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:macos references google_api_headers:macos as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: macos: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: macos:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:windows references google_api_headers:windows as 
+the default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: windows: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: windows:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:ios references google_api_headers:ios as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: ios: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: ios:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:linux references google_api_headers:linux as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: linux: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: linux:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:macos references google_api_headers:macos as the 
+default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: macos: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: macos:` `pluginClass` or `dartPluginClass`.
+
+Package google_api_headers:windows references google_api_headers:windows as 
+the default plugin, but it does not provide an inline implementation.
+Ask the maintainers of google_api_headers to either avoid referencing a 
+default implementation via `platforms: windows: default_package: 
+google_api_headers` or add an inline implementation to google_api_headers via 
+`platforms: windows:` `pluginClass` or `dartPluginClass`.
+
+Analyzing Vango_Parent_App...                                   
+
+  error - The named parameter 'onShowOnboarding' is required, but there's no corresponding argument - lib\main.dart:284:25 - missing_required_argument
+  error - The named parameter 'onAttendancePressed' isn't defined - lib\main.dart:287:11 - undefined_named_parameter
+  error - The named parameter 'payments_screen' isn't defined - lib\main.dart:288:11 - undefined_named_parameter
+  error - The named parameter 'Messages_screen' isn't defined - lib\main.dart:289:11 - undefined_named_parameter
+  error - The named parameter 'home_screen' isn't defined - lib\main.dart:290:11 - undefined_named_parameter
+warning - Unused import: 'dart:convert' - lib\screens\Attendance\attendance_screen.dart:1:8 - unused_import
+   info - Statements in an if should be enclosed in a block - lib\screens\Attendance\attendance_screen.dart:230:21 - curly_braces_in_flow_control_structures
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\Attendance\attendance_screen.dart:563:27 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\Attendance\attendance_screen.dart:565:27 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\Attendance\attendance_screen.dart:574:27 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\Attendance\attendance_screen.dart:576:27 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\Attendance\attendance_screen.dart:1119:111 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\Attendance\attendance_screen.dart:1138:110 - deprecated_member_use
+  error - The named parameter 'onOpenDrawer' is required, but there's no corresponding argument - lib\screens\app_shell.dart:31:13 - missing_required_argument
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\app_shell.dart:46:42 - deprecated_member_use
+warning - Unused import: 'package:supabase_flutter/supabase_flutter.dart' - lib\screens\auth\create_account.dart:4:8 - unused_import
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\create_account.dart:159:13 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\create_account.dart:161:13 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\create_account.dart:167:13 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\create_account.dart:169:13 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\create_account.dart:766:47 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\create_account.dart:772:47 - curly_braces_in_flow_control_structures
+warning - The value of the local variable 'readOnlyBorder' isn't used - lib\screens\auth\create_account.dart:863:11 - unused_local_variable
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\create_account.dart:1020:13 - curly_braces_in_flow_control_structures
+   info - The private field _isPasswordVisible could be 'final' - lib\screens\auth\login_signup.dart:117:8 - prefer_final_fields
+   info - Don't use 'BuildContext's across async gaps - lib\screens\auth\login_signup.dart:221:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\auth\login_signup.dart:286:11 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\auth\login_signup.dart:302:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\auth\login_signup.dart:344:11 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\auth\login_signup.dart:422:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\auth\login_signup.dart:442:9 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\login_signup.dart:732:47 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\login_signup.dart:738:47 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\otp_screen.dart:136:11 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\otp_screen.dart:138:11 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps - lib\screens\auth\otp_screen.dart:188:9 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\otp_screen.dart:216:11 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\otp_screen.dart:220:11 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps - lib\screens\auth\otp_screen.dart:228:32 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\auth\otp_screen.dart:241:9 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\otp_screen.dart:526:45 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\otp_screen.dart:532:45 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\otp_screen.dart:664:17 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\otp_screen.dart:666:17 - curly_braces_in_flow_control_structures
+warning - The value of the local variable 'textColor' isn't used - lib\screens\auth\reset_password_screen.dart:286:11 - unused_local_variable
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\reset_password_screen.dart:497:47 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\auth\reset_password_screen.dart:503:47 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps - lib\screens\children\manage_children_screen.dart:94:54 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\children\manage_children_screen.dart:540:54 - use_build_context_synchronously
+warning - The value of the local variable 'scaffoldMessenger' isn't used - lib\screens\children\manage_children_screen.dart:1165:11 - unused_local_variable
+warning - The value of the local variable 'navigator' isn't used - lib\screens\children\manage_children_screen.dart:1166:11 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\finder\finder_screen.dart:805:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\finder\finder_screen.dart:817:49 - deprecated_member_use
+warning - The value of the local variable 'isDark' isn't used - lib\screens\finder\finder_screen.dart:1073:11 - unused_local_variable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\finder\finder_screen.dart:1118:49 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\finder\finder_screen.dart:1141:55 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\home\home_screen.dart:362:74 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\home\home_screen.dart:368:65 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\home\home_screen.dart:459:200 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\home\home_screen.dart:659:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\home\home_screen.dart:664:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\home\home_screen.dart:668:38 - deprecated_member_use
+warning - The '!' will have no effect because the receiver can't be null - lib\screens\messages\messages_screen.dart:54:44 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\screens\messages\messages_screen.dart:227:62 - unnecessary_non_null_assertion
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\more\more_screen.dart:62:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\notifications\notification_panel_screen.dart:277:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\notifications\notification_panel_screen.dart:282:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\notifications\notification_panel_screen.dart:286:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\payments\add_card_screen.dart:143:55 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\payments\add_card_screen.dart:160:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\payments\add_card_screen.dart:196:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\payments\card_added_success_screen.dart:66:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\payments\card_added_success_screen.dart:87:59 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\ride_detail\ride_detail_screen.dart:39:60 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\tracking\live_tracking_screen.dart:345:33 - deprecated_member_use
+   info - 'setMapStyle' is deprecated and shouldn't be used. Use GoogleMap.style instead - lib\screens\tracking\live_tracking_screen.dart:456:26 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\tracking\live_tracking_screen.dart:483:33 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\services\device_service.dart:35:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\device_service.dart:43:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\device_service.dart:77:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\device_service.dart:94:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\device_service.dart:96:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\supportbot\supportbot_screen.dart:364:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\theme\app_colors.dart:58:27 - deprecated_member_use
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\theme\app_theme.dart:24:7 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\theme\app_theme.dart:36:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\theme\app_typography.dart:50:40 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\utils\auth_ui_helper.dart:12:9 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\utils\auth_ui_helper.dart:15:9 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\utils\auth_ui_helper.dart:19:9 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\utils\auth_ui_helper.dart:21:9 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\utils\auth_ui_helper.dart:24:9 - curly_braces_in_flow_control_structures
+warning - The value of the local variable 'isOverdue' isn't used - lib\widgets\child_card.dart:23:11 - unused_local_variable
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\widgets\child_card.dart:128:19 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:26:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:29:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:43:36 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:44:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:66:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:110:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:197:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:232:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:267:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:310:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\driver_card.dart:338:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\gradient_button.dart:53:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\message_thread_tile.dart:17:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\message_thread_tile.dart:19:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\message_thread_tile.dart:47:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\message_thread_tile.dart:48:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\message_thread_tile.dart:109:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\payment_card.dart:30:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\payment_card.dart:33:26 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\payment_card.dart:45:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\payment_card.dart:45:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\payment_card.dart:55:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\payment_card.dart:85:38 - deprecated_member_use
+warning - The asset file '.env' doesn't exist - pubspec.yaml:61:7 - asset_does_not_exist
+
+118 issues found. (ran in 96.0s)
