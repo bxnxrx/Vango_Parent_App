@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:vango_parent_app/screens/payments/card_added_success_screen.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
+import 'package:vango_parent_app/services/payment_service.dart';
 
 class AddCardScreen extends StatefulWidget {
   const AddCardScreen({super.key});
@@ -13,193 +13,123 @@ class AddCardScreen extends StatefulWidget {
 }
 
 class _AddCardScreenState extends State<AddCardScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _cardHolderController = TextEditingController();
-  final _cardNumberController = TextEditingController();
-  final _expiryController = TextEditingController();
-  final _cvvController = TextEditingController();
+  bool _isProcessing = false;
 
-  @override
-  void dispose() {
-    _cardHolderController.dispose();
-    _cardNumberController.dispose();
-    _expiryController.dispose();
-    _cvvController.dispose();
-    super.dispose();
-  }
+  void _initiatePayHerePreapproval() async {
+    setState(() => _isProcessing = true);
 
-  void _saveCard() {
-    if (_formKey.currentState!.validate()) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const CardAddedSuccessScreen()),
-      );
-    }
+    await PaymentService.instance.initCardPreapproval(
+      onSuccess: (paymentId) {
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const CardAddedSuccessScreen()),
+        );
+      },
+      onError: (error) {
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment Error: $error'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      },
+      onDismissed: () {
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic Background
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic Background
-        title: Text('Add Card', style: TextStyle(color: textColor)), // 👇 Dynamic Text
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        title: Text(
+          'Setup Automated Billing',
+          style: TextStyle(color: textColor),
+        ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: textColor), // 👇 Dynamic Back Button
+        iconTheme: IconThemeData(color: textColor),
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 12),
-                _CardPreview(
-                  cardNumber: _cardNumberController.text,
-                  expiryDate: _expiryController.text,
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  'Credit Card Info',
-                  style: AppTypography.title.copyWith(fontSize: 16, color: textColor), // 👇 Dynamic Text
-                ),
-                const SizedBox(height: 20),
-                const _InputLabel(label: 'Card Holder Name'),
-                const SizedBox(height: 8),
-                _CustomTextField(
-                  controller: _cardHolderController,
-                  hintText: 'Enter your Name',
-                  keyboardType: TextInputType.name,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter card holder name';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                const _InputLabel(label: 'Card number*'),
-                const SizedBox(height: 8),
-                _CustomTextField(
-                  controller: _cardNumberController,
-                  hintText: 'Enter your Card Number',
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(16),
-                    _CardNumberFormatter(),
-                  ],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter card number';
-                    }
-                    final cleaned = value.replaceAll(' ', '');
-                    if (cleaned.length < 13) {
-                      return 'Card number must be at least 13 digits';
-                    }
-                    return null;
-                  },
-                  onChanged: (value) => setState(() {}),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const _InputLabel(label: 'Expiry Date MM/YY*'),
-                          const SizedBox(height: 8),
-                          _CustomTextField(
-                            controller: _expiryController,
-                            hintText: 'Enter expiry date',
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(4),
-                              _ExpiryDateFormatter(),
-                            ],
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Required';
-                              }
-                              if (value.length < 5) {
-                                return 'Invalid date';
-                              }
-                              return null;
-                            },
-                            onChanged: (value) => setState(() {}),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const _InputLabel(label: 'CVV'),
-                          const SizedBox(height: 8),
-                          _CustomTextField(
-                            controller: _cvvController,
-                            hintText: '***',
-                            keyboardType: TextInputType.number,
-                            obscureText: true,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(3),
-                            ],
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Required';
-                              }
-                              if (value.length < 3) {
-                                return 'Invalid';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 40),
-                FilledButton(
-                  onPressed: _saveCard,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: isDark ? AppColors.darkSurfaceStrong : AppColors.surfaceStrong, // 👇 Dynamic Button BG
-                    foregroundColor: textColor, // 👇 Dynamic Text Color
-                    minimumSize: const Size.fromHeight(56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: Text(
-                    'Save Card',
-                    style: AppTypography.title.copyWith(fontSize: 16, color: textColor), // 👇 Dynamic Text
-                  ),
-                ),
-              ],
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 12),
+            const _CardPreview(),
+            const SizedBox(height: 40),
+
+            Icon(Icons.autorenew, size: 48, color: AppColors.accent),
+            const SizedBox(height: 16),
+            Text(
+              'Automated Monthly Fees',
+              textAlign: TextAlign.center,
+              style: AppTypography.title.copyWith(
+                fontSize: 20,
+                color: textColor,
+              ),
             ),
-          ),
+            const SizedBox(height: 8),
+            Text(
+              'Securely link your card to automatically pay your monthly school van fees on your billing date. You can cancel or update this at any time.',
+              textAlign: TextAlign.center,
+              style: AppTypography.body.copyWith(
+                color: secondaryTextColor,
+                height: 1.5,
+              ),
+            ),
+
+            const Spacer(),
+
+            FilledButton(
+              onPressed: _isProcessing ? null : _initiatePayHerePreapproval,
+              style: FilledButton.styleFrom(
+                backgroundColor: isDark
+                    ? AppColors.darkSurfaceStrong
+                    : AppColors.surfaceStrong,
+                foregroundColor: textColor,
+                minimumSize: const Size.fromHeight(56),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: _isProcessing
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      'Link Card Securely',
+                      style: AppTypography.title.copyWith(
+                        fontSize: 16,
+                        color: textColor,
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );
   }
 }
 
-// NOTE: The Credit Card preview intentionally stays as the vibrant brand gradient with white text in both modes!
 class _CardPreview extends StatelessWidget {
-  const _CardPreview({required this.cardNumber, required this.expiryDate});
-
-  final String cardNumber;
-  final String expiryDate;
+  const _CardPreview();
 
   @override
   Widget build(BuildContext context) {
@@ -210,10 +140,7 @@ class _CardPreview extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppColors.accent,
-            AppColors.accent.withOpacity(0.7),
-          ],
+          colors: [AppColors.accent, AppColors.accent.withOpacity(0.7)],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppShadows.subtle,
@@ -225,16 +152,19 @@ class _CardPreview extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
-                  '??',
+                  'PayHere Secure',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -244,13 +174,13 @@ class _CardPreview extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                cardNumber.isEmpty ? '•••• •••• •••• ••••' : cardNumber,
-                style: const TextStyle(
+              const Text(
+                '•••• •••• •••• ••••',
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 22,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 2,
+                  letterSpacing: 4,
                 ),
               ),
               const SizedBox(height: 12),
@@ -261,16 +191,16 @@ class _CardPreview extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Expiry Date',
+                        'Card Details',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.7),
-                          fontSize: 10,
+                          fontSize: 12,
                         ),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        expiryDate.isEmpty ? 'MM/YY' : expiryDate,
-                        style: const TextStyle(
+                      const Text(
+                        'Tokenized for Safety',
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -284,135 +214,6 @@ class _CardPreview extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _InputLabel extends StatelessWidget {
-  const _InputLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Text(
-      label,
-      style: AppTypography.body.copyWith(
-        fontSize: 14,
-        color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary, // 👇 Dynamic Label Color
-        fontWeight: FontWeight.w500,
-      ),
-    );
-  }
-}
-
-class _CustomTextField extends StatelessWidget {
-  const _CustomTextField({
-    required this.controller,
-    required this.hintText,
-    this.keyboardType,
-    this.validator,
-    this.inputFormatters,
-    this.obscureText = false,
-    this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final String hintText;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-  final List<TextInputFormatter>? inputFormatters;
-  final bool obscureText;
-  final ValueChanged<String>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final hintColor = isDark ? AppColors.darkTextSecondary.withOpacity(0.5) : AppColors.textSecondary.withOpacity(0.5);
-
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      inputFormatters: inputFormatters,
-      obscureText: obscureText,
-      onChanged: onChanged,
-      style: AppTypography.body.copyWith(fontSize: 15, color: textColor), // 👇 Dynamic Input Text Color
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: AppTypography.body.copyWith(
-          fontSize: 15,
-          color: hintColor, // 👇 Dynamic Hint Color
-        ),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Fill Color
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.accent, width: 2), // Keep vibrant active border
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.danger),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.danger, width: 2),
-        ),
-      ),
-    );
-  }
-}
-
-class _CardNumberFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final text = newValue.text.replaceAll(' ', '');
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < text.length; i++) {
-      if (i > 0 && i % 4 == 0) {
-        buffer.write(' ');
-      }
-      buffer.write(text[i]);
-    }
-
-    final formatted = buffer.toString();
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
-  }
-}
-
-class _ExpiryDateFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final text = newValue.text.replaceAll('/', '');
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < text.length; i++) {
-      if (i == 2) {
-        buffer.write('/');
-      }
-      buffer.write(text[i]);
-    }
-
-    final formatted = buffer.toString();
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

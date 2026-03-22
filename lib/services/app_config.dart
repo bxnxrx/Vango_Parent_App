@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
@@ -9,13 +8,21 @@ class AppConfig {
   static String? get googleWebClientId => _readOptional('GOOGLE_WEB_CLIENT_ID');
   static String? get trackingTripId => _readOptional('TRACKING_TRIP_ID');
 
+  // 👇 ADDED PAYHERE CONFIGS
+  static String get payhereMerchantId =>
+      dotenv.env['PAYHERE_MERCHANT_ID'] ?? '';
+  static bool get payhereIsSandbox =>
+      (dotenv.env['PAYHERE_IS_SANDBOX'] ?? 'true').toLowerCase() == 'true';
+
   static void ensure() {
     if (supabaseUrl.isEmpty ||
         supabaseAnonKey.isEmpty ||
-        backendBaseUrl.isEmpty) {
+        backendBaseUrl.isEmpty ||
+        payhereMerchantId.isEmpty) {
+      // 👇 Added PayHere check
       throw Exception(
         'Missing environment variables in .env file. '
-        'Ensure SUPABASE_URL, SUPABASE_ANON_KEY, and BACKEND_BASE_URL are set.',
+        'Ensure SUPABASE_URL, SUPABASE_ANON_KEY, BACKEND_BASE_URL, and PAYHERE_MERCHANT_ID are set.',
       );
     }
   }
