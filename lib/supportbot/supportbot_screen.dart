@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:vango_parent_app/supportbot/supportbot_message.dart';
 import 'package:vango_parent_app/supportbot/supportbot_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
@@ -47,10 +47,10 @@ class _SupportbotScreenState extends State<SupportbotScreen> {
 
   String _welcomeFor(String lang) {
     if (lang == 'si') {
-      return 'ආයුබෝවන්! VanGo support bot එකට ඔබව සාදරයෙන් පිළිගනිමු.';
+      return 'à¶†à¶ºà·”à¶¶à·à·€à¶±à·Š! VanGo support bot à¶‘à¶šà¶§ à¶”à¶¶à·€ à·ƒà·à¶¯à¶»à¶ºà·™à¶±à·Š à¶´à·’à·…à·’à¶œà¶±à·’à¶¸à·”.';
     }
     if (lang == 'ta') {
-      return 'வணக்கம்! VanGo support bot உங்களுக்கு உதவ தயாராக உள்ளது.';
+      return 'à®µà®£à®•à¯à®•à®®à¯! VanGo support bot à®‰à®™à¯à®•à®³à¯à®•à¯à®•à¯ à®‰à®¤à®µ à®¤à®¯à®¾à®°à®¾à®• à®‰à®³à¯à®³à®¤à¯.';
     }
     return 'Hi! I am the VanGo support assistant. How can I help you today?';
   }
