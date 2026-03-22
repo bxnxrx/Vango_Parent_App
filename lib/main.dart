@@ -283,11 +283,8 @@ class _VanGoAppState extends State<VanGoApp> {
       case _AppStage.home:
         currentScreen = AppShell(
           key: const ValueKey('home'),
+          onShowOnboarding: () => setState(() => _stage = _AppStage.onboarding),
           onSignOut: _signOut,
-          onAttendancePressed: () {},
-          payments_screen: () {},
-          Messages_screen: () {},
-          home_screen: () {},
         );
         break;
     }
