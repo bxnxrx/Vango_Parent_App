@@ -1,10 +1,51 @@
 ﻿import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-// Needed for OtpType
+import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
-import 'package:vango_parent_app/services/auth_service.dart';
+import 'package:vango_parent_app/theme/app_colors.dart';
+import 'package:vango_parent_app/theme/app_typography.dart';
+import 'package:vango_parent_app/services/language_service.dart';
+import 'package:vango_parent_app/utils/auth_ui_helper.dart';
+
+const Map<AppLanguage, Map<String, String>> _localizedStrings = {
+  AppLanguage.english: {
+    'title': 'Verify Account',
+    'subtitle_phone': 'Enter the 6-digit code sent to\n@id',
+    'subtitle_email': 'Enter the 6-digit code sent to\n@id',
+    'resend_q': "Didn't receive the code? ",
+    'resend_in': 'Resend in @sec s',
+    'resend_btn': 'Resend Code',
+    'verify_btn': 'Verify & Proceed',
+    'err_req': 'Please enter all 6 digits',
+    'success_resend': 'Verification code resent successfully',
+  },
+  AppLanguage.sinhala: {
+    'title': 'ගිණුම තහවුරු කරන්න',
+    'subtitle_phone': '@id වෙත යැවූ ඉලක්කම් 6ක කේතය ඇතුළත් කරන්න',
+    'subtitle_email': '@id වෙත යැවූ ඉලක්කම් 6ක කේතය ඇතුළත් කරන්න',
+    'resend_q': "කේතය ලැබුණේ නැද්ද? ",
+    'resend_in': 'තත්පර @sec කින් නැවත යවන්න',
+    'resend_btn': 'නැවත යවන්න',
+    'verify_btn': 'තහවුරු කර ඉදිරියට',
+    'err_req': 'කරුණාකර ඉලක්කම් 6ම ඇතුළත් කරන්න',
+    'success_resend': 'තහවුරු කිරීමේ කේතය සාර්ථකව නැවත යවන ලදී',
+  },
+  AppLanguage.tamil: {
+    'title': 'கணக்கை சரிபார்க்கவும்',
+    'subtitle_phone': '@id க்கு அனுப்பப்பட்ட 6 இலக்க குறியீட்டை உள்ளிடவும்',
+    'subtitle_email': '@id க்கு அனுப்பப்பட்ட 6 இலக்க குறியீட்டை உள்ளிடவும்',
+    'resend_q': "குறியீடு கிடைக்கவில்லையா? ",
+    'resend_in': '@sec வினாடிகளில் மீண்டும் அனுப்பு',
+    'resend_btn': 'மீண்டும் அனுப்பு',
+    'verify_btn': 'சரிபார்த்து தொடரவும்',
+    'err_req': 'அனைத்து 6 இலக்கங்களையும் உள்ளிடவும்',
+    'success_resend':
+        'சரிபார்ப்புக் குறியீடு வெற்றிகரமாக மீண்டும் அனுப்பப்பட்டது',
+  },
+};
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({
@@ -16,374 +57,635 @@ class OtpScreen extends StatefulWidget {
     this.onVerifyOverride,
     this.onResendOverride,
   });
-
   final String identifier;
   final bool isEmail;
   final Future<void> Function() onVerified;
   final VoidCallback onBack;
-
-  // New overrides for custom logic (like Identity Linking)
   final Future<void> Function(String code)? onVerifyOverride;
   final Future<void> Function()? onResendOverride;
-
   @override
   State<OtpScreen> createState() => _OtpScreenState();
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  // Constants
   static const int _digits = 6;
   static const int _countdownSeconds = 60;
-  static const Color _vangoBlue = Color(0xFF2D325A);
-
-  // State
   final List<TextEditingController> _controllers = List.generate(
     _digits,
     (_) => TextEditingController(),
+  );
+  final List<FocusNode> _focusNodes = List.generate(
+    _digits,
+    (_) => FocusNode(),
   );
   Timer? _countdown;
   int _secondsLeft = _countdownSeconds;
   bool _isLoading = false;
   bool _resending = false;
+  bool _isSubmitPressed = false;
 
   @override
   void initState() {
     super.initState();
+    FirebaseAnalytics.instance.logEvent(
+      name: 'auth_screen_viewed',
+      parameters: {'screen': 'otp_verify'},
+    );
     _startCountdown();
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) _focusNodes[0].requestFocus();
+    });
+    for (var node in _focusNodes) {
+      node.addListener(() => setState(() {}));
+    }
   }
 
   @override
   void dispose() {
-    for (final controller in _controllers) {
-      controller.dispose();
-    }
     _countdown?.cancel();
+    for (var c in _controllers) {
+      c.dispose();
+    }
+    for (var f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
+  }
+
+  String _t(String key) =>
+      _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
+      key;
+  String _getLanguageName(AppLanguage lang) {
+    switch (lang) {
+      case AppLanguage.english:
+        return 'English';
+      case AppLanguage.sinhala:
+        return 'සිංහල';
+      case AppLanguage.tamil:
+        return 'தமிழ்';
+    }
   }
 
   void _startCountdown() {
     _countdown?.cancel();
     setState(() => _secondsLeft = _countdownSeconds);
     _countdown = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsLeft == 0) {
-        timer.cancel();
-      } else {
-        setState(() => _secondsLeft -= 1);
-      }
+      if (!mounted) return;
+      setState(() {
+        if (_secondsLeft > 0)
+          _secondsLeft--;
+        else
+          timer.cancel();
+      });
     });
   }
 
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
+  Future<void> _handleVerify() async {
+    if (_isLoading) return;
 
-  Future<void> _verify() async {
-    final code = _controllers.map((c) => c.text.trim()).join();
-    if (code.length != _digits) {
-      _showMessage('Please enter the full $_digits-digit code.');
+    final code = _controllers.map((c) => c.text).join();
+    if (code.length < _digits) {
+      HapticFeedback.heavyImpact();
+      AuthUiHelper.showMessage(context, _t('err_req'), isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
+    HapticFeedback.selectionClick();
+    FocusScope.of(context).unfocus();
+
     try {
-      // If override provided (Linking), use it. Otherwise use default (Login).
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_attempt',
+        parameters: {'method': 'otp_verify'},
+      );
       if (widget.onVerifyOverride != null) {
         await widget.onVerifyOverride!(code);
       } else {
-        if (widget.isEmail) {
-          await AuthService.instance.verifyEmailOtp(
-            email: widget.identifier,
-            token: code,
-          );
-        } else {
-          await AuthService.instance.verifyPhoneOtp(
-            phone: widget.identifier,
-            token: code,
-          );
-        }
+        await Supabase.instance.client.auth.verifyOTP(
+          type: widget.isEmail ? OtpType.email : OtpType.sms,
+          token: code,
+          email: widget.isEmail ? widget.identifier : null,
+          phone: !widget.isEmail ? widget.identifier : null,
+        );
       }
-
-      if (!mounted) return;
-      await widget.onVerified();
-    } catch (error) {
-      _showMessage('Verification failed: $error');
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': 'otp_verify'},
+      );
+      if (mounted) await widget.onVerified();
+    } catch (e, stack) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stack,
+        reason: 'OTP Verification Failed',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'otp_verify', 'reason': e.toString()},
+      );
+      AuthUiHelper.showMessage(
+        context,
+        _t(AuthUiHelper.parseErrorKey(e)),
+        isError: true,
+      );
+      for (var c in _controllers) {
+        c.clear();
+      }
+      if (mounted) _focusNodes[0].requestFocus();
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _resendCode() async {
-    if (_secondsLeft > 0) return;
+  Future<void> _handleResend() async {
+    if (_secondsLeft > 0 || _resending) return;
 
     setState(() => _resending = true);
+    HapticFeedback.selectionClick();
+
     try {
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_attempt',
+        parameters: {'method': 'otp_resend'},
+      );
       if (widget.onResendOverride != null) {
         await widget.onResendOverride!();
       } else {
-        if (widget.isEmail) {
-          await AuthService.instance.requestEmailOtp(widget.identifier);
-        } else {
-          await AuthService.instance.requestPhoneOtp(widget.identifier);
-        }
+        if (widget.isEmail)
+          await Supabase.instance.client.auth.signInWithOtp(
+            email: widget.identifier,
+          );
+        else
+          await Supabase.instance.client.auth.signInWithOtp(
+            phone: widget.identifier,
+          );
       }
-
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_success',
+        parameters: {'method': 'otp_resend'},
+      );
+      AuthUiHelper.showMessage(context, _t('success_resend'), isError: false);
       _startCountdown();
-      if (!mounted) return;
-      _showMessage('Code resent!');
-    } catch (error) {
-      _showMessage('Unable to resend: $error');
+    } catch (e, stack) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stack,
+        reason: 'OTP Resend Failed',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'otp_resend', 'reason': e.toString()},
+      );
+      AuthUiHelper.showMessage(
+        context,
+        _t(AuthUiHelper.parseErrorKey(e)),
+        isError: true,
+      );
     } finally {
-      if (mounted) {
-        setState(() => _resending = false);
-      }
+      if (mounted) setState(() => _resending = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height,
-          child: Stack(
-            children: [
-              // 1. Blue Curved Background
-              ClipPath(
-                clipper: _BackgroundClipper(),
-                child: Container(
-                  width: double.infinity,
-                  height: 500,
-                  color: _vangoBlue,
-                ),
-              ),
+  Widget _buildLanguageSelector(bool isDark) {
+    final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
+    final selectedTextColor = isDark ? Colors.white : AppColors.accent;
+    final unselectedTextColor = isDark
+        ? AppColors.darkTextSecondary
+        : Colors.grey.shade700;
 
-              // 2. Content
-              SafeArea(
-                child: Center(
-                  child: Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 25,
-                      vertical: 47,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Header Row
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: widget.onBack,
-                              child: const Icon(
-                                Icons.arrow_circle_left,
-                                size: 35,
-                                color: Colors.black,
-                              ),
-                            ),
-                            const SizedBox(width: 15),
-                            Flexible(
-                              child: Text(
-                                'OTP Verification',
-                                style: GoogleFonts.inter(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 25),
-
-                        // Info Text
-                        Text(
-                          widget.isEmail
-                              ? 'Enter the code sent to your email'
-                              : 'Enter the code sent to',
-                          style: GoogleFonts.inter(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                widget.identifier,
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: Colors.black,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            const Icon(
-                              Icons.edit,
-                              size: 16,
-                              color: Colors.black,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 30),
-
-                        // OTP Inputs
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(
-                            _digits,
-                            (index) => _buildOtpTextField(index),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-
-                        // Verify Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 55,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _verify,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _vangoBlue,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Text(
-                                    'Verify',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 30),
-
-                        // Resend Logic
-                        Text(
-                          "Don't receive the OTP?",
-                          style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: (_secondsLeft == 0 && !_resending)
-                              ? _resendCode
-                              : null,
-                          child: _resending
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  _secondsLeft > 0
-                                      ? "Resend OTP - ${_secondsLeft}s"
-                                      : "Resend OTP",
-                                  style: GoogleFonts.inter(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                        ),
-                      ],
-                    ),
+    return Semantics(
+      button: true,
+      label: 'Select Language',
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+        ),
+        child: PopupMenuButton<AppLanguage>(
+          onSelected: (AppLanguage newValue) {
+            HapticFeedback.selectionClick();
+            LanguageService.instance.setLanguage(newValue);
+          },
+          color: menuBgColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 8,
+          offset: const Offset(0, 45),
+          itemBuilder: (context) => AppLanguage.values.map((lang) {
+            final isSelected =
+                LanguageService.instance.currentLanguage.value == lang;
+            return PopupMenuItem<AppLanguage>(
+              value: lang,
+              child: Center(
+                child: Text(
+                  _getLanguageName(lang),
+                  style: AppTypography.body.copyWith(
+                    color: isSelected ? selectedTextColor : unselectedTextColor,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                   ),
                 ),
               ),
-            ],
+            );
+          }).toList(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.language_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _getLanguageName(
+                    LanguageService.instance.currentLanguage.value,
+                  ),
+                  style: AppTypography.label.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildOtpTextField(int index) {
-    return Container(
-      width: 42,
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: TextField(
-        controller: _controllers[index],
-        onChanged: (value) {
-          if (value.isNotEmpty && index < _digits - 1) {
-            FocusScope.of(context).nextFocus();
-          }
-          if (value.isEmpty && index > 0) {
-            FocusScope.of(context).previousFocus();
-          }
-        },
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 1,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        decoration: const InputDecoration(
-          counterText: "",
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
+    final cardColor = isDark ? AppColors.darkSurface : Colors.white;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
+    final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
+
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: LanguageService.instance.currentLanguage,
+      builder: (context, currentLang, child) {
+        final subKey = widget.isEmail ? 'subtitle_email' : 'subtitle_phone';
+        final subText = _t(subKey).replaceAll('@id', widget.identifier);
+
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light.copyWith(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: bgColor,
+            systemNavigationBarIconBrightness: isDark
+                ? Brightness.light
+                : Brightness.dark,
+          ),
+          child: Scaffold(
+            backgroundColor: bgColor,
+            resizeToAvoidBottomInset: false,
+            body: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: CustomPaint(
+                painter: _HeaderBackgroundPainter(
+                  color: isDark
+                      ? AppColors.darkSurfaceStrong
+                      : AppColors.accent,
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: AbsorbPointer(
+                    absorbing: _isLoading,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 500),
+                        child: SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          padding: EdgeInsets.only(
+                            bottom:
+                                MediaQuery.of(context).viewInsets.bottom +
+                                MediaQuery.of(context).padding.bottom +
+                                32,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Semantics(
+                                      button: true,
+                                      label: 'Back',
+                                      child: IconButton(
+                                        onPressed: () {
+                                          HapticFeedback.selectionClick();
+                                          widget.onBack();
+                                        },
+                                        icon: const Icon(
+                                          Icons.arrow_back_ios_new_rounded,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    _buildLanguageSelector(
+                                      isDark,
+                                    ), // ✅ Added isDark parameter
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 28,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _t('title'),
+                                      style: AppTypography.headline.copyWith(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      subText,
+                                      style: AppTypography.body.copyWith(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.08,
+                              ),
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                padding: const EdgeInsets.all(28),
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(32),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: isDark ? 0.5 : 0.15,
+                                      ),
+                                      blurRadius: 30,
+                                      offset: const Offset(0, 15),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: List.generate(
+                                        _digits,
+                                        (index) => _buildOtpBox(
+                                          index,
+                                          isDark,
+                                          accentColor,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 32),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          _t('resend_q'),
+                                          style: AppTypography.body.copyWith(
+                                            color: textSecondary,
+                                          ),
+                                        ),
+                                        Semantics(
+                                          button: true,
+                                          label: _resending
+                                              ? "Loading, please wait"
+                                              : _t('resend_btn'),
+                                          child: GestureDetector(
+                                            onTap: _handleResend,
+                                            child: Text(
+                                              _secondsLeft > 0
+                                                  ? _t('resend_in').replaceAll(
+                                                      '@sec',
+                                                      _secondsLeft.toString(),
+                                                    )
+                                                  : _t('resend_btn'),
+                                              style: AppTypography.label
+                                                  .copyWith(
+                                                    color: _secondsLeft > 0
+                                                        ? Colors.grey
+                                                        : accentColor,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 32),
+                                    Semantics(
+                                      button: true,
+                                      label: _isLoading
+                                          ? "Loading, please wait"
+                                          : _t('verify_btn'),
+                                      child: Listener(
+                                        onPointerDown: (_) {
+                                          if (!_isLoading)
+                                            setState(
+                                              () => _isSubmitPressed = true,
+                                            );
+                                        },
+                                        onPointerUp: (_) {
+                                          if (!_isLoading)
+                                            setState(
+                                              () => _isSubmitPressed = false,
+                                            );
+                                        },
+                                        child: AnimatedScale(
+                                          scale: _isSubmitPressed ? 0.96 : 1.0,
+                                          duration: const Duration(
+                                            milliseconds: 150,
+                                          ),
+                                          curve: Curves.easeInOut,
+                                          child: SizedBox(
+                                            width: double.infinity,
+                                            height: 56,
+                                            child: ElevatedButton(
+                                              onPressed: _isLoading
+                                                  ? null
+                                                  : _handleVerify,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: accentColor,
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                textStyle: AppTypography.title
+                                                    .copyWith(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                              ),
+                                              child: _isLoading
+                                                  ? const SizedBox(
+                                                      width: 24,
+                                                      height: 24,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            color: Colors.white,
+                                                            strokeWidth: 3,
+                                                          ),
+                                                    )
+                                                  : Text(_t('verify_btn')),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOtpBox(int index, bool isDark, Color accentColor) {
+    final isFocused = _focusNodes[index].hasFocus;
+    final hasText = _controllers[index].text.isNotEmpty;
+    final unselectedBg = isDark
+        ? AppColors.darkBackground
+        : Colors.grey.shade100;
+    final unselectedBorder = isDark
+        ? AppColors.darkStroke
+        : Colors.grey.shade300;
+
+    return Semantics(
+      label: "OTP Digit ${index + 1}",
+      textField: true,
+      child: Container(
+        width: 46,
+        height: 56,
+        decoration: BoxDecoration(
+          color: isFocused ? Colors.transparent : unselectedBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isFocused
+                ? accentColor
+                : (hasText
+                      ? (isDark ? Colors.grey.shade600 : Colors.grey.shade400)
+                      : unselectedBorder),
+            width: isFocused ? 2 : 1.5,
+          ),
+        ),
+        child: Center(
+          child: TextFormField(
+            controller: _controllers[index],
+            focusNode: _focusNodes[index],
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
+            maxLength: 6,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: AppTypography.headline.copyWith(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+            decoration: const InputDecoration(
+              counterText: "",
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+            onChanged: (value) {
+              // ✅ OTP PASTE FIX: Robust Regex mapping
+              final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digits.length > 1) {
+                final chars = digits.split('');
+                for (int i = 0; i < _digits; i++) {
+                  if (i < chars.length) {
+                    _controllers[i].text = chars[i];
+                    _controllers[i].selection = const TextSelection.collapsed(
+                      offset: 1,
+                    );
+                  }
+                }
+                _focusNodes[_digits - 1].requestFocus();
+                if (chars.length >= _digits) _handleVerify();
+                return;
+              }
+              if (value.isNotEmpty && index < _digits - 1)
+                _focusNodes[index + 1].requestFocus();
+              if (value.isEmpty && index > 0)
+                _focusNodes[index - 1].requestFocus();
+            },
+          ),
         ),
       ),
     );
   }
 }
 
-// Custom Clipper for the background curve
-class _BackgroundClipper extends CustomClipper<Path> {
+class _HeaderBackgroundPainter extends CustomPainter {
+  final Color color;
+  _HeaderBackgroundPainter({required this.color});
   @override
-  Path getClip(Size size) {
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
     final path = Path();
-    path.lineTo(0, size.height - 80);
-    path.quadraticBezierTo(
-      size.width / 2,
-      size.height,
-      size.width,
-      size.height - 80,
-    );
+    path.lineTo(0, 370);
+    path.quadraticBezierTo(size.width / 2, 450, size.width, 370);
     path.lineTo(size.width, 0);
     path.close();
-    return path;
+    canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

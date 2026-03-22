@@ -1,0 +1,65 @@
+name: Flutter CI/CD Pipeline
+
+# This section defines when the pipeline will run
+on:
+  push:
+    # ADDED: "tekshan-sub-branch*" so it triggers on your current working branch
+    branches: [ "main", "master", "tekshan-sub-branch*" ] 
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch: 
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repository code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Set up Java
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 3. Set up the Flutter environment
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable' 
+          cache: true
+
+      # 4. Install dependencies
+      - name: Install Dependencies
+        run: flutter pub get
+
+      # --- SECURE .ENV GENERATION ---
+      - name: Create secure .env file
+        run: |
+          touch .env
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}" >> .env
+          echo "BACKEND_BASE_URL=${{ secrets.BACKEND_BASE_URL }}" >> .env
+          echo "GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID }}" >> .env
+          echo "TRACKING_TRIP_ID=${{ secrets.TRACKING_TRIP_ID }}" >> .env
+
+      # 5. Check for formatting
+      - name: Analyze Code
+        run: flutter analyze
+        continue-on-error: true 
+
+      # 6. Build the Android APK
+      - name: Build APK
+        run: flutter build apk --release
+
+      # 7. Upload the built APK
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 90

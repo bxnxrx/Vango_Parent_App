@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart'; // Added for debugPrint
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'app_config.dart';
 import 'backend_client.dart';
 import 'parent_data_service.dart';
@@ -160,9 +163,7 @@ class AuthService {
     await _client.auth.signInWithOAuth(OAuthProvider.google);
   }
 
-  Future<void> signInWithGoogleNative({
-    String? webClientId,
-  }) async {
+  Future<void> signInWithGoogleNative({String? webClientId}) async {
     final normalizedClientId = webClientId?.trim();
 
     Future<void> tryNative({String? serverClientId}) async {
@@ -201,13 +202,17 @@ class AuthService {
       );
       return;
     } catch (firstError) {
-      print('Google native sign-in (with configured client ID) failed: $firstError');
+      debugPrint(
+        'Google native sign-in (with configured client ID) failed: $firstError',
+      );
     }
 
     try {
       await tryNative(serverClientId: null);
     } catch (secondError) {
-      print('Google native sign-in (without server client ID) failed: $secondError');
+      debugPrint(
+        'Google native sign-in (without server client ID) failed: $secondError',
+      );
       throw Exception(
         'Google Sign-In failed on this device. Check Android SHA fingerprints and OAuth client setup in Firebase/Supabase.',
       );
@@ -215,7 +220,29 @@ class AuthService {
   }
 
   Future<void> signInWithApple() async {
-    await _client.auth.signInWithOAuth(OAuthProvider.apple);
+    final rawNonce = _client.auth.generateRawNonce();
+    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+    final credential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: hashedNonce,
+    );
+
+    final idToken = credential.identityToken;
+    if (idToken == null) {
+      throw Exception(
+        'Could not find ID Token from generated Apple credential.',
+      );
+    }
+
+    await _client.auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: idToken,
+      nonce: rawNonce,
+    );
   }
 
   Future<OnboardingStatus> fetchOnboardingStatus() async {
@@ -269,19 +296,55 @@ class AuthService {
       if (email != null) 'email': email,
       if (relationship != null) 'relationship': relationship,
     });
+
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId != null) {
+        await _client
+            .from('parents')
+            .update({'is_account_created': true})
+            .eq('supabase_user_id', userId);
+        debugPrint(
+          '✅ Successfully marked is_account_created = true in Supabase',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to update is_account_created: $e');
+    }
   }
 
+  // --- UPDATED CREATE CHILD WITH NEW REQUIRED FIELDS ---
   Future<String> createChild({
     required String childName,
+    int? age,
     required String school,
     required String pickupLocation,
+    double? pickupLat,
+    double? pickupLng,
+    required String dropLocation,
+    double? dropLat,
+    double? dropLng,
+    required String inviteCode,
     String? pickupTime,
+    String? etaSchool,
+    required String emergencyContact,
+    String? description,
   }) async {
     final profile = await ParentDataService.instance.createChild(
       childName: childName,
+      age: age,
       school: school,
       pickupLocation: pickupLocation,
+      pickupLat: pickupLat,
+      pickupLng: pickupLng,
+      dropLocation: dropLocation,
+      dropLat: dropLat,
+      dropLng: dropLng,
+      inviteCode: inviteCode,
       pickupTime: pickupTime,
+      etaSchool: etaSchool,
+      emergencyContact: emergencyContact,
+      description: description,
     );
     return profile.id;
   }
@@ -339,14 +402,10 @@ class AuthService {
     await _client.auth.updateUser(UserAttributes(password: newPassword));
   }
 
-  // --- IDENTITY LINKING METHODS ---
-
-  /// Links a phone number to the currently logged in user (Email account)
   Future<void> linkPhone(String phone) async {
     await _client.auth.updateUser(UserAttributes(phone: phone));
   }
 
-  /// Verifies the OTP sent to the phone for linking purposes
   Future<void> verifyLinkedPhone({
     required String phone,
     required String token,
@@ -356,16 +415,13 @@ class AuthService {
       token: token,
       type: OtpType.phoneChange,
     );
-    // Optionally mark as verified in your DB immediately
     await markPhoneVerified();
   }
 
-  /// Links an email to the currently logged in user (Phone account)
   Future<void> linkEmail(String email) async {
     await _client.auth.updateUser(UserAttributes(email: email));
   }
 
-  /// Verifies the OTP sent to the email for linking purposes
   Future<void> verifyLinkedEmail({
     required String email,
     required String token,
@@ -377,8 +433,6 @@ class AuthService {
     );
     await markEmailVerified();
   }
-
-  // ------------------------------
 
   Future<void> cachePhone(String phone) async {
     await _storage.write(key: 'parent_phone', value: phone);

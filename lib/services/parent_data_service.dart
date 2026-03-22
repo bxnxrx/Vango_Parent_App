@@ -1,9 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/models/driver_profile.dart';
 import 'package:vango_parent_app/models/message_thread.dart';
 import 'package:vango_parent_app/models/notification_item.dart';
 import 'package:vango_parent_app/models/payment_record.dart';
 import 'package:vango_parent_app/services/backend_client.dart';
+import 'package:vango_parent_app/models/card_info.dart';
 
 class ParentDataService {
   ParentDataService._();
@@ -13,31 +19,301 @@ class ParentDataService {
   final BackendClient _backend = BackendClient.instance;
   static const String _defaultPickupTime = '06:45 AM';
 
+  // --- 6️⃣ 5-MINUTE CACHE SYSTEM ---
+  final Map<String, Map<String, dynamic>> _attendanceCache = {};
+  final Map<String, DateTime> _cacheTimestamps = {};
+
+  void clearAttendanceCache(String childId) {
+    _attendanceCache.remove(childId);
+    _cacheTimestamps.remove(childId);
+  }
+
+  // --- 4️⃣ OFFLINE ATTENDANCE QUEUE ---
+  Future<void> _queueOfflineAction(Map<String, dynamic> action) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> queue = prefs.getStringList('offline_attendance_queue') ?? [];
+    queue.add(jsonEncode(action));
+    // FIXED: Changed setString to setStringList
+    await prefs.setStringList('offline_attendance_queue', queue);
+  }
+
+  Future<void> syncOfflineQueue() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> queue = prefs.getStringList('offline_attendance_queue') ?? [];
+    if (queue.isEmpty) return;
+
+    List<String> failed = [];
+    for (String item in queue) {
+      try {
+        final action = jsonDecode(item);
+        if (action['type'] == 'today') {
+          await updateAttendance(
+            action['childId'],
+            AttendanceStateApi.fromString(action['status']),
+          );
+        } else {
+          await updateFutureAttendance(
+            action['childId'],
+            List<String>.from(action['dates']),
+            AttendanceStateApi.fromString(action['status']),
+          );
+        }
+      } catch (e) {
+        // Keep in queue if it's a network error. Drop it if it's a hard rejection (like a deadline error).
+        if (e.toString().toLowerCase().contains('internet') ||
+            e.toString().toLowerCase().contains('timed out')) {
+          failed.add(item);
+        }
+      }
+    }
+    // FIXED: Changed setString to setStringList
+    await prefs.setStringList('offline_attendance_queue', failed);
+  }
+
+  // --- ATTENDANCE METHODS ---
+  Future<void> updateAttendance(String childId, AttendanceState state) async {
+    try {
+      await _backend.patch('/api/parents/children/$childId/attendance', {
+        'attendanceState': state.apiValue,
+      });
+    } catch (e) {
+      if (e.toString().toLowerCase().contains('internet') ||
+          e.toString().toLowerCase().contains('timed out')) {
+        await _queueOfflineAction({
+          'type': 'today',
+          'childId': childId,
+          'status': state.apiValue,
+        });
+        throw Exception('Saved offline');
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> updateFutureAttendance(
+    String childId,
+    List<String> dates,
+    AttendanceState status,
+  ) async {
+    try {
+      await _backend.post(
+        '/api/parents/children/$childId/attendance-exceptions',
+        {'dates': dates, 'status': status.apiValue},
+      );
+      clearAttendanceCache(childId);
+    } catch (e) {
+      if (e.toString().toLowerCase().contains('internet') ||
+          e.toString().toLowerCase().contains('timed out')) {
+        await _queueOfflineAction({
+          'type': 'future',
+          'childId': childId,
+          'dates': dates,
+          'status': status.apiValue,
+        });
+        throw Exception('Saved offline');
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchFutureAttendance(String childId) async {
+    // Sync any pending offline actions before fetching
+    await syncOfflineQueue();
+
+    final now = DateTime.now();
+    if (_attendanceCache.containsKey(childId) &&
+        _cacheTimestamps.containsKey(childId)) {
+      if (now.difference(_cacheTimestamps[childId]!).inMinutes < 5) {
+        return _attendanceCache[childId]!;
+      }
+    }
+
+    final response = await _backend.get(
+      '/api/parents/children/$childId/attendance-exceptions',
+    );
+
+    final Map<String, dynamic> plans = {};
+    if (response is List) {
+      for (var item in response) {
+        plans[item['exception_date']] = {
+          'state': AttendanceStateApi.fromString(item['status']),
+          'updated_at': item['updated_at'],
+        };
+      }
+    }
+
+    _attendanceCache[childId] = plans;
+    _cacheTimestamps[childId] = now;
+
+    return plans;
+  }
+
+  // --- HELPER FOR URGENT CALLS ---
+  Future<String?> getDriverPhoneForChild(String childId) async {
+    try {
+      final response = await _backend.get('/api/parents/link-status');
+      if (response['linked'] == true) {
+        final links = response['childLinks'] as List;
+        for (var link in links) {
+          if (link['childId'] == childId) {
+            return link['driver']['phone'];
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // --- REST OF EXISTING METHODS ---
+  Future<Map<String, dynamic>> fetchProfile() async {
+    final response = await _backend.get('/api/parents/profile');
+    return _expectMap(response);
+  }
+
   Future<List<ChildProfile>> fetchChildren() async {
     final response = await _backend.get('/api/parents/children');
-    return _mapList(response, ChildProfile.fromJson);
+
+    final List<dynamic> data = response is List
+        ? response
+        : (response['data'] ?? []);
+    final List<ChildProfile> children = data
+        .map((json) => ChildProfile.fromJson(json))
+        .toList();
+
+    await Future.wait(
+      children.map((child) async {
+        if (child.imageUrl != null &&
+            child.imageUrl!.isNotEmpty &&
+            !child.imageUrl!.startsWith('http')) {
+          try {
+            final signedUrl = await Supabase.instance.client.storage
+                .from('child-photos')
+                .createSignedUrl(child.imageUrl!, 60 * 60 * 24 * 7);
+
+            final index = children.indexOf(child);
+            if (index != -1) {
+              children[index] = child.copyWith(imageUrl: signedUrl);
+            }
+          } catch (e) {
+            debugPrint('Failed to sign url: $e');
+          }
+        }
+      }),
+    );
+
+    return children;
+  }
+
+  Future<String?> uploadChildPhoto(File imageFile) async {
+    try {
+      if (!await imageFile.exists()) {
+        throw Exception("Image file does not exist on device.");
+      }
+
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception("User not authenticated.");
+      }
+
+      final fileExt = imageFile.path.split('.').last.toLowerCase();
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final path = '$userId/$fileName';
+
+      await Supabase.instance.client.storage
+          .from('child-photos')
+          .upload(
+            path,
+            imageFile,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+      return path;
+    } on StorageException catch (e) {
+      throw Exception('Storage Error: ${e.message}');
+    } catch (e) {
+      throw Exception('Failed to upload photo: $e');
+    }
   }
 
   Future<ChildProfile> createChild({
     required String childName,
+    int? age,
     required String school,
     required String pickupLocation,
+    double? pickupLat,
+    double? pickupLng,
+    required String dropLocation,
+    double? dropLat,
+    double? dropLng,
+    required String inviteCode,
     String? pickupTime,
+    String? etaSchool,
+    required String emergencyContact,
+    String? description,
+    String? imageUrl,
   }) async {
     final payload = _buildChildPayload(
       childName: childName,
+      age: age,
       school: school,
       pickupLocation: pickupLocation,
+      pickupLat: pickupLat,
+      pickupLng: pickupLng,
+      dropLocation: dropLocation,
+      dropLat: dropLat,
+      dropLng: dropLng,
       pickupTime: pickupTime,
+      etaSchool: etaSchool,
+      emergencyContact: emergencyContact,
+      description: description,
+      inviteCode: inviteCode,
+      imageUrl: imageUrl,
     );
-    final response = _expectMap(await _backend.post('/api/parents/children', payload));
+    final response = _expectMap(
+      await _backend.post('/api/parents/children', payload),
+    );
     return ChildProfile.fromJson(response);
   }
 
-  Future<void> updateAttendance(String childId, AttendanceState state) async {
-    await _backend.patch('/api/parents/children/$childId/attendance', {
-      'attendanceState': state.apiValue,
-    });
+  Future<ChildProfile> updateChild({
+    required String childId,
+    required String childName,
+    int? age,
+    required String school,
+    required String pickupLocation,
+    double? pickupLat,
+    double? pickupLng,
+    required String dropLocation,
+    double? dropLat,
+    double? dropLng,
+    required String inviteCode,
+    String? pickupTime,
+    String? etaSchool,
+    required String emergencyContact,
+    String? description,
+    String? imageUrl,
+  }) async {
+    final payload = _buildChildPayload(
+      childName: childName,
+      age: age,
+      school: school,
+      pickupLocation: pickupLocation,
+      pickupLat: pickupLat,
+      pickupLng: pickupLng,
+      dropLocation: dropLocation,
+      dropLat: dropLat,
+      dropLng: dropLng,
+      pickupTime: pickupTime,
+      etaSchool: etaSchool,
+      emergencyContact: emergencyContact,
+      description: description,
+      inviteCode: inviteCode,
+      imageUrl: imageUrl,
+    );
+    final response = _expectMap(
+      await _backend.put('/api/parents/children/$childId', payload),
+    );
+    return ChildProfile.fromJson(response);
   }
 
   Future<List<NotificationItem>> fetchNotifications() async {
@@ -49,7 +325,10 @@ class ParentDataService {
     await _backend.patch('/api/parents/notifications/$notificationId/read', {});
   }
 
-  Future<List<DriverProfile>> fetchFinderServices({String? vehicleType, String? sortBy}) async {
+  Future<List<DriverProfile>> fetchFinderServices({
+    String? vehicleType,
+    String? sortBy,
+  }) async {
     final query = <String, String>{};
     if (vehicleType != null && vehicleType.isNotEmpty && vehicleType != 'All') {
       query['vehicleType'] = vehicleType;
@@ -58,7 +337,10 @@ class ParentDataService {
       query['sortBy'] = sortBy;
     }
 
-    final response = await _backend.get('/api/parents/finder/services', queryParameters: query.isEmpty ? null : query);
+    final response = await _backend.get(
+      '/api/parents/finder/services',
+      queryParameters: query.isEmpty ? null : query,
+    );
     return _mapList(response, DriverProfile.fromJson);
   }
 
@@ -73,7 +355,9 @@ class ParentDataService {
   }
 
   Future<Message> sendMessage(String threadId, String body) async {
-    final response = await _backend.post('/api/parents/messages/$threadId', {'body': body}) as Map<String, dynamic>;
+    final response =
+        await _backend.post('/api/parents/messages/$threadId', {'body': body})
+            as Map<String, dynamic>;
     return Message.fromJson(response);
   }
 
@@ -88,25 +372,95 @@ class ParentDataService {
     return linked is bool ? linked : false;
   }
 
-  List<T> _mapList<T>(dynamic payload, T Function(Map<String, dynamic>) mapper) {
+  Future<List<DriverProfile>> fetchFinderServicesDetailed({
+    String? vehicleType,
+    String? sortBy,
+  }) async {
+    final query = <String, String>{};
+    if (vehicleType != null && vehicleType.isNotEmpty && vehicleType != 'All') {
+      query['vehicleType'] = vehicleType;
+    }
+    if (sortBy != null && sortBy.isNotEmpty) {
+      query['sortBy'] = sortBy;
+    }
+
+    final response = await _backend.get(
+      '/api/parents/finder/services/detailed',
+      queryParameters: query.isEmpty ? null : query,
+    );
+    return _mapList(response, DriverProfile.fromJson);
+  }
+
+  Future<void> submitDriverReport({
+    required String driverId,
+    required String reason,
+  }) async {
+    await _backend.post('/api/parents/drivers/$driverId/report', {
+      'reason': reason,
+    });
+  }
+
+  Future<Map<String, dynamic>> createBookingRequest({
+    required String vehicleId,
+    required List<String> childIds,
+    String? note,
+  }) async {
+    final response = await _backend.post('/api/parents/booking-requests', {
+      'vehicleId': vehicleId,
+      'childIds': childIds,
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+    });
+    return _expectMap(response);
+  }
+
+  List<T> _mapList<T>(
+    dynamic payload,
+    T Function(Map<String, dynamic>) mapper,
+  ) {
     if (payload is List) {
-      return payload.map((item) => mapper(item as Map<String, dynamic>)).toList();
+      return payload
+          .map((item) => mapper(item as Map<String, dynamic>))
+          .toList();
     }
     return <T>[];
   }
 
   Map<String, dynamic> _buildChildPayload({
     required String childName,
+    int? age,
     required String school,
     required String pickupLocation,
+    double? pickupLat,
+    double? pickupLng,
+    required String dropLocation,
+    double? dropLat,
+    double? dropLng,
+    required String inviteCode,
     String? pickupTime,
+    String? etaSchool,
+    required String emergencyContact,
+    String? description,
+    String? imageUrl,
   }) {
-    final normalizedTime = (pickupTime ?? '').trim().isEmpty ? _defaultPickupTime : pickupTime!.trim();
+    final normalizedTime = (pickupTime ?? '').trim().isEmpty
+        ? _defaultPickupTime
+        : pickupTime!.trim();
     return {
       'childName': childName.trim(),
+      if (age != null) 'age': age,
       'school': school.trim(),
       'pickupLocation': pickupLocation.trim(),
+      if (pickupLat != null) 'pickupLat': pickupLat,
+      if (pickupLng != null) 'pickupLng': pickupLng,
+      'dropLocation': dropLocation.trim(),
+      if (dropLat != null) 'dropLat': dropLat,
+      if (dropLng != null) 'dropLng': dropLng,
       'pickupTime': normalizedTime,
+      if (etaSchool != null) 'etaSchool': etaSchool.trim(),
+      'emergencyContact': emergencyContact.trim(),
+      if (description != null) 'description': description.trim(),
+      'inviteCode': inviteCode.trim(),
+      if (imageUrl != null) 'image_url': imageUrl,
     };
   }
 
@@ -115,5 +469,44 @@ class ParentDataService {
       return payload;
     }
     throw StateError('Unexpected backend payload: ${payload.runtimeType}');
+  }
+
+  Future<void> deleteChild(String childId) async {
+    await _backend.delete('/api/parents/children/$childId');
+  }
+
+  Future<Map<String, dynamic>> verifyInviteCode(String code) async {
+    final response = await _backend.get('/api/parents/verify-invite/$code');
+    return _expectMap(response);
+  }
+
+  Future<bool> checkHasLinkedCard() async {
+    try {
+      final response = await _backend.get('/api/parents/profile');
+      if (response is Map<String, dynamic> &&
+          response.containsKey('hasLinkedCard')) {
+        return response['hasLinkedCard'] == true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error checking linked card status: $e');
+      return false;
+    }
+  }
+
+  Future<List<CardInfo>> fetchLinkedCards() async {
+    final response = await _backend.get('/api/parents/cards');
+    if (response is List) {
+      return response.map((json) => CardInfo.fromJson(json)).toList();
+    }
+    return [];
+  }
+
+  Future<void> deleteCard(String cardId) async {
+    await _backend.delete('/api/parents/cards/$cardId');
+  }
+
+  Future<void> setDefaultCard(String cardId) async {
+    await _backend.patch('/api/parents/cards/$cardId/default', {});
   }
 }

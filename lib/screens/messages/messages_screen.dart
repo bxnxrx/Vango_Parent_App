@@ -1,309 +1,525 @@
 import 'package:flutter/material.dart';
-import 'package:vango_parent_app/models/message_thread.dart';
-import 'package:vango_parent_app/services/parent_data_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
-import 'package:vango_parent_app/widgets/gradient_button.dart';
-import 'package:vango_parent_app/widgets/message_thread_tile.dart';
+import 'package:vango_parent_app/screens/messages/chat_screen.dart';
+import 'package:intl/intl.dart';
+
+class _ChatTileInfo {
+  final String driverName;
+  final String? childName;
+
+  const _ChatTileInfo({required this.driverName, this.childName});
+}
 
 class MessagesScreen extends StatefulWidget {
-  const MessagesScreen({super.key});
+  const MessagesScreen({super.key, required this.onOpenDrawer});
+  final VoidCallback onOpenDrawer;
 
   @override
   State<MessagesScreen> createState() => _MessagesScreenState();
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
-  final ParentDataService _dataService = ParentDataService.instance;
-  List<MessageThread> _threads = const <MessageThread>[];
-  bool _loading = true;
-  String? _error;
+  final String? _currentUserId =
+      Supabase.instance.client.auth.currentUser?.id;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadThreads();
-  }
+  final Map<String, Future<_ChatTileInfo>> _infoCache = {};
 
-  Future<void> _loadThreads() async {
-    setState(() {
-      _loading = true;
-      _error = null;
+  Future<_ChatTileInfo> _fetchChatTileInfo(String driverAuthId) {
+    return _infoCache.putIfAbsent(driverAuthId, () async {
+      if (_currentUserId == null) {
+        return const _ChatTileInfo(driverName: 'VanGo Driver');
+      }
+      try {
+        final driverRow = await Supabase.instance.client
+            .from('drivers')
+            .select('id, first_name, last_name')
+            .eq('supabase_user_id', driverAuthId)
+            .maybeSingle();
+
+        if (driverRow == null) {
+          return const _ChatTileInfo(driverName: 'VanGo Driver');
+        }
+
+        final driverName =
+            '${driverRow['first_name']} ${driverRow['last_name']}';
+        final driverDbId = driverRow['id'];
+
+        final childRow = await Supabase.instance.client
+            .from('children')
+            .select('child_name')
+            .eq('parent_id', _currentUserId!)
+            .eq('linked_driver_id', driverDbId)
+            .maybeSingle();
+
+        final childName = childRow?['child_name'] as String?;
+
+        return _ChatTileInfo(driverName: driverName, childName: childName);
+      } catch (_) {
+        return const _ChatTileInfo(driverName: 'VanGo Driver');
+      }
     });
-
-    try {
-      final threads = await _dataService.fetchThreads();
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _threads = threads;
-        _loading = false;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _error = error.toString();
-        _loading = false;
-      });
-    }
   }
 
-  void _openChat(MessageThread thread) {
+  Future<void> _onRefresh() async {
+    setState(() => _infoCache.clear());
+  }
+
+  void _openChat(String chatId, String driverName, String receiverId) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ChatScreen(thread: thread)),
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          chatId: chatId, 
+          driverName: driverName,
+          receiverId: receiverId, 
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.forum_outlined, size: 48, color: AppColors.textSecondary),
-            const SizedBox(height: 8),
-            Text('Unable to load messages', style: AppTypography.title),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: AppTypography.body.copyWith(color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            GradientButton(label: 'Retry', onPressed: _loadThreads),
-          ],
+    if (_currentUserId == null) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Center(
+          child: Text(
+            'Session expired. Please log in again.',
+            style: AppTypography.body.copyWith(color: AppColors.danger),
+          ),
         ),
       );
     }
 
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          floating: true,
-          elevation: 0,
-          backgroundColor: AppColors.background,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Messages', style: AppTypography.headline.copyWith(fontSize: 20)),
-              Text(
-                '${_threads.length} conversations',
-                style: AppTypography.body.copyWith(fontSize: 12, color: AppColors.textSecondary),
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              pinned: true,
+              expandedHeight: 80.0,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.menu_rounded, color: textColor),
+                onPressed: widget.onOpenDrawer,
               ),
-            ],
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final thread = _threads[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: MessageThreadTile(
-                    thread: thread,
-                    onTap: () => _openChat(thread),
+              flexibleSpace: FlexibleSpaceBar(
+                titlePadding: const EdgeInsets.only(
+                  left: 56,
+                  bottom: 16,
+                  right: 20,
+                ),
+                centerTitle: false,
+                title: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Messages',
+                      style: AppTypography.headline.copyWith(
+                        fontSize: 20,
+                        color: textColor,
+                      ),
+                    ),
+                    Text(
+                      'Live conversations',
+                      style: AppTypography.body.copyWith(
+                        fontSize: 10,
+                        color: secondaryTextColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('chats')
+                  .where('users', arrayContains: _currentUserId)
+                  .orderBy('lastMessageTime', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return SliverFillRemaining(
+                    child: Center(
+                      child: Text(
+                        'Error loading chats.\nPlease try again later.',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.body.copyWith(
+                          color: AppColors.danger,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (_, __) => const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: _ShimmerTile(),
+                        ),
+                        childCount: 4,
+                      ),
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const SliverFillRemaining(child: _EmptyState());
+                }
+
+                final chatDocs = snapshot.data!.docs;
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final doc = chatDocs[index];
+                        final chatData = doc.data() as Map<String, dynamic>;
+                        final chatId = doc.id;
+
+                        final users = List<String>.from(
+                          (chatData['users'] as List<dynamic>?) ?? [],
+                        );
+                        final driverAuthId = users.firstWhere(
+                          (id) => id != _currentUserId,
+                          orElse: () => '',
+                        );
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: FutureBuilder<_ChatTileInfo>(
+                            future: _fetchChatTileInfo(driverAuthId),
+                            builder: (context, infoSnap) {
+                              if (infoSnap.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const _ShimmerTile();
+                              }
+
+                              final info = infoSnap.data ??
+                                  const _ChatTileInfo(driverName: 'VanGo Driver');
+
+                              final displayName = info.childName != null
+                                  ? '${info.driverName} (Driving ${info.childName})'
+                                  : info.driverName;
+
+                              return _ChatTile(
+                                chatData: chatData,
+                                displayName: displayName,
+                                currentUserId: _currentUserId!,
+                                onTap: () =>
+                                    _openChat(chatId, info.driverName, driverAuthId),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                      childCount: chatDocs.length,
+                    ),
                   ),
                 );
               },
-              childCount: _threads.length,
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
-class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, required this.thread});
+class _ChatTile extends StatelessWidget {
+  final Map<String, dynamic> chatData;
+  final String displayName;
+  final VoidCallback onTap;
+  final String currentUserId;
 
-  final MessageThread thread;
+  const _ChatTile({
+    required this.chatData,
+    required this.displayName,
+    required this.onTap,
+    required this.currentUserId,
+  });
 
-  @override
-  State<ChatScreen> createState() => _ChatScreenState();
-}
-
-class _ChatScreenState extends State<ChatScreen> {
-  final ParentDataService _dataService = ParentDataService.instance;
-  final TextEditingController _controller = TextEditingController();
-  List<Message> _messages = const <Message>[];
-  bool _loading = true;
-  bool _sending = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMessages();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadMessages() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final messages = await _dataService.fetchMessages(widget.thread.id);
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _messages = messages;
-        _loading = false;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _error = error.toString();
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _sendMessage() async {
-    final body = _controller.text.trim();
-    if (body.isEmpty) {
-      return;
-    }
-
-    setState(() => _sending = true);
-    try {
-      final message = await _dataService.sendMessage(widget.thread.id, body);
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _messages = [..._messages, message];
-        _sending = false;
-        _controller.clear();
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() => _sending = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to send message: $error')));
-    }
+  String _timeLabel(Timestamp? ts) {
+    if (ts == null) return '';
+    final dt = ts.toDate().toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return DateFormat('dd MMM').format(dt);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.thread.name),
-            Text('Route channel', style: AppTypography.body.copyWith(fontSize: 12)),
-          ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
+
+    final lastMessage = (chatData['lastMessage'] as String?)?.trim();
+    final snippet = (lastMessage != null && lastMessage.isNotEmpty)
+        ? lastMessage
+        : 'No messages yet';
+
+    final initials = displayName.isNotEmpty
+        ? displayName.split(' ').take(2).map((w) => w[0]).join().toUpperCase()
+        : '?';
+
+    // ✅ FIXED: Bulletproof parsing to prevent layout crash
+    final rawUnread = chatData['unreadCount_$currentUserId'];
+    final unreadCount = (rawUnread is num) ? rawUnread.toInt() : 0;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor),
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
-        actions: [IconButton(onPressed: () {}, icon: const Icon(Icons.call))],
-      ),
-      body: Column(
-        children: [
-          if (_loading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else if (_error != null)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.textSecondary),
-                    const SizedBox(height: 8),
-                    Text('Unable to load messages', style: AppTypography.title),
-                    const SizedBox(height: 8),
-                    Text(
-                      _error!,
-                      style: AppTypography.body.copyWith(color: AppColors.textSecondary),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    GradientButton(label: 'Retry', onPressed: _loadMessages),
-                  ],
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: accentColor.withValues(alpha: isDark ? 0.22 : 0.1),
+              child: Text(
+                initials,
+                style: AppTypography.label.copyWith(
+                  color: accentColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
                 ),
               ),
-            )
-          else
+            ),
+            const SizedBox(width: 14),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(20),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final message = _messages[index];
-                  final align = message.isParent ? Alignment.centerRight : Alignment.centerLeft;
-                  final bubbleColor = message.isParent ? AppColors.accent : AppColors.surface;
-                  final textColor = message.isParent ? Colors.white : AppColors.textPrimary;
-
-                  return Align(
-                    alignment: align,
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: bubbleColor,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: message.isParent ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                        children: [
-                          Text(message.body, style: AppTypography.body.copyWith(color: textColor)),
-                          const SizedBox(height: 4),
-                          Text(
-                            message.timeLabel,
-                            style: AppTypography.label.copyWith(fontSize: 10, color: textColor.withOpacity(0.7)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          displayName,
+                          style: AppTypography.label.copyWith(
+                            color: textColor,
+                            fontSize: 14,
+                            fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.w600,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // ✨ WHATSAPP-STYLE ALIGNMENT
+                      Column(
+                        mainAxisSize: MainAxisSize.min, // Hugs the content tightly
+                        crossAxisAlignment: CrossAxisAlignment.end, // Aligns to the far right
+                        mainAxisAlignment: MainAxisAlignment.center, // Centers vertically
+                        children: [
+                          Text(
+                            _timeLabel(chatData['lastMessageTime'] as Timestamp?),
+                            style: AppTypography.label.copyWith(
+                              fontSize: 11,
+                              color: unreadCount > 0 ? accentColor : secondaryTextColor,
+                              fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4), // Very tight gap, just like WhatsApp
+                          if (unreadCount > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: accentColor,
+                                // Pill-shape handles "1" or "99+" smoothly
+                                borderRadius: BorderRadius.circular(12), 
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 22,
+                                minHeight: 22,
+                              ),
+                              // A tightly bound Column centers the text safely without stretching
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.0, // Removes default flutter text margin
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            // Transparent spacer prevents time text from jumping when read
+                            const SizedBox(height: 22), 
                         ],
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  IconButton(onPressed: () {}, icon: const Icon(Icons.attach_file)),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
-                      decoration: const InputDecoration(hintText: 'Send a message'),
-                    ),
+                    ],
                   ),
-                  IconButton(
-                    onPressed: _sending ? null : _sendMessage,
-                    icon: _sending
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.send),
+                  const SizedBox(height: 4),
+                  Text(
+                    snippet,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.body.copyWith(
+                      color: unreadCount > 0 ? textColor : secondaryTextColor,
+                      fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShimmerTile extends StatelessWidget {
+  const _ShimmerTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark ? const Color(0xFF2A2A3D) : const Color(0xFFE0E0E0);
+    final highlightColor = isDark ? const Color(0xFF3F3F5A) : const Color(0xFFF5F5F5);
+
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
+      child: Container(
+        height: 76,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            const CircleAvatar(radius: 26, backgroundColor: Colors.white),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 14,
+                    width: 140,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 11,
+                    width: 200,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 56,
+                color: accentColor.withValues(alpha: 0.5),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'No conversations yet',
+              style: AppTypography.title.copyWith(
+                fontSize: 18,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Once your driver is linked, your chat will appear here automatically.',
+              textAlign: TextAlign.center,
+              style: AppTypography.body.copyWith(
+                fontSize: 14,
+                color: secondaryTextColor,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

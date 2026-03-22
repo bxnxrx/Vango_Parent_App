@@ -10,7 +10,8 @@ class CardAddedSuccessScreen extends StatefulWidget {
   State<CardAddedSuccessScreen> createState() => _CardAddedSuccessScreenState();
 }
 
-class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with SingleTickerProviderStateMixin {
+class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
 
@@ -36,15 +37,22 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final secondaryTextColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
+
     return Scaffold(
-      backgroundColor: AppColors.overlay,
+      backgroundColor: isDark ? Colors.black54 : AppColors.overlay,
       body: Center(
         child: Container(
           margin: const EdgeInsets.all(40),
           padding: const EdgeInsets.all(40),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -55,7 +63,7 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
                   width: 120,
                   height: 120,
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withOpacity(0.1),
+                    color: Colors.green.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Stack(
@@ -76,7 +84,7 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
                                     width: 6,
                                     height: 6,
                                     decoration: BoxDecoration(
-                                      color: AppColors.accent.withOpacity(0.5),
+                                      color: Colors.green.withOpacity(0.5),
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -91,7 +99,7 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
                           width: 70,
                           height: 70,
                           decoration: const BoxDecoration(
-                            color: AppColors.accent,
+                            color: Colors.green,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -107,20 +115,21 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
               ),
               const SizedBox(height: 32),
               Text(
-                'Payment Card\nAdded Successful!',
+                'Card Linked\nSuccessfully!',
                 textAlign: TextAlign.center,
                 style: AppTypography.headline.copyWith(
                   fontSize: 22,
                   height: 1.3,
+                  color: textColor,
                 ),
               ),
               const SizedBox(height: 12),
               Text(
-                'Your card has been saved. We\'re getting\neverything ready for your next order',
+                'Your payment method is verified. Your child\'s monthly van fees will now be processed automatically on your billing date.',
                 textAlign: TextAlign.center,
                 style: AppTypography.body.copyWith(
                   fontSize: 14,
-                  color: AppColors.textSecondary,
+                  color: secondaryTextColor,
                   height: 1.5,
                 ),
               ),
@@ -130,31 +139,18 @@ class _CardAddedSuccessScreenState extends State<CardAddedSuccessScreen> with Si
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.textPrimary,
-                  foregroundColor: AppColors.surface,
+                  backgroundColor: textColor,
+                  foregroundColor: Theme.of(context).colorScheme.surface,
                   minimumSize: const Size(double.infinity, 56),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 child: Text(
-                  'Go Home',
-                  style: AppTypography.title.copyWith(fontSize: 16, color: Colors.white),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 48),
-                ),
-                child: Text(
-                  'Track your Order',
+                  'Back to Home',
                   style: AppTypography.title.copyWith(
                     fontSize: 16,
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).colorScheme.surface,
                   ),
                 ),
               ),
