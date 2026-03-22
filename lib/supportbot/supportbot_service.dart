@@ -53,6 +53,7 @@ class SupportbotService {
       'message': message,
       'lang': lang,
       'sessionId': sessionId,
+      'clientType': 'parent',
     };
 
     for (final endpoint in _buildEndpointCandidates()) {
