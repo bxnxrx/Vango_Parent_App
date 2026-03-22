@@ -13,7 +13,6 @@ import 'package:vango_parent_app/screens/app_shell.dart';
 import 'package:vango_parent_app/screens/auth/auth_flow.dart';
 import 'package:vango_parent_app/screens/onboarding/onboarding_screen.dart';
 import 'package:vango_parent_app/screens/splash/animated_splash_screen.dart';
-import 'package:vango_parent_app/screens/messages/messages_screen.dart'; // ✨ ADDED THIS IMPORT
 
 import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
@@ -64,13 +63,6 @@ Future<void> main() async {
     badge: true,
     sound: true,
   );
-
-  NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-  debugPrint('User granted permission: ${settings.authorizationStatus}');
 
   await dotenv.load(fileName: ".env");
   AppConfig.ensure();
@@ -130,71 +122,6 @@ class _VanGoAppState extends State<VanGoApp> {
   @override
   void initState() {
     super.initState();
-    _setupInteractedMessage(); 
-    _listenForForegroundMessages(); // ✨ ADDED: Start listening while app is open
-  }
-
-  // ✨ ADDED: Manually show Android notifications when the app is running in the foreground
-  void _listenForForegroundMessages() {
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint("📩 Foreground Message Received: ${message.notification?.title}");
-
-      final notification = message.notification;
-      final android = message.notification?.android;
-
-      if (notification != null && android != null) {
-        final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-        flutterLocalNotificationsPlugin.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'vango_notifications_v4', // Matches the channel ID created in main()
-              'Parent Notifications',
-              importance: Importance.max,
-              priority: Priority.high,
-              icon: '@mipmap/ic_launcher',
-            ),
-          ),
-          payload: message.data['type'], // Used if the user taps the foreground banner
-        );
-      }
-    });
-  }
-
-  // Listens for notification taps when app is closed or in background
-  Future<void> _setupInteractedMessage() async {
-    // Terminated State
-    RemoteMessage? initialMessage =
-        await FirebaseMessaging.instance.getInitialMessage();
-    if (initialMessage != null) {
-      _handleMessage(initialMessage);
-    }
-
-    // Background State
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
-  }
-
-  // Routes the user to the Messages Screen when a chat notification is tapped
-  void _handleMessage(RemoteMessage message) {
-    if (message.data['type'] == 'chat') {
-      final String chatId = message.data['chatId'] ?? '';
-
-      if (chatId.isNotEmpty) {
-        // 800ms delay ensures the Supabase session is initialized before routing
-        Future.delayed(const Duration(milliseconds: 800), () {
-          _navigatorKey.currentState?.push(
-            MaterialPageRoute(
-              builder: (context) => MessagesScreen(
-                // Passing an empty function since there's no drawer when pushed directly over the shell
-                onOpenDrawer: () {}, 
-              ),
-            ),
-          );
-        });
-      }
-    }
   }
 
   void _onSplashFinished(bool hasSeenOnboarding) {
@@ -283,8 +210,11 @@ class _VanGoAppState extends State<VanGoApp> {
       case _AppStage.home:
         currentScreen = AppShell(
           key: const ValueKey('home'),
-          onShowOnboarding: () => setState(() => _stage = _AppStage.onboarding),
           onSignOut: _signOut,
+          onAttendancePressed: () {},
+          payments_screen: () {},
+          Messages_screen: () {},
+          home_screen: () {},
         );
         break;
     }
