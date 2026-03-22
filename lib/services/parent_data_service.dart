@@ -494,12 +494,19 @@ class ParentDataService {
     }
   }
 
-  // Inside ParentDataService class
   Future<List<CardInfo>> fetchLinkedCards() async {
     final response = await _backend.get('/api/parents/cards');
     if (response is List) {
       return response.map((json) => CardInfo.fromJson(json)).toList();
     }
     return [];
+  }
+
+  Future<void> deleteCard(String cardId) async {
+    await _backend.delete('/api/parents/cards/$cardId');
+  }
+
+  Future<void> setDefaultCard(String cardId) async {
+    await _backend.patch('/api/parents/cards/$cardId/default', {});
   }
 }
