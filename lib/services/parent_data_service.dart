@@ -9,6 +9,7 @@ import 'package:vango_parent_app/models/message_thread.dart';
 import 'package:vango_parent_app/models/notification_item.dart';
 import 'package:vango_parent_app/models/payment_record.dart';
 import 'package:vango_parent_app/services/backend_client.dart';
+import 'package:vango_parent_app/models/card_info.dart';
 
 class ParentDataService {
   ParentDataService._();
@@ -477,5 +478,28 @@ class ParentDataService {
   Future<Map<String, dynamic>> verifyInviteCode(String code) async {
     final response = await _backend.get('/api/parents/verify-invite/$code');
     return _expectMap(response);
+  }
+
+  Future<bool> checkHasLinkedCard() async {
+    try {
+      final response = await _backend.get('/api/parents/profile');
+      if (response is Map<String, dynamic> &&
+          response.containsKey('hasLinkedCard')) {
+        return response['hasLinkedCard'] == true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error checking linked card status: $e');
+      return false;
+    }
+  }
+
+  // Inside ParentDataService class
+  Future<List<CardInfo>> fetchLinkedCards() async {
+    final response = await _backend.get('/api/parents/cards');
+    if (response is List) {
+      return response.map((json) => CardInfo.fromJson(json)).toList();
+    }
+    return [];
   }
 }

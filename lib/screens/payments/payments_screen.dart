@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'package:vango_parent_app/models/payment_record.dart';
+import 'package:vango_parent_app/models/card_info.dart';
 import 'package:vango_parent_app/screens/payments/add_card_screen.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
@@ -17,600 +17,197 @@ class PaymentsScreen extends StatefulWidget {
 
 class _PaymentsScreenState extends State<PaymentsScreen> {
   final ParentDataService _dataService = ParentDataService.instance;
-  List<PaymentRecord> _transactions = const <PaymentRecord>[];
-  bool _loadingTransactions = true;
-  String? _transactionsError;
-  
-  final List<_PaymentMethod> _methods = [
-    _PaymentMethod(
-      name: 'Mastercard',
-      masked: '•••• 8463',
-      brand: _PaymentBrand.mastercard,
-      detail: 'Personal card',
-    ),
-    _PaymentMethod(
-      name: 'PayPal',
-      masked: 'orb***@gmail.com',
-      brand: _PaymentBrand.paypal,
-      detail: 'Preferred online',
-    ),
-    _PaymentMethod(
-      name: 'Apple Pay',
-      masked: 'Wallet • iPhone',
-      brand: _PaymentBrand.apple,
-      detail: 'Face ID enabled',
-    ),
-  ];
-
-  int _selectedMethod = 0;
-  final double _orderAmount = 8000;
-  final double _promo = 220;
-  final double _delivery = 600;
-  final double _tax = 200;
-
-  double get _total {
-    return _orderAmount - _promo + _delivery + _tax;
-  }
+  List<PaymentRecord> _transactions = const [];
+  List<CardInfo> _cards = const [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadTransactions();
+    _loadData();
   }
 
-  Future<void> _loadTransactions() async {
-    setState(() {
-      _loadingTransactions = true;
-      _transactionsError = null;
-    });
-
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
     try {
-      final records = await _dataService.fetchPayments();
-      if (!mounted) {
-        return;
-      }
+      final results = await Future.wait([
+        _dataService.fetchLinkedCards(),
+        _dataService.fetchPayments(),
+      ]);
+      if (!mounted) return;
       setState(() {
-        _transactions = records;
-        _loadingTransactions = false;
+        _cards = results[0] as List<CardInfo>;
+        _transactions = results[1] as List<PaymentRecord>;
+        _isLoading = false;
       });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _transactionsError = error.toString();
-        _loadingTransactions = false;
-      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
     }
-  }
-
-  void _showPaymentSuccess() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: AppColors.overlay,
-      builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-        final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-
-        return Center(
-          child: Container(
-            margin: EdgeInsets.all(40),
-            padding: EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface, // 👇 Dynamic dialog background
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Theme.of(context).dividerColor), // 👇 Add dynamic border
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.accent.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.check_circle,
-                    color: AppColors.accent,
-                    size: 50,
-                  ),
-                ),
-                SizedBox(height: 24),
-                Text(
-                  'Payment Successful!',
-                  style: AppTypography.headline.copyWith(fontSize: 20, color: textColor), // 👇 Dynamic text color
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Your payment of Rs. ${_total.toStringAsFixed(0)} has been processed',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(
-                    fontSize: 14,
-                    color: secondaryTextColor, // 👇 Dynamic secondary text color
-                  ),
-                ),
-                SizedBox(height: 24),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    minimumSize: Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: Text('Done', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          floating: true,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic app bar background
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Payment method',
-                style: AppTypography.headline.copyWith(fontSize: 20, color: textColor), // 👇 Dynamic text color
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            floating: true,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            title: Text(
+              'Billing & Payments',
+              style: AppTypography.headline.copyWith(fontSize: 20),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  Text(
+                    'My Cards',
+                    style: AppTypography.title.copyWith(fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildCardCarousel(),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Recent Transactions',
+                    style: AppTypography.title.copyWith(fontSize: 18),
+                  ),
+                  const SizedBox(height: 12),
+                ],
               ),
-              Text(
-                'Secure checkout powered by EduRide',
-                style: AppTypography.body.copyWith(
-                  fontSize: 12,
-                  color: secondaryTextColor, // 👇 Dynamic secondary text color
+            ),
+          ),
+          if (_transactions.isEmpty && !_isLoading)
+            const SliverFillRemaining(
+              child: Center(child: Text('No transactions yet')),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: PaymentCard(payment: _transactions[index]),
+                  ),
+                  childCount: _transactions.length,
                 ),
               ),
-            ],
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardCarousel() {
+    return SizedBox(
+      height: 180,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _cards.length + 1,
+        itemBuilder: (context, index) {
+          if (index == _cards.length) {
+            return _buildAddCardButton();
+          }
+          final card = _cards[index];
+          return Container(
+            width: 280,
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.accent, AppColors.accent.withOpacity(0.8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(height: 12),
-                _PaymentMethodsCard(
-                  methods: _methods,
-                  selected: _selectedMethod,
-                  onSelect: (index) {
-                    setState(() {
-                      _selectedMethod = index;
-                    });
-                  },
-                ),
-                SizedBox(height: 18),
-                _DeliveryCard(),
-                SizedBox(height: 18),
-                _OrderSummaryCard(
-                  orderAmount: _orderAmount,
-                  promo: _promo,
-                  delivery: _delivery,
-                  tax: _tax,
-                  total: _total,
-                ),
-                SizedBox(height: 24),
-                GradientButton(
-                  label: 'Pay now',
-                  expanded: true,
-                  onPressed: _showPaymentSuccess,
-                ),
-                SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Recent transactions',
-                      style: AppTypography.title.copyWith(fontSize: 18, color: textColor), // 👇 Dynamic text color
+                      card.cardType,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    TextButton(onPressed: () {}, child: Text('View all', style: TextStyle(color: AppColors.accent))),
+                    const Icon(Icons.contactless, color: Colors.white70),
+                  ],
+                ),
+                Text(
+                  card.cardNo,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    letterSpacing: 4,
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      card.isDefault ? 'PRIMARY' : '',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      card.cardExpiry,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
                   ],
                 ),
               ],
             ),
-          ),
-        ),
-        if (_loadingTransactions)
-          const SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (_transactionsError != null)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.receipt_long, size: 48, color: secondaryTextColor),
-                    const SizedBox(height: 8),
-                    Text('Unable to load transactions', style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic text color
-                    const SizedBox(height: 8),
-                    Text(
-                      _transactionsError!,
-                      style: AppTypography.body.copyWith(color: secondaryTextColor), // 👇 Dynamic secondary text color
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    GradientButton(label: 'Retry', onPressed: _loadTransactions),
-                  ],
-                ),
-              ),
-            ),
-          )
-        else if (_transactions.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(child: Text('No transactions yet', style: TextStyle(color: textColor))), // 👇 Dynamic text color
-          )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final payment = _transactions[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: PaymentCard(payment: payment),
-                  );
-                },
-                childCount: _transactions.length,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _PaymentMethodsCard extends StatelessWidget {
-  final List<_PaymentMethod> methods;
-  final int selected;
-  final ValueChanged<int> onSelect;
-
-  const _PaymentMethodsCard({
-    required this.methods,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface, // 👇 Dynamic surface color
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic border
-        boxShadow: [
-          if (!isDark) // 👇 Shadow only in light mode
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 20,
-              offset: const Offset(0, 12),
-            ),
-        ],
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < methods.length; i++) ...[
-            _PaymentMethodTile(
-              method: methods[i],
-              selected: i == selected,
-              onTap: () => onSelect(i),
-            ),
-            if (i != methods.length - 1)
-              Divider(height: 1, indent: 76, endIndent: 20, color: Theme.of(context).dividerColor), // 👇 Dynamic divider
-          ],
-          Divider(height: 1, indent: 0, endIndent: 0, color: Theme.of(context).dividerColor), // 👇 Dynamic divider
-          Padding(
-            padding: EdgeInsets.all(20),
-            child: GradientButton(
-              label: 'Add payment method',
-              icon: Icons.add,
-              onPressed: () {
-                Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => AddCardScreen()));
-              },
-              expanded: true,
-              secondary: true,
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
-}
 
-class _PaymentMethodTile extends StatelessWidget {
-  final _PaymentMethod method;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _PaymentMethodTile({
-    required this.method,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-
-    return ListTile(
-      onTap: onTap,
-      contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      leading: _PaymentBrandIcon(brand: method.brand),
-      title: Text(
-        method.name,
-        style: AppTypography.title.copyWith(fontSize: 16, color: textColor), // 👇 Dynamic text color
-      ),
-      subtitle: Text(
-        '${method.masked} • ${method.detail}',
-        style: AppTypography.body.copyWith(
-          fontSize: 13,
-          color: secondaryTextColor, // 👇 Dynamic secondary text color
-        ),
-      ),
-      trailing: AnimatedContainer(
-        duration: Duration(milliseconds: 200),
-        width: 22,
-        height: 22,
+  Widget _buildAddCardButton() {
+    return GestureDetector(
+      onTap: () => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const AddCardScreen()))
+          .then((_) => _loadData()),
+      child: Container(
+        width: 140,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: selected ? AppColors.accent : Theme.of(context).dividerColor, // 👇 Dynamic unselected border
-            width: 2,
+            color: Theme.of(context).dividerColor,
+            style: BorderStyle.solid,
           ),
-          color: selected ? AppColors.accent : Colors.transparent,
         ),
-        child: selected
-            ? Icon(Icons.check, size: 14, color: Colors.white)
-            : null,
-      ),
-    );
-  }
-}
-
-class _DeliveryCard extends StatelessWidget {
-  const _DeliveryCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface, // 👇 Dynamic surface color
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic border
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  Icons.location_on_outlined,
-                  color: AppColors.accent,
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Pickup location',
-                      style: AppTypography.title.copyWith(fontSize: 16, color: textColor), // 👇 Dynamic text color
-                    ),
-                    Text(
-                      'A3/4 Jawhra, Colombo 06',
-                      style: AppTypography.body.copyWith(
-                        fontSize: 13,
-                        color: secondaryTextColor, // 👇 Dynamic secondary text color
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(onPressed: () {}, icon: Icon(Icons.chevron_right, color: secondaryTextColor)), // 👇 Dynamic icon color
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OrderSummaryCard extends StatelessWidget {
-  final double orderAmount;
-  final double promo;
-  final double delivery;
-  final double tax;
-  final double total;
-
-  const _OrderSummaryCard({
-    required this.orderAmount,
-    required this.promo,
-    required this.delivery,
-    required this.tax,
-    required this.total,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-
-    TextStyle valueStyle(bool accent) {
-      if (accent) {
-        return AppTypography.body.copyWith(
-          fontSize: 14,
-          color: AppColors.accent,
-          fontWeight: FontWeight.w600,
-        );
-      } else {
-        return AppTypography.body.copyWith(
-          fontSize: 14,
-          color: textColor, // 👇 Dynamic text color
-          fontWeight: FontWeight.w500,
-        );
-      }
-    }
-
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface, // 👇 Dynamic surface color
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic border
-      ),
-      child: Column(
-        children: [
-          _SummaryRow(
-            label: 'Order amount',
-            value: orderAmount,
-            style: valueStyle(false),
-          ),
-          _SummaryRow(
-            label: 'Promo code',
-            value: -promo,
-            style: valueStyle(false),
-          ),
-          _SummaryRow(
-            label: 'Delivery',
-            value: delivery,
-            style: valueStyle(false),
-          ),
-          _SummaryRow(label: 'Tax', value: tax, style: valueStyle(false)),
-          Divider(height: 32, color: Theme.of(context).dividerColor), // 👇 Dynamic divider
-          _SummaryRow(
-            label: 'Total amount',
-            value: total,
-            style: valueStyle(true),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  final String label;
-  final double value;
-  final TextStyle style;
-
-  const _SummaryRow({
-    required this.label,
-    required this.value,
-    required this.style,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: AppTypography.body.copyWith(
-              fontSize: 14,
-              color: secondaryTextColor, // 👇 Dynamic secondary text color
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_circle_outline, color: AppColors.accent, size: 32),
+            const SizedBox(height: 8),
+            const Text(
+              'Add Card',
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
-          ),
-          Spacer(),
-          Text('Rs. ${value.toStringAsFixed(0)}', style: style),
-        ],
+          ],
+        ),
       ),
-    );
-  }
-}
-
-class _PaymentMethod {
-  final String name;
-  final String masked;
-  final _PaymentBrand brand;
-  final String detail;
-
-  _PaymentMethod({
-    required this.name,
-    required this.masked,
-    required this.brand,
-    required this.detail,
-  });
-}
-
-enum _PaymentBrand { mastercard, paypal, apple }
-
-class _PaymentBrandIcon extends StatelessWidget {
-  final _PaymentBrand brand;
-
-  const _PaymentBrandIcon({required this.brand});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    IconData icon;
-    Color color;
-
-    if (brand == _PaymentBrand.paypal) {
-      icon = Icons.account_balance_wallet;
-      color = Color(0xFF003087);
-    } else if (brand == _PaymentBrand.apple) {
-      icon = Icons.phone_iphone;
-      color = isDark ? Colors.white : Colors.black87; // 👇 Make Apple icon white in dark mode
-    } else {
-      icon = Icons.credit_card;
-      color = Color(0xFFEA5B0C);
-    }
-
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurfaceStrong : AppColors.surfaceStrong, // 👇 Dynamic icon background
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Icon(icon, color: color),
     );
   }
 }
