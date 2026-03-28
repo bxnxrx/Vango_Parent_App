@@ -14,6 +14,8 @@ import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/screens/auth/reset_password_screen.dart';
 import 'package:vango_parent_app/services/language_service.dart';
 import 'package:vango_parent_app/utils/auth_ui_helper.dart';
+import 'package:vango_parent_app/utils/validators.dart'; // ✅ NEW
+import 'package:vango_parent_app/widgets/common_language_selector.dart'; // ✅ NEW
 
 const String _googleIconSvg =
     '''<svg xmlns="http://www.w3.org/2000/svg" width="800px" height="800px" viewBox="-3 0 262 262" preserveAspectRatio="xMidYMid"><path d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027" fill="#4285F4"/><path d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1" fill="#34A853"/><path d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782" fill="#FBBC05"/><path d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251" fill="#EB4335"/></svg>''';
@@ -59,17 +61,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     super.dispose();
   }
 
-  String _getLanguageName(AppLanguage lang) {
-    switch (lang) {
-      case AppLanguage.english:
-        return 'English';
-      case AppLanguage.sinhala:
-        return 'සිංහල';
-      case AppLanguage.tamil:
-        return 'தமிழ்';
-    }
-  }
-
   void _switchTab(bool toPhone) async {
     if (_isPhoneLogin == toPhone || _isLoading) return;
     HapticFeedback.selectionClick();
@@ -77,30 +68,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     if (!mounted) return;
     setState(() => _isPhoneLogin = toPhone);
     _formKey.currentState?.reset();
-  }
-
-  String? _validatePhone(String? value) {
-    final loc = AppLocalizations.of(context)!;
-    if (value == null || value.trim().isEmpty) return loc.loginErrPhoneReq;
-    final cleanPhone = value.replaceAll(' ', '');
-    final phoneRegex = RegExp(r'^[0-9]{9}$');
-    if (!phoneRegex.hasMatch(cleanPhone)) return loc.loginErrPhoneInv;
-    return null;
-  }
-
-  String? _validateEmail(String? value) {
-    final loc = AppLocalizations.of(context)!;
-    if (value == null || value.trim().isEmpty) return loc.loginErrEmailReq;
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value.trim())) return loc.loginErrEmailInv;
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    final loc = AppLocalizations.of(context)!;
-    if (value == null || value.isEmpty) return loc.loginErrPassReq;
-    if (value.length < 8) return loc.loginErrPassMin;
-    return null;
   }
 
   Future<void> _handlePhoneLogin() async {
@@ -135,10 +102,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         e,
         stackTrace,
         reason: 'Phone Auth Failed',
-      );
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_failure',
-        parameters: {'method': 'phone', 'reason': e.toString()},
       );
       AuthUiHelper.showMessage(
         context,
@@ -187,10 +150,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       }
     } on AuthException catch (e, stackTrace) {
       if (!mounted) return;
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_failure',
-        parameters: {'method': 'email', 'reason': e.message},
-      );
       if (e.message.toLowerCase().contains('email not confirmed') ||
           e.code == 'email_not_confirmed') {
         try {
@@ -214,10 +173,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       }
     } catch (e, stackTrace) {
       if (!mounted) return;
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_failure',
-        parameters: {'method': 'email', 'reason': e.toString()},
-      );
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -236,8 +191,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   Future<void> _handleForgotPassword() async {
     if (_isLoading) return;
 
+    final loc = AppLocalizations.of(context)!;
     final email = _emailController.text.trim();
-    final emailError = _validateEmail(email);
+    final emailError = AppValidators.validateEmail(
+      email,
+      loc,
+    ); // ✅ Uses Validator
 
     if (emailError != null) {
       HapticFeedback.heavyImpact();
@@ -245,18 +204,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       return;
     }
 
-    final loc = AppLocalizations.of(context)!;
     _isLoading = true;
     HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
     setState(() {});
 
     try {
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_attempt',
-        parameters: {'method': 'forgot_password'},
-      );
-
       final res = await Supabase.instance.client
           .from('parents')
           .select('id')
@@ -278,10 +231,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       await AuthService.instance.requestPasswordReset(email);
       if (!mounted) return;
 
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_success',
-        parameters: {'method': 'forgot_password', 'step': 'reset_sent'},
-      );
       AuthUiHelper.showMessage(
         context,
         loc.loginResetSent(email),
@@ -298,10 +247,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
     } catch (e, stackTrace) {
       if (!mounted) return;
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_failure',
-        parameters: {'method': 'forgot_password', 'reason': e.toString()},
-      );
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -329,22 +274,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     setState(() {});
 
     try {
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_attempt',
-        parameters: {'method': provider},
-      );
       await method();
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_success',
-        parameters: {'method': provider},
-      );
       await _checkStatusAndNotify();
     } catch (e, stackTrace) {
       if (!mounted) return;
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_failure',
-        parameters: {'method': provider, 'reason': e.toString()},
-      );
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -378,87 +311,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         isError: true,
       );
     }
-  }
-
-  Widget _buildLanguageSelector(bool isDark) {
-    final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
-    final selectedTextColor = isDark ? Colors.white : AppColors.accent;
-    final unselectedTextColor = isDark
-        ? AppColors.darkTextSecondary
-        : Colors.grey.shade700;
-
-    return Semantics(
-      button: true,
-      label: "Select Language",
-      child: Theme(
-        data: Theme.of(context).copyWith(
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-        ),
-        child: PopupMenuButton<AppLanguage>(
-          onSelected: (AppLanguage newValue) {
-            HapticFeedback.selectionClick();
-            LanguageService.instance.setLanguage(newValue);
-          },
-          color: menuBgColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 8,
-          offset: const Offset(0, 45),
-          itemBuilder: (context) => AppLanguage.values.map((lang) {
-            final isSelected =
-                LanguageService.instance.currentLanguage.value == lang;
-            return PopupMenuItem<AppLanguage>(
-              value: lang,
-              child: Center(
-                child: Text(
-                  _getLanguageName(lang),
-                  style: AppTypography.body.copyWith(
-                    color: isSelected ? selectedTextColor : unselectedTextColor,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.language_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _getLanguageName(
-                    LanguageService.instance.currentLanguage.value,
-                  ),
-                  style: AppTypography.label.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -554,7 +406,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                         ),
                                       ],
                                     ),
-                                    _buildLanguageSelector(isDark),
+                                    CommonLanguageSelector(
+                                      isDark: isDark,
+                                    ), // ✅ Uses Central Widget
                                   ],
                                 ),
                               ),
@@ -646,10 +500,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                             ? _buildPhoneInput(
                                                 accentColor,
                                                 isDark,
+                                                loc,
                                               )
                                             : _buildEmailInput(
                                                 accentColor,
                                                 isDark,
+                                                loc,
                                               ),
                                       ),
                                       const SizedBox(height: 24),
@@ -660,18 +516,16 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                             : loc.loginContinueBtn,
                                         child: Listener(
                                           onPointerDown: (_) {
-                                            if (!_isLoading) {
+                                            if (!_isLoading)
                                               setState(
                                                 () => _isSubmitPressed = true,
                                               );
-                                            }
                                           },
                                           onPointerUp: (_) {
-                                            if (!_isLoading) {
+                                            if (!_isLoading)
                                               setState(
                                                 () => _isSubmitPressed = false,
                                               );
-                                            }
                                           },
                                           child: AnimatedScale(
                                             scale: _isSubmitPressed
@@ -849,8 +703,11 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     );
   }
 
-  Widget _buildPhoneInput(Color activeColor, bool isDark) {
-    final loc = AppLocalizations.of(context)!;
+  Widget _buildPhoneInput(
+    Color activeColor,
+    bool isDark,
+    AppLocalizations loc,
+  ) {
     return Container(
       key: const ValueKey('PhoneInput'),
       child: _buildTextField(
@@ -866,14 +723,18 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         ],
         activeColor: activeColor,
         isDark: isDark,
-        validator: _validatePhone,
+        validator: (v) =>
+            AppValidators.validatePhone(v, loc), // ✅ Uses Validator File
         prefixText: '+94 ',
       ),
     );
   }
 
-  Widget _buildEmailInput(Color activeColor, bool isDark) {
-    final loc = AppLocalizations.of(context)!;
+  Widget _buildEmailInput(
+    Color activeColor,
+    bool isDark,
+    AppLocalizations loc,
+  ) {
     return Column(
       key: const ValueKey('EmailInput'),
       children: [
@@ -886,7 +747,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           autofillHints: const [AutofillHints.email],
           activeColor: activeColor,
           isDark: isDark,
-          validator: _validateEmail,
+          validator: (v) =>
+              AppValidators.validateEmail(v, loc), // ✅ Uses Validator File
         ),
         const SizedBox(height: 16),
         _buildTextField(
@@ -901,7 +763,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           autofillHints: const [AutofillHints.password],
           activeColor: activeColor,
           isDark: isDark,
-          validator: _validatePassword,
+          validator: (v) =>
+              AppValidators.validatePassword(v, loc), // ✅ Uses Validator File
         ),
         Align(
           alignment: Alignment.centerRight,

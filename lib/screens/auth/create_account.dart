@@ -11,6 +11,8 @@ import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
 import 'package:vango_parent_app/utils/auth_ui_helper.dart';
+import 'package:vango_parent_app/utils/validators.dart'; // ✅ NEW
+import 'package:vango_parent_app/widgets/common_language_selector.dart'; // ✅ NEW
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({
@@ -87,41 +89,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     super.dispose();
-  }
-
-  String _getLanguageName(AppLanguage lang) {
-    switch (lang) {
-      case AppLanguage.english:
-        return 'English';
-      case AppLanguage.sinhala:
-        return 'සිංහල';
-      case AppLanguage.tamil:
-        return 'தமிழ்';
-    }
-  }
-
-  String? _validateName(String? value) {
-    final loc = AppLocalizations.of(context)!;
-    if (value == null || value.trim().isEmpty) return loc.createErrNameReq;
-    if (value.trim().length < 3) return loc.createErrNameMin;
-    return null;
-  }
-
-  String? _validatePhone(String? value) {
-    final loc = AppLocalizations.of(context)!;
-    if (value == null || value.trim().isEmpty) return loc.createErrPhoneReq;
-    final cleanPhone = value.replaceAll(' ', '');
-    final phoneRegex = RegExp(r'^[0-9]{9}$');
-    if (!phoneRegex.hasMatch(cleanPhone)) return loc.createErrPhoneInv;
-    return null;
-  }
-
-  String? _validateEmail(String? value) {
-    final loc = AppLocalizations.of(context)!;
-    if (value == null || value.trim().isEmpty) return null;
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value.trim())) return loc.createErrEmailInv;
-    return null;
   }
 
   Future<void> _handleSubmit() async {
@@ -203,10 +170,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         stackTrace,
         reason: 'Failed to verify phone linked',
       );
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_failure',
-        parameters: {'method': 'create_account', 'reason': 'phone_link_failed'},
-      );
       AuthUiHelper.showMessage(
         context,
         AuthUiHelper.parseErrorKey(e),
@@ -252,10 +215,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         stackTrace,
         reason: 'Failed to verify email linked',
       );
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_failure',
-        parameters: {'method': 'create_account', 'reason': 'email_link_failed'},
-      );
       AuthUiHelper.showMessage(
         context,
         AuthUiHelper.parseErrorKey(e),
@@ -287,13 +246,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         e,
         stackTrace,
         reason: 'Failed to save parent profile',
-      );
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_failure',
-        parameters: {
-          'method': 'create_account',
-          'reason': 'save_profile_failed',
-        },
       );
       AuthUiHelper.showMessage(
         context,
@@ -378,87 +330,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
   }
 
-  Widget _buildLanguageSelector(bool isDark) {
-    final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
-    final selectedTextColor = isDark ? Colors.white : AppColors.accent;
-    final unselectedTextColor = isDark
-        ? AppColors.darkTextSecondary
-        : Colors.grey.shade700;
-
-    return Semantics(
-      button: true,
-      label: "Select Language",
-      child: Theme(
-        data: Theme.of(context).copyWith(
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-        ),
-        child: PopupMenuButton<AppLanguage>(
-          onSelected: (AppLanguage newValue) {
-            HapticFeedback.selectionClick();
-            LanguageService.instance.setLanguage(newValue);
-          },
-          color: menuBgColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 8,
-          offset: const Offset(0, 45),
-          itemBuilder: (context) => AppLanguage.values.map((lang) {
-            final isSelected =
-                LanguageService.instance.currentLanguage.value == lang;
-            return PopupMenuItem<AppLanguage>(
-              value: lang,
-              child: Center(
-                child: Text(
-                  _getLanguageName(lang),
-                  style: AppTypography.body.copyWith(
-                    color: isSelected ? selectedTextColor : unselectedTextColor,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.language_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _getLanguageName(
-                    LanguageService.instance.currentLanguage.value,
-                  ),
-                  style: AppTypography.label.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
@@ -530,7 +401,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         ),
                                       ),
                                     ),
-                                    _buildLanguageSelector(isDark),
+                                    CommonLanguageSelector(
+                                      isDark: isDark,
+                                    ), // ✅ Uses Central Widget
                                   ],
                                 ),
                               ),
@@ -612,7 +485,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         ],
                                         isDark: isDark,
                                         activeColor: accentColor,
-                                        validator: _validateName,
+                                        validator: (val) =>
+                                            AppValidators.validateName(
+                                              val,
+                                              loc,
+                                            ), // ✅ Uses Validator File
                                       ),
                                       const SizedBox(height: 20),
                                       _buildTextField(
@@ -631,7 +508,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         ],
                                         isDark: isDark,
                                         activeColor: accentColor,
-                                        validator: _validatePhone,
+                                        validator: (val) =>
+                                            AppValidators.validatePhone(
+                                              val,
+                                              loc,
+                                            ), // ✅ Uses Validator File
                                         readOnly: _phoneReadOnly,
                                         prefixText: '+94 ',
                                       ),
@@ -649,7 +530,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         ],
                                         isDark: isDark,
                                         activeColor: accentColor,
-                                        validator: _validateEmail,
+                                        validator: (val) =>
+                                            AppValidators.validateEmail(
+                                              val,
+                                              loc,
+                                              isOptional: true,
+                                            ), // ✅ Uses Validator File
                                         readOnly: _emailReadOnly,
                                       ),
                                       const SizedBox(height: 32),
