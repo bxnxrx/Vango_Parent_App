@@ -1,18 +1,19 @@
 import 'dart:async';
+import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 // 🚨 Parent App Imports
-import 'package:vango_parent_app/theme/app_colors.dart'; 
-import 'package:vango_parent_app/theme/app_typography.dart'; 
+import 'package:vango_parent_app/theme/app_colors.dart';
+import 'package:vango_parent_app/theme/app_typography.dart';
 
 // Your exact Agora App ID
-const String appId = '8470fb315c3f4fdfb549d4f2811e0d5a'; 
+const String appId = '8470fb315c3f4fdfb549d4f2811e0d5a';
 
 class CallScreen extends StatefulWidget {
   final String channelName; // The unique Room ID (e.g., the chatId)
-  final String callerName;  // Name of the person you are talking to
+  final String callerName; // Name of the person you are talking to
 
   const CallScreen({
     super.key,
@@ -46,10 +47,12 @@ class _CallScreenState extends State<CallScreen> {
 
     // 2. Create and initialize the Agora Engine
     _engine = createAgoraRtcEngine();
-    await _engine.initialize(const RtcEngineContext(
-      appId: appId,
-      channelProfile: ChannelProfileType.channelProfileCommunication,
-    ));
+    await _engine.initialize(
+      const RtcEngineContext(
+        appId: appId,
+        channelProfile: ChannelProfileType.channelProfileCommunication,
+      ),
+    );
 
     // 3. Set up event handlers to know when people join/leave
     _engine.registerEventHandler(
@@ -57,7 +60,7 @@ class _CallScreenState extends State<CallScreen> {
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
           debugPrint("✅ Joined local channel: ${connection.channelId}");
           setState(() => _isJoined = true);
-          
+
           // ✨ Safely turn on speakerphone AFTER joining
           try {
             _engine.setEnableSpeakerphone(_isSpeakerOn);
@@ -72,28 +75,34 @@ class _CallScreenState extends State<CallScreen> {
             _startTimer(); // Start counting when they pick up!
           });
         },
-        onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
-          debugPrint("🏃 Remote user left: $remoteUid");
-          setState(() => _remoteUid = null);
-          _leaveCall(); // Auto-end call if the other person hangs up
-        },
+        onUserOffline:
+            (
+              RtcConnection connection,
+              int remoteUid,
+              UserOfflineReasonType reason,
+            ) {
+              debugPrint("🏃 Remote user left: $remoteUid");
+              setState(() => _remoteUid = null);
+              _leaveCall(); // Auto-end call if the other person hangs up
+            },
       ),
     );
 
     // 4. Enable audio
     await _engine.enableAudio();
-    
-    // ✨ FIX: Agora strict 64-character limit
+
+    // ✨ FIX: Agora strict 64-character limit handled via deterministic UUID
     String safeChannelName = widget.channelName;
     if (safeChannelName.length > 64) {
-      safeChannelName = safeChannelName.substring(0, 64);
+      // Compress the long string into a unique 36-character string
+      safeChannelName = const Uuid().v5(Uuid.NAMESPACE_URL, widget.channelName);
     }
 
     // We pass a blank token because we selected "App ID Only" in the console
     await _engine.joinChannel(
-      token: '', 
-      channelId: safeChannelName, // 🚨 Shortened name passed here!
-      uid: 0, 
+      token: '',
+      channelId: safeChannelName, // 🚨 Safely shortened name passed here!
+      uid: 0,
       options: const ChannelMediaOptions(
         clientRoleType: ClientRoleType.clientRoleBroadcaster,
       ),
@@ -164,14 +173,22 @@ class _CallScreenState extends State<CallScreen> {
                   radius: 60,
                   backgroundColor: AppColors.accent.withValues(alpha: 0.15),
                   child: Text(
-                    widget.callerName.isNotEmpty ? widget.callerName[0].toUpperCase() : '?',
-                    style: AppTypography.display.copyWith(color: AppColors.accent, fontSize: 48),
+                    widget.callerName.isNotEmpty
+                        ? widget.callerName[0].toUpperCase()
+                        : '?',
+                    style: AppTypography.display.copyWith(
+                      color: AppColors.accent,
+                      fontSize: 48,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 30),
                 Text(
                   widget.callerName,
-                  style: AppTypography.headline.copyWith(color: textColor, fontSize: 28),
+                  style: AppTypography.headline.copyWith(
+                    color: textColor,
+                    fontSize: 28,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -179,7 +196,9 @@ class _CallScreenState extends State<CallScreen> {
                   style: AppTypography.body.copyWith(
                     color: AppColors.textSecondary,
                     fontSize: 18,
-                    fontWeight: _remoteUid != null ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: _remoteUid != null
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
               ],
@@ -193,12 +212,14 @@ class _CallScreenState extends State<CallScreen> {
                 children: [
                   // Speaker Button
                   _buildControlButton(
-                    icon: _isSpeakerOn ? Icons.volume_up_rounded : Icons.volume_down_rounded,
+                    icon: _isSpeakerOn
+                        ? Icons.volume_up_rounded
+                        : Icons.volume_down_rounded,
                     isActive: _isSpeakerOn,
                     onTap: _toggleSpeaker,
                     isDark: isDark,
                   ),
-                  
+
                   // End Call Button
                   GestureDetector(
                     onTap: _leaveCall,
@@ -212,10 +233,14 @@ class _CallScreenState extends State<CallScreen> {
                             color: Colors.redAccent,
                             blurRadius: 12,
                             offset: Offset(0, 4),
-                          )
+                          ),
                         ],
                       ),
-                      child: const Icon(Icons.call_end_rounded, color: Colors.white, size: 36),
+                      child: const Icon(
+                        Icons.call_end_rounded,
+                        color: Colors.white,
+                        size: 36,
+                      ),
                     ),
                   ),
 
@@ -236,8 +261,8 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Widget _buildControlButton({
-    required IconData icon, 
-    required bool isActive, 
+    required IconData icon,
+    required bool isActive,
     required VoidCallback onTap,
     required bool isDark,
   }) {
@@ -246,8 +271,8 @@ class _CallScreenState extends State<CallScreen> {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isActive 
-              ? (isDark ? Colors.white : Colors.black87) 
+          color: isActive
+              ? (isDark ? Colors.white : Colors.black87)
               : (isDark ? AppColors.darkSurfaceStrong : Colors.white),
           shape: BoxShape.circle,
           boxShadow: [
@@ -259,10 +284,10 @@ class _CallScreenState extends State<CallScreen> {
           ],
         ),
         child: Icon(
-          icon, 
-          color: isActive 
-              ? (isDark ? Colors.black : Colors.white) 
-              : (isDark ? Colors.white : Colors.black87), 
+          icon,
+          color: isActive
+              ? (isDark ? Colors.black : Colors.white)
+              : (isDark ? Colors.white : Colors.black87),
           size: 28,
         ),
       ),
