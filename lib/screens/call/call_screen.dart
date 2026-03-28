@@ -57,6 +57,13 @@ class _CallScreenState extends State<CallScreen> {
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
           debugPrint("✅ Joined local channel: ${connection.channelId}");
           setState(() => _isJoined = true);
+          
+          // ✨ Safely turn on speakerphone AFTER joining
+          try {
+            _engine.setEnableSpeakerphone(_isSpeakerOn);
+          } catch (e) {
+            debugPrint('⚠️ Could not set speakerphone: $e');
+          }
         },
         onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
           debugPrint("👋 Remote user joined: $remoteUid");
@@ -73,15 +80,20 @@ class _CallScreenState extends State<CallScreen> {
       ),
     );
 
-    // 4. Enable audio and join the channel
+    // 4. Enable audio
     await _engine.enableAudio();
-    await _engine.setEnableSpeakerphone(_isSpeakerOn);
     
+    // ✨ FIX: Agora strict 64-character limit
+    String safeChannelName = widget.channelName;
+    if (safeChannelName.length > 64) {
+      safeChannelName = safeChannelName.substring(0, 64);
+    }
+
     // We pass a blank token because we selected "App ID Only" in the console
     await _engine.joinChannel(
       token: '', 
-      channelId: widget.channelName,
-      uid: 0, // 0 tells Agora to assign a random UID automatically
+      channelId: safeChannelName, // 🚨 Shortened name passed here!
+      uid: 0, 
       options: const ChannelMediaOptions(
         clientRoleType: ClientRoleType.clientRoleBroadcaster,
       ),
