@@ -249,4 +249,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createErrGeneric => 'Something went wrong.';
+
+  @override
+  String get onboardingSkip => 'Skip';
+
+  @override
+  String get onboardingTitle1 => 'Track every ride';
+
+  @override
+  String get onboardingBody1 =>
+      'Live GPS, ETA predictions, and safety checks keep you in control.';
+
+  @override
+  String get onboardingBtn1 => 'Let\'s go!';
+
+  @override
+  String get onboardingTitle2 => 'Mark attendance instantly';
+
+  @override
+  String get onboardingBody2 =>
+      'Smart toggles sync with the driver and optimize the route.';
+
+  @override
+  String get onboardingBtn2 => 'Set attendance';
+
+  @override
+  String get onboardingTitle3 => 'Payments & finder in one app';
+
+  @override
+  String get onboardingBody3 =>
+      'Pay van fees, discover new drivers, and chat securely.';
+
+  @override
+  String get onboardingBtn3 => 'Get started';
 }

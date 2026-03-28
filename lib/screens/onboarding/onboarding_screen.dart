@@ -6,52 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 
+import 'package:vango_parent_app/l10n/app_localizations.dart'; // ✅ Added Localization Import
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
-
-const Map<AppLanguage, Map<String, String>> _localizedStrings = {
-  AppLanguage.english: {
-    'skip': 'Skip',
-    'title_1': 'Track every ride',
-    'body_1':
-        'Live GPS, ETA predictions, and safety checks keep you in control.',
-    'btn_1': "Let's go!",
-    'title_2': 'Mark attendance instantly',
-    'body_2': 'Smart toggles sync with the driver and optimize the route.',
-    'btn_2': 'Set attendance',
-    'title_3': 'Payments & finder in one app',
-    'body_3': 'Pay van fees, discover new drivers, and chat securely.',
-    'btn_3': 'Get started',
-  },
-  AppLanguage.sinhala: {
-    'skip': 'මඟ හරින්න',
-    'title_1': 'සෑම ගමනක්ම නිරීක්ෂණය කරන්න',
-    'body_1':
-        'සජීවී GPS, ETA අනාවැකි සහ ආරක්ෂක පරීක්ෂාවන් මඟින් ඔබව දැනුවත් කරයි.',
-    'btn_1': "අපි යමු!",
-    'title_2': 'පැමිණීම ක්ෂණිකව සටහන් කරන්න',
-    'body_2': 'රියදුරු සමඟ සමමුහුර්ත වී ගමන් මාර්ගය ප්‍රශස්ත කරයි.',
-    'btn_2': 'පැමිණීම සටහන් කරන්න',
-    'title_3': 'ගෙවීම් සහ සෙවුම් එකම යෙදුමකින්',
-    'body_3': 'ගාස්තු ගෙවන්න, නව රියදුරන් සොයන්න, සහ ආරක්ෂිතව කතාබස් කරන්න.',
-    'btn_3': 'ආරම්භ කරන්න',
-  },
-  AppLanguage.tamil: {
-    'skip': 'தவிர்',
-    'title_1': 'ஒவ்வொரு பயணத்தையும் கண்காணிக்கவும்',
-    'body_1':
-        'நேரலை GPS, ETA கணிப்புகள் மற்றும் பாதுகாப்பு சோதனைகள் உங்களை கட்டுப்பாட்டில் வைக்கும்.',
-    'btn_1': "போகலாம்!",
-    'title_2': 'வருகையை உடனடியாக குறிக்கவும்',
-    'body_2': 'ஓட்டுநருடன் ஒத்திசைக்கப்பட்டு பயண வழியை மேம்படுத்துகிறது.',
-    'btn_2': 'வருகையை அமைக்கவும்',
-    'title_3': 'கொடுப்பனவுகள் மற்றும் தேடல் ஒரே செயலியில்',
-    'body_3':
-        'கட்டணம் செலுத்துங்கள், புதிய ஓட்டுநர்களைக் கண்டறியுங்கள், பாதுகாப்பாக அரட்டையடிக்கவும்.',
-    'btn_3': 'தொடங்கவும்',
-  },
-};
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, required this.onFinished});
@@ -68,27 +26,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Timer? _autoPlayTimer;
   bool _isAutoScrolling = false;
 
-  static const List<_Slide> _slides = [
+  // ✅ Converted to Dynamic Builder approach to pass AppLocalizations smoothly
+  static final List<_Slide> _slides = [
     _Slide(
-      titleKey: 'title_1',
-      bodyKey: 'body_1',
+      titleBuilder: (loc) => loc.onboardingTitle1,
+      bodyBuilder: (loc) => loc.onboardingBody1,
       imageUrl:
           'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=60',
-      buttonLabelKey: 'btn_1',
+      buttonLabelBuilder: (loc) => loc.onboardingBtn1,
     ),
     _Slide(
-      titleKey: 'title_2',
-      bodyKey: 'body_2',
+      titleBuilder: (loc) => loc.onboardingTitle2,
+      bodyBuilder: (loc) => loc.onboardingBody2,
       imageUrl:
           'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=600&q=60',
-      buttonLabelKey: 'btn_2',
+      buttonLabelBuilder: (loc) => loc.onboardingBtn2,
     ),
     _Slide(
-      titleKey: 'title_3',
-      bodyKey: 'body_3',
+      titleBuilder: (loc) => loc.onboardingTitle3,
+      bodyBuilder: (loc) => loc.onboardingBody3,
       imageUrl:
           'https://images.unsplash.com/photo-1521791055366-0d553872125f?auto=format&fit=crop&w=600&q=60',
-      buttonLabelKey: 'btn_3',
+      buttonLabelBuilder: (loc) => loc.onboardingBtn3,
     ),
   ];
 
@@ -143,10 +102,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (mounted) _startAutoPlay();
     });
   }
-
-  String _t(String key) =>
-      _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
-      key;
 
   String _getLanguageName(AppLanguage lang) {
     switch (lang) {
@@ -313,15 +268,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildCard(_Slide slide, bool isDark) {
+  Widget _buildCard(_Slide slide, bool isDark, AppLocalizations loc) {
     final cardColor = isDark ? AppColors.darkSurface : AppColors.surface;
     final shadowColor = isDark
         ? Colors.black.withValues(alpha: 0.5)
         : AppColors.accent.withValues(alpha: 0.15);
     final isLastPage = _currentPage == _slides.length - 1;
 
+    // Evaluated keys
+    final title = slide.titleBuilder(loc);
+    final body = slide.bodyBuilder(loc);
+    final btnLabel = slide.buttonLabelBuilder(loc);
+
     return Semantics(
-      label: "${_t(slide.titleKey)}. ${_t(slide.bodyKey)}",
+      label: "$title. $body",
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Container(
@@ -358,7 +318,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               );
             },
             child: Column(
-              key: ValueKey(slide.titleKey),
+              key: ValueKey(title),
               children: [
                 Expanded(
                   flex: 5,
@@ -372,9 +332,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 Expanded(
                   flex: 5,
                   child: _SlideDetails(
-                    title: _t(slide.titleKey),
-                    body: _t(slide.bodyKey),
-                    buttonLabel: _t(slide.buttonLabelKey),
+                    title: title,
+                    body: body,
+                    buttonLabel: btnLabel,
                     isLastPage: isLastPage,
                     isDark: isDark,
                     onNext: _goToNextPage,
@@ -390,6 +350,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!; // ✅ Added localization instance
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
     final textColor = isDark
@@ -446,7 +407,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     label: "Skip onboarding",
                                     child: TextButton(
                                       onPressed: () {
-                                        HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
+                                        HapticFeedback.selectionClick();
                                         FirebaseAnalytics.instance.logEvent(
                                           name: 'onboarding_skip_clicked',
                                           parameters: {
@@ -455,9 +416,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                         );
                                         Future.delayed(
                                           const Duration(milliseconds: 150),
-                                          () {
-                                            _markOnboardingCompleted();
-                                          },
+                                          () => _markOnboardingCompleted(),
                                         );
                                       },
                                       style: TextButton.styleFrom(
@@ -467,7 +426,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                         ),
                                       ),
                                       child: Text(
-                                        _t('skip'),
+                                        loc.onboardingSkip, // ✅ Use Localized Value
                                         style: AppTypography.label.copyWith(
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -491,7 +450,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     );
 
                                     if (!_isAutoScrolling) {
-                                      HapticFeedback.selectionClick(); // ✅ HAPTIC: Navigation
+                                      HapticFeedback.selectionClick();
                                     }
 
                                     _startAutoPlay();
@@ -502,7 +461,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                       bottom: 24,
                                       top: 8,
                                     ),
-                                    child: _buildCard(_slides[index], isDark),
+                                    child: _buildCard(
+                                      _slides[index],
+                                      isDark,
+                                      loc,
+                                    ), // Pass loc here
                                   ),
                                 ),
                               ),
@@ -526,15 +489,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class _Slide {
   const _Slide({
-    required this.titleKey,
-    required this.bodyKey,
+    required this.titleBuilder,
+    required this.bodyBuilder,
     required this.imageUrl,
-    required this.buttonLabelKey,
+    required this.buttonLabelBuilder,
   });
-  final String titleKey;
-  final String bodyKey;
+  final String Function(AppLocalizations) titleBuilder;
+  final String Function(AppLocalizations) bodyBuilder;
   final String imageUrl;
-  final String buttonLabelKey;
+  final String Function(AppLocalizations) buttonLabelBuilder;
 }
 
 class _SlideImage extends StatelessWidget {
@@ -647,11 +610,10 @@ class _SlideDetailsState extends State<_SlideDetails> {
               onTapDown: (_) => setState(() => _isPressed = true),
               onTapUp: (_) {
                 setState(() => _isPressed = false);
-                // ✅ HAPTIC FIX: Success vs Navigation
                 if (widget.isLastPage) {
-                  HapticFeedback.lightImpact(); // Success: Finishing onboarding
+                  HapticFeedback.lightImpact();
                 } else {
-                  HapticFeedback.selectionClick(); // Navigation: Next slide
+                  HapticFeedback.selectionClick();
                 }
                 widget.onNext();
               },

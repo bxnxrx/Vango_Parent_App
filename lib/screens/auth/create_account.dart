@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 import 'package:vango_parent_app/l10n/app_localizations.dart';
@@ -9,10 +8,10 @@ import 'package:vango_parent_app/screens/auth/otp_screen.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
-import 'package:vango_parent_app/services/language_service.dart';
 import 'package:vango_parent_app/utils/auth_ui_helper.dart';
-import 'package:vango_parent_app/utils/validators.dart'; // ✅ NEW
+import 'package:vango_parent_app/utils/validators.dart';
 import 'package:vango_parent_app/widgets/common_language_selector.dart'; // ✅ NEW
+import 'package:vango_parent_app/widgets/common_text_field.dart'; // ✅ NEW
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({
@@ -28,8 +27,10 @@ class CreateAccountScreen extends StatefulWidget {
 
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final _formKey = GlobalKey<FormState>();
-  bool _submitting = false;
-  bool _isSubmitPressed = false;
+
+  // ✅ State Management Refactor
+  final ValueNotifier<bool> _submitting = ValueNotifier(false);
+  final ValueNotifier<bool> _isSubmitPressed = ValueNotifier(false);
 
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -88,11 +89,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     _fullNameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _submitting.dispose();
+    _isSubmitPressed.dispose();
     super.dispose();
   }
 
   Future<void> _handleSubmit() async {
-    if (_submitting) return;
+    if (_submitting.value) return;
 
     final loc = AppLocalizations.of(context)!;
 
@@ -107,7 +110,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
-    setState(() => _submitting = true);
+    _submitting.value = true;
     HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
 
@@ -138,7 +141,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       await AuthService.instance.linkPhone(phone);
       if (!mounted) return;
 
-      setState(() => _submitting = false);
+      _submitting.value = false;
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -164,7 +167,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
     } catch (e, stackTrace) {
       if (!mounted) return;
-      setState(() => _submitting = false);
+      _submitting.value = false;
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -183,7 +186,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       await AuthService.instance.linkEmail(email);
       if (!mounted) return;
 
-      setState(() => _submitting = false);
+      _submitting.value = false;
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -209,7 +212,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
     } catch (e, stackTrace) {
       if (!mounted) return;
-      setState(() => _submitting = false);
+      _submitting.value = false;
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -224,7 +227,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> _saveProfile(String phone, String email) async {
-    setState(() => _submitting = true);
+    _submitting.value = true;
     try {
       await AuthService.instance.saveParentProfile(
         fullName: _fullNameController.text.trim(),
@@ -253,7 +256,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         isError: true,
       );
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) _submitting.value = false;
     }
   }
 
@@ -307,7 +310,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         false;
 
     if (confirm) {
-      setState(() => _submitting = true);
+      _submitting.value = true;
       try {
         await AuthService.instance.cancelSignup();
         if (mounted) widget.onBack();
@@ -325,7 +328,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         );
         widget.onBack();
       } finally {
-        if (mounted) setState(() => _submitting = false);
+        if (mounted) _submitting.value = false;
       }
     }
   }
@@ -341,32 +344,30 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         : AppColors.textPrimary;
     final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
-    return ValueListenableBuilder<AppLanguage>(
-      valueListenable: LanguageService.instance.currentLanguage,
-      builder: (context, currentLang, child) {
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle.light.copyWith(
-            statusBarColor: Colors.transparent,
-            systemNavigationBarColor: bgColor,
-            systemNavigationBarIconBrightness: isDark
-                ? Brightness.light
-                : Brightness.dark,
-          ),
-          child: Scaffold(
-            backgroundColor: bgColor,
-            resizeToAvoidBottomInset: false,
-            body: GestureDetector(
-              onTap: () => FocusScope.of(context).unfocus(),
-              child: CustomPaint(
-                painter: _HeaderBackgroundPainter(
-                  color: isDark
-                      ? AppColors.darkSurfaceStrong
-                      : AppColors.accent,
-                ),
-                child: SafeArea(
-                  bottom: false,
-                  child: AbsorbPointer(
-                    absorbing: _submitting,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: bgColor,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: bgColor,
+        resizeToAvoidBottomInset: false,
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: CustomPaint(
+            painter: _HeaderBackgroundPainter(
+              color: isDark ? AppColors.darkSurfaceStrong : AppColors.accent,
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _submitting,
+                builder: (context, isSubmitting, _) {
+                  return AbsorbPointer(
+                    absorbing: isSubmitting,
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 500),
@@ -475,7 +476,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 28),
-                                      _buildTextField(
+                                      CommonTextField(
                                         controller: _fullNameController,
                                         label: loc.createFullName,
                                         hint: loc.createFullNameHint,
@@ -489,10 +490,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                             AppValidators.validateName(
                                               val,
                                               loc,
-                                            ), // ✅ Uses Validator File
+                                            ), // ✅ Uses Validator
                                       ),
                                       const SizedBox(height: 20),
-                                      _buildTextField(
+                                      CommonTextField(
                                         controller: _phoneController,
                                         label: loc.createMobile,
                                         hint: loc.createMobileHint,
@@ -512,14 +513,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                             AppValidators.validatePhone(
                                               val,
                                               loc,
-                                            ), // ✅ Uses Validator File
+                                            ), // ✅ Uses Validator
                                         readOnly: _phoneReadOnly,
                                         prefixText: '+94 ',
                                       ),
                                       const SizedBox(height: 20),
                                       _buildDropdown(isDark, accentColor, loc),
                                       const SizedBox(height: 20),
-                                      _buildTextField(
+                                      CommonTextField(
                                         controller: _emailController,
                                         label: loc.createEmailOpt,
                                         hint: loc.createEmailHint,
@@ -535,80 +536,82 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                               val,
                                               loc,
                                               isOptional: true,
-                                            ), // ✅ Uses Validator File
+                                            ), // ✅ Uses Validator
                                         readOnly: _emailReadOnly,
                                       ),
                                       const SizedBox(height: 32),
-                                      Semantics(
-                                        button: true,
-                                        label: _submitting
-                                            ? "Loading, please wait"
-                                            : loc.createContinueBtn,
-                                        child: Listener(
-                                          onPointerDown: (_) {
-                                            if (!_submitting) {
-                                              setState(
-                                                () => _isSubmitPressed = true,
-                                              );
-                                            }
-                                          },
-                                          onPointerUp: (_) {
-                                            if (!_submitting) {
-                                              setState(
-                                                () => _isSubmitPressed = false,
-                                              );
-                                            }
-                                          },
-                                          child: AnimatedScale(
-                                            scale: _isSubmitPressed
-                                                ? 0.96
-                                                : 1.0,
-                                            duration: const Duration(
-                                              milliseconds: 150,
-                                            ),
-                                            curve: Curves.easeInOut,
-                                            child: SizedBox(
-                                              width: double.infinity,
-                                              height: 56,
-                                              child: ElevatedButton(
-                                                onPressed: _submitting
-                                                    ? null
-                                                    : _handleSubmit,
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: accentColor,
-                                                  foregroundColor: Colors.white,
-                                                  elevation: 0,
-                                                  textStyle: AppTypography.title
-                                                      .copyWith(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.bold,
+                                      ValueListenableBuilder<bool>(
+                                        valueListenable: _isSubmitPressed,
+                                        builder: (context, isPressed, _) {
+                                          return Semantics(
+                                            button: true,
+                                            label: isSubmitting
+                                                ? "Loading, please wait"
+                                                : loc.createContinueBtn,
+                                            child: Listener(
+                                              onPointerDown: (_) {
+                                                if (!isSubmitting)
+                                                  _isSubmitPressed.value = true;
+                                              },
+                                              onPointerUp: (_) {
+                                                if (!isSubmitting)
+                                                  _isSubmitPressed.value =
+                                                      false;
+                                              },
+                                              child: AnimatedScale(
+                                                scale: isPressed ? 0.96 : 1.0,
+                                                duration: const Duration(
+                                                  milliseconds: 150,
+                                                ),
+                                                curve: Curves.easeInOut,
+                                                child: SizedBox(
+                                                  width: double.infinity,
+                                                  height: 56,
+                                                  child: ElevatedButton(
+                                                    onPressed: isSubmitting
+                                                        ? null
+                                                        : _handleSubmit,
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor:
+                                                          accentColor,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      elevation: 0,
+                                                      textStyle: AppTypography
+                                                          .title
+                                                          .copyWith(
+                                                            fontSize: 16,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              20,
+                                                            ),
                                                       ),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          20,
-                                                        ),
+                                                    ),
+                                                    child: isSubmitting
+                                                        ? const SizedBox(
+                                                            width: 24,
+                                                            height: 24,
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  strokeWidth:
+                                                                      3,
+                                                                ),
+                                                          )
+                                                        : Text(
+                                                            loc.createContinueBtn,
+                                                          ),
                                                   ),
                                                 ),
-                                                child: _submitting
-                                                    ? const SizedBox(
-                                                        width: 24,
-                                                        height: 24,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                              color:
-                                                                  Colors.white,
-                                                              strokeWidth: 3,
-                                                            ),
-                                                      )
-                                                    : Text(
-                                                        loc.createContinueBtn,
-                                                      ),
                                               ),
                                             ),
-                                          ),
-                                        ),
+                                          );
+                                        },
                                       ),
                                     ],
                                   ),
@@ -620,117 +623,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    Iterable<String>? autofillHints,
-    List<TextInputFormatter>? inputFormatters,
-    TextInputType inputType = TextInputType.text,
-    bool isPassword = false,
-    bool isPasswordVisible = false,
-    VoidCallback? onToggleVisibility,
-    required Color activeColor,
-    required bool isDark,
-    String? Function(String?)? validator,
-    bool readOnly = false,
-    String? prefixText,
-  }) {
-    final borderColor = isDark ? AppColors.darkStroke : Colors.grey.shade300;
-    final readOnlyBorder = isDark ? Colors.transparent : Colors.grey.shade200;
-    final readOnlyBg = isDark ? AppColors.darkBackground : Colors.grey.shade100;
-    final textColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
-    final hintColor = isDark
-        ? AppColors.darkTextSecondary
-        : Colors.grey.shade500;
-
-    return Semantics(
-      label: label,
-      textField: true,
-      child: TextFormField(
-        controller: controller,
-        keyboardType: inputType,
-        textInputAction: isPassword
-            ? TextInputAction.done
-            : TextInputAction.next,
-        obscureText: isPassword && !isPasswordVisible,
-        autofillHints: autofillHints,
-        inputFormatters: inputFormatters,
-        validator: validator,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
-        keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
-        style: AppTypography.body.copyWith(
-          color: readOnly ? hintColor : textColor,
-          fontWeight: FontWeight.w600,
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: AppTypography.body.copyWith(color: hintColor),
-          hintText: hint,
-          hintStyle: AppTypography.body.copyWith(color: hintColor),
-          prefixIcon: Icon(icon, color: hintColor, size: 22),
-          prefixText: prefixText,
-          prefixStyle: AppTypography.body.copyWith(
-            color: textColor,
-            fontWeight: FontWeight.w600,
-          ),
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                    isPasswordVisible
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
-                    color: hintColor,
-                    size: 22,
-                  ),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    if (onToggleVisibility != null) onToggleVisibility();
-                  },
-                )
-              : null,
-          filled: readOnly,
-          fillColor: readOnly
-              ? readOnlyBg
-              : (isDark ? AppColors.darkSurface : Colors.white),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 18,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: readOnly ? readOnlyBorder : borderColor,
-              width: 1.5,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: readOnly ? readOnlyBorder : activeColor,
-              width: readOnly ? 1.5 : 2,
-            ),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.redAccent, width: 2),
           ),
         ),
       ),

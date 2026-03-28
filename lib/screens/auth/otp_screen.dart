@@ -1,16 +1,16 @@
 ﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
-import 'package:vango_parent_app/services/language_service.dart';
 import 'package:vango_parent_app/utils/auth_ui_helper.dart';
-import 'package:vango_parent_app/widgets/common_language_selector.dart'; // ✅ NEW
+import 'package:vango_parent_app/services/auth_service.dart'; // ✅ NEW
+import 'package:vango_parent_app/widgets/common_language_selector.dart';
+import 'package:vango_parent_app/utils/app_auth_exception.dart'; // ✅ NEW
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({
@@ -35,6 +35,7 @@ class OtpScreen extends StatefulWidget {
 class _OtpScreenState extends State<OtpScreen> {
   static const int _digits = 6;
   static const int _countdownSeconds = 60;
+
   final List<TextEditingController> _controllers = List.generate(
     _digits,
     (_) => TextEditingController(),
@@ -43,11 +44,14 @@ class _OtpScreenState extends State<OtpScreen> {
     _digits,
     (_) => FocusNode(),
   );
+
   Timer? _countdown;
-  int _secondsLeft = _countdownSeconds;
-  bool _isLoading = false;
-  bool _resending = false;
-  bool _isSubmitPressed = false;
+
+  // ✅ State Management Refactor
+  final ValueNotifier<int> _secondsLeft = ValueNotifier(_countdownSeconds);
+  final ValueNotifier<bool> _isLoading = ValueNotifier(false);
+  final ValueNotifier<bool> _resending = ValueNotifier(false);
+  final ValueNotifier<bool> _isSubmitPressed = ValueNotifier(false);
 
   @override
   void initState() {
@@ -61,7 +65,7 @@ class _OtpScreenState extends State<OtpScreen> {
       if (mounted) _focusNodes[0].requestFocus();
     });
     for (var node in _focusNodes) {
-      node.addListener(() => setState(() {}));
+      node.addListener(() => setState(() {})); // Focus visual updates
     }
   }
 
@@ -74,26 +78,28 @@ class _OtpScreenState extends State<OtpScreen> {
     for (var f in _focusNodes) {
       f.dispose();
     }
+    _secondsLeft.dispose();
+    _isLoading.dispose();
+    _resending.dispose();
+    _isSubmitPressed.dispose();
     super.dispose();
   }
 
   void _startCountdown() {
     _countdown?.cancel();
-    setState(() => _secondsLeft = _countdownSeconds);
+    _secondsLeft.value = _countdownSeconds;
     _countdown = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
-      setState(() {
-        if (_secondsLeft > 0) {
-          _secondsLeft--;
-        } else {
-          timer.cancel();
-        }
-      });
+      if (_secondsLeft.value > 0) {
+        _secondsLeft.value--;
+      } else {
+        timer.cancel();
+      }
     });
   }
 
   Future<void> _handleVerify() async {
-    if (_isLoading) return;
+    if (_isLoading.value) return;
 
     final loc = AppLocalizations.of(context)!;
     final code = _controllers.map((c) => c.text).join();
@@ -104,7 +110,7 @@ class _OtpScreenState extends State<OtpScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    _isLoading.value = true;
     HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
 
@@ -113,21 +119,27 @@ class _OtpScreenState extends State<OtpScreen> {
         name: 'auth_attempt',
         parameters: {'method': 'otp_verify'},
       );
+
       if (widget.onVerifyOverride != null) {
         await widget.onVerifyOverride!(code);
       } else {
-        await Supabase.instance.client.auth.verifyOTP(
-          type: widget.isEmail ? OtpType.email : OtpType.sms,
+        await AuthService.instance.verifyAuthOtp(
+          // ✅ Pure Service Call
+          isEmail: widget.isEmail,
+          identifier: widget.identifier,
           token: code,
-          email: widget.isEmail ? widget.identifier : null,
-          phone: !widget.isEmail ? widget.identifier : null,
         );
       }
+
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_success',
         parameters: {'method': 'otp_verify'},
       );
       if (mounted) await widget.onVerified();
+    } on AppAuthException catch (e) {
+      if (!mounted) return;
+      AuthUiHelper.showMessage(context, e.message, isError: true);
+      _clearOtp();
     } catch (e, stack) {
       if (!mounted) return;
       FirebaseCrashlytics.instance.recordError(
@@ -140,20 +152,24 @@ class _OtpScreenState extends State<OtpScreen> {
         AuthUiHelper.parseErrorKey(e),
         isError: true,
       );
-      for (var c in _controllers) {
-        c.clear();
-      }
-      if (mounted) _focusNodes[0].requestFocus();
+      _clearOtp();
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) _isLoading.value = false;
     }
   }
 
+  void _clearOtp() {
+    for (var c in _controllers) {
+      c.clear();
+    }
+    if (mounted) _focusNodes[0].requestFocus();
+  }
+
   Future<void> _handleResend() async {
-    if (_secondsLeft > 0 || _resending) return;
+    if (_secondsLeft.value > 0 || _resending.value) return;
 
     final loc = AppLocalizations.of(context)!;
-    setState(() => _resending = true);
+    _resending.value = true;
     HapticFeedback.selectionClick();
 
     try {
@@ -161,19 +177,17 @@ class _OtpScreenState extends State<OtpScreen> {
         name: 'auth_attempt',
         parameters: {'method': 'otp_resend'},
       );
+
       if (widget.onResendOverride != null) {
         await widget.onResendOverride!();
       } else {
-        if (widget.isEmail) {
-          await Supabase.instance.client.auth.signInWithOtp(
-            email: widget.identifier,
-          );
-        } else {
-          await Supabase.instance.client.auth.signInWithOtp(
-            phone: widget.identifier,
-          );
-        }
+        await AuthService.instance.resendAuthOtp(
+          // ✅ Pure Service Call
+          isEmail: widget.isEmail,
+          identifier: widget.identifier,
+        );
       }
+
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_success',
         parameters: {'method': 'otp_resend'},
@@ -181,6 +195,9 @@ class _OtpScreenState extends State<OtpScreen> {
       if (!mounted) return;
       AuthUiHelper.showMessage(context, loc.otpSuccessResend, isError: false);
       _startCountdown();
+    } on AppAuthException catch (e) {
+      if (!mounted) return;
+      AuthUiHelper.showMessage(context, e.message, isError: true);
     } catch (e, stack) {
       if (!mounted) return;
       FirebaseCrashlytics.instance.recordError(
@@ -194,7 +211,7 @@ class _OtpScreenState extends State<OtpScreen> {
         isError: true,
       );
     } finally {
-      if (mounted) setState(() => _resending = false);
+      if (mounted) _resending.value = false;
     }
   }
 
@@ -209,36 +226,34 @@ class _OtpScreenState extends State<OtpScreen> {
         : AppColors.textSecondary;
     final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
-    return ValueListenableBuilder<AppLanguage>(
-      valueListenable: LanguageService.instance.currentLanguage,
-      builder: (context, currentLang, child) {
-        final subText = widget.isEmail
-            ? loc.otpSubtitleEmail(widget.identifier)
-            : loc.otpSubtitlePhone(widget.identifier);
+    final subText = widget.isEmail
+        ? loc.otpSubtitleEmail(widget.identifier)
+        : loc.otpSubtitlePhone(widget.identifier);
 
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle.light.copyWith(
-            statusBarColor: Colors.transparent,
-            systemNavigationBarColor: bgColor,
-            systemNavigationBarIconBrightness: isDark
-                ? Brightness.light
-                : Brightness.dark,
-          ),
-          child: Scaffold(
-            backgroundColor: bgColor,
-            resizeToAvoidBottomInset: false,
-            body: GestureDetector(
-              onTap: () => FocusScope.of(context).unfocus(),
-              child: CustomPaint(
-                painter: _HeaderBackgroundPainter(
-                  color: isDark
-                      ? AppColors.darkSurfaceStrong
-                      : AppColors.accent,
-                ),
-                child: SafeArea(
-                  bottom: false,
-                  child: AbsorbPointer(
-                    absorbing: _isLoading,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: bgColor,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: bgColor,
+        resizeToAvoidBottomInset: false,
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: CustomPaint(
+            painter: _HeaderBackgroundPainter(
+              color: isDark ? AppColors.darkSurfaceStrong : AppColors.accent,
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _isLoading,
+                builder: (context, isLoading, _) {
+                  return AbsorbPointer(
+                    absorbing: isLoading,
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 500),
@@ -360,95 +375,113 @@ class _OtpScreenState extends State<OtpScreen> {
                                             color: textSecondary,
                                           ),
                                         ),
-                                        Semantics(
-                                          button: true,
-                                          label: _resending
-                                              ? "Loading, please wait"
-                                              : loc.otpResendBtn,
-                                          child: GestureDetector(
-                                            onTap: _handleResend,
-                                            child: Text(
-                                              _secondsLeft > 0
-                                                  ? loc.otpResendIn(
-                                                      _secondsLeft.toString(),
-                                                    )
-                                                  : loc.otpResendBtn,
-                                              style: AppTypography.label
-                                                  .copyWith(
-                                                    color: _secondsLeft > 0
-                                                        ? Colors.grey
-                                                        : accentColor,
-                                                    fontWeight: FontWeight.bold,
+                                        ValueListenableBuilder<bool>(
+                                          valueListenable: _resending,
+                                          builder: (context, resending, _) {
+                                            return ValueListenableBuilder<int>(
+                                              valueListenable: _secondsLeft,
+                                              builder: (context, secondsLeft, _) {
+                                                return Semantics(
+                                                  button: true,
+                                                  label: resending
+                                                      ? "Loading, please wait"
+                                                      : loc.otpResendBtn,
+                                                  child: GestureDetector(
+                                                    onTap: _handleResend,
+                                                    child: Text(
+                                                      secondsLeft > 0
+                                                          ? loc.otpResendIn(
+                                                              secondsLeft
+                                                                  .toString(),
+                                                            )
+                                                          : loc.otpResendBtn,
+                                                      style: AppTypography.label
+                                                          .copyWith(
+                                                            color:
+                                                                secondsLeft > 0
+                                                                ? Colors.grey
+                                                                : accentColor,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                    ),
                                                   ),
-                                            ),
-                                          ),
+                                                );
+                                              },
+                                            );
+                                          },
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 32),
-                                    Semantics(
-                                      button: true,
-                                      label: _isLoading
-                                          ? "Loading, please wait"
-                                          : loc.otpVerifyBtn,
-                                      child: Listener(
-                                        onPointerDown: (_) {
-                                          if (!_isLoading) {
-                                            setState(
-                                              () => _isSubmitPressed = true,
-                                            );
-                                          }
-                                        },
-                                        onPointerUp: (_) {
-                                          if (!_isLoading) {
-                                            setState(
-                                              () => _isSubmitPressed = false,
-                                            );
-                                          }
-                                        },
-                                        child: AnimatedScale(
-                                          scale: _isSubmitPressed ? 0.96 : 1.0,
-                                          duration: const Duration(
-                                            milliseconds: 150,
-                                          ),
-                                          curve: Curves.easeInOut,
-                                          child: SizedBox(
-                                            width: double.infinity,
-                                            height: 56,
-                                            child: ElevatedButton(
-                                              onPressed: _isLoading
-                                                  ? null
-                                                  : _handleVerify,
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: accentColor,
-                                                foregroundColor: Colors.white,
-                                                elevation: 0,
-                                                textStyle: AppTypography.title
-                                                    .copyWith(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
+                                    ValueListenableBuilder<bool>(
+                                      valueListenable: _isSubmitPressed,
+                                      builder: (context, isPressed, _) {
+                                        return Semantics(
+                                          button: true,
+                                          label: isLoading
+                                              ? "Loading, please wait"
+                                              : loc.otpVerifyBtn,
+                                          child: Listener(
+                                            onPointerDown: (_) {
+                                              if (!isLoading)
+                                                _isSubmitPressed.value = true;
+                                            },
+                                            onPointerUp: (_) {
+                                              if (!isLoading)
+                                                _isSubmitPressed.value = false;
+                                            },
+                                            child: AnimatedScale(
+                                              scale: isPressed ? 0.96 : 1.0,
+                                              duration: const Duration(
+                                                milliseconds: 150,
+                                              ),
+                                              curve: Curves.easeInOut,
+                                              child: SizedBox(
+                                                width: double.infinity,
+                                                height: 56,
+                                                child: ElevatedButton(
+                                                  onPressed: isLoading
+                                                      ? null
+                                                      : _handleVerify,
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        accentColor,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    elevation: 0,
+                                                    textStyle: AppTypography
+                                                        .title
+                                                        .copyWith(
+                                                          fontSize: 16,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            20,
+                                                          ),
                                                     ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
+                                                  ),
+                                                  child: isLoading
+                                                      ? const SizedBox(
+                                                          width: 24,
+                                                          height: 24,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                color: Colors
+                                                                    .white,
+                                                                strokeWidth: 3,
+                                                              ),
+                                                        )
+                                                      : Text(loc.otpVerifyBtn),
                                                 ),
                                               ),
-                                              child: _isLoading
-                                                  ? const SizedBox(
-                                                      width: 24,
-                                                      height: 24,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            color: Colors.white,
-                                                            strokeWidth: 3,
-                                                          ),
-                                                    )
-                                                  : Text(loc.otpVerifyBtn),
                                             ),
                                           ),
-                                        ),
-                                      ),
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
@@ -458,13 +491,13 @@ class _OtpScreenState extends State<OtpScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -532,12 +565,10 @@ class _OtpScreenState extends State<OtpScreen> {
                 if (chars.length >= _digits) _handleVerify();
                 return;
               }
-              if (value.isNotEmpty && index < _digits - 1) {
+              if (value.isNotEmpty && index < _digits - 1)
                 _focusNodes[index + 1].requestFocus();
-              }
-              if (value.isEmpty && index > 0) {
+              if (value.isEmpty && index > 0)
                 _focusNodes[index - 1].requestFocus();
-              }
             },
           ),
         ),

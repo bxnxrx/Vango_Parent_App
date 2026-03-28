@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
-import 'package:vango_parent_app/services/language_service.dart';
 import 'package:vango_parent_app/utils/auth_ui_helper.dart';
-import 'package:vango_parent_app/utils/validators.dart'; // ✅ NEW
+import 'package:vango_parent_app/utils/validators.dart';
+import 'package:vango_parent_app/services/auth_service.dart'; // ✅ NEW
 import 'package:vango_parent_app/widgets/common_language_selector.dart'; // ✅ NEW
+import 'package:vango_parent_app/widgets/common_text_field.dart'; // ✅ NEW
+import 'package:vango_parent_app/utils/app_auth_exception.dart'; // ✅ NEW
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key, required this.email});
@@ -26,10 +27,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
-  bool _isLoading = false;
-  bool _isPasswordVisible = false;
-  bool _isConfirmPasswordVisible = false;
-  bool _isSubmitPressed = false;
+  // ✅ State Management Refactor
+  final ValueNotifier<bool> _isLoading = ValueNotifier(false);
+  final ValueNotifier<bool> _isPasswordVisible = ValueNotifier(false);
+  final ValueNotifier<bool> _isConfirmPasswordVisible = ValueNotifier(false);
+  final ValueNotifier<bool> _isSubmitPressed = ValueNotifier(false);
 
   @override
   void initState() {
@@ -45,11 +47,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     _otpController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _isLoading.dispose();
+    _isPasswordVisible.dispose();
+    _isConfirmPasswordVisible.dispose();
+    _isSubmitPressed.dispose();
     super.dispose();
   }
 
   Future<void> _handleReset() async {
-    if (_isLoading) return;
+    if (_isLoading.value) return;
 
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.heavyImpact();
@@ -57,7 +63,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     }
 
     final loc = AppLocalizations.of(context)!;
-    setState(() => _isLoading = true);
+    _isLoading.value = true;
     HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
 
@@ -70,14 +76,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       final otp = _otpController.text.trim();
       final newPassword = _passwordController.text.trim();
 
-      await Supabase.instance.client.auth.verifyOTP(
-        email: widget.email,
-        token: otp,
-        type: OtpType.recovery,
-      );
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(password: newPassword),
-      );
+      await AuthService.instance.resetPasswordWithOtp(
+        widget.email,
+        otp,
+        newPassword,
+      ); // ✅ Pure Service Call
 
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_success',
@@ -90,6 +93,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       await Future.delayed(const Duration(milliseconds: 1500));
       if (!mounted) return;
       Navigator.of(context).popUntil((route) => route.isFirst);
+    } on AppAuthException catch (e) {
+      if (!mounted) return;
+      AuthUiHelper.showMessage(context, e.message, isError: true);
     } catch (e, stack) {
       if (!mounted) return;
       FirebaseCrashlytics.instance.recordError(
@@ -103,7 +109,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         isError: true,
       );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) _isLoading.value = false;
     }
   }
 
@@ -115,32 +121,30 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
     final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
-    return ValueListenableBuilder<AppLanguage>(
-      valueListenable: LanguageService.instance.currentLanguage,
-      builder: (context, currentLang, child) {
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle.light.copyWith(
-            statusBarColor: Colors.transparent,
-            systemNavigationBarColor: bgColor,
-            systemNavigationBarIconBrightness: isDark
-                ? Brightness.light
-                : Brightness.dark,
-          ),
-          child: Scaffold(
-            backgroundColor: bgColor,
-            resizeToAvoidBottomInset: false,
-            body: GestureDetector(
-              onTap: () => FocusScope.of(context).unfocus(),
-              child: CustomPaint(
-                painter: _HeaderBackgroundPainter(
-                  color: isDark
-                      ? AppColors.darkSurfaceStrong
-                      : AppColors.accent,
-                ),
-                child: SafeArea(
-                  bottom: false,
-                  child: AbsorbPointer(
-                    absorbing: _isLoading,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: bgColor,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: bgColor,
+        resizeToAvoidBottomInset: false,
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: CustomPaint(
+            painter: _HeaderBackgroundPainter(
+              color: isDark ? AppColors.darkSurfaceStrong : AppColors.accent,
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _isLoading,
+                builder: (context, isLoading, _) {
+                  return AbsorbPointer(
+                    absorbing: isLoading,
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 500),
@@ -178,9 +182,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         ),
                                       ),
                                     ),
-                                    CommonLanguageSelector(
-                                      isDark: isDark,
-                                    ), // ✅ Uses Central Widget
+                                    CommonLanguageSelector(isDark: isDark),
                                   ],
                                 ),
                               ),
@@ -252,7 +254,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 28),
-                                      _buildTextField(
+                                      CommonTextField(
                                         controller: _otpController,
                                         label: loc.resetOtpLabel,
                                         hint: loc.resetOtpHint,
@@ -274,123 +276,136 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                             : null,
                                       ),
                                       const SizedBox(height: 20),
-                                      _buildTextField(
-                                        controller: _passwordController,
-                                        label: loc.resetNewPassLabel,
-                                        hint: loc.resetNewPassHint,
-                                        icon: Icons.lock_outline_rounded,
-                                        isPassword: true,
-                                        isPasswordVisible: _isPasswordVisible,
-                                        autofillHints: const [
-                                          AutofillHints.newPassword,
-                                        ],
-                                        onToggleVisibility: () => setState(
-                                          () => _isPasswordVisible =
-                                              !_isPasswordVisible,
-                                        ),
-                                        isDark: isDark,
-                                        activeColor: accentColor,
-                                        validator: (val) =>
-                                            AppValidators.validateNewPassword(
-                                              val,
-                                              loc,
-                                            ), // ✅ Uses Validator File
+                                      ValueListenableBuilder<bool>(
+                                        valueListenable: _isPasswordVisible,
+                                        builder: (context, isVisible, _) {
+                                          return CommonTextField(
+                                            controller: _passwordController,
+                                            label: loc.resetNewPassLabel,
+                                            hint: loc.resetNewPassHint,
+                                            icon: Icons.lock_outline_rounded,
+                                            isPassword: true,
+                                            isPasswordVisible: isVisible,
+                                            autofillHints: const [
+                                              AutofillHints.newPassword,
+                                            ],
+                                            onToggleVisibility: () =>
+                                                _isPasswordVisible.value =
+                                                    !isVisible,
+                                            isDark: isDark,
+                                            activeColor: accentColor,
+                                            validator: (val) =>
+                                                AppValidators.validateNewPassword(
+                                                  val,
+                                                  loc,
+                                                ),
+                                          );
+                                        },
                                       ),
                                       const SizedBox(height: 20),
-                                      _buildTextField(
-                                        controller: _confirmPasswordController,
-                                        label: loc.resetConfirmPassLabel,
-                                        hint: loc.resetConfirmPassHint,
-                                        icon: Icons.lock_reset_rounded,
-                                        isPassword: true,
-                                        isPasswordVisible:
+                                      ValueListenableBuilder<bool>(
+                                        valueListenable:
                                             _isConfirmPasswordVisible,
-                                        autofillHints: const [
-                                          AutofillHints.newPassword,
-                                        ],
-                                        onToggleVisibility: () => setState(
-                                          () => _isConfirmPasswordVisible =
-                                              !_isConfirmPasswordVisible,
-                                        ),
-                                        isDark: isDark,
-                                        activeColor: accentColor,
-                                        validator: (val) {
-                                          if (val == null || val.isEmpty)
-                                            return loc.resetErrConfirmReq;
-                                          if (val != _passwordController.text)
-                                            return loc.resetErrPassMismatch;
-                                          return null;
+                                        builder: (context, isVisible, _) {
+                                          return CommonTextField(
+                                            controller:
+                                                _confirmPasswordController,
+                                            label: loc.resetConfirmPassLabel,
+                                            hint: loc.resetConfirmPassHint,
+                                            icon: Icons.lock_reset_rounded,
+                                            isPassword: true,
+                                            isPasswordVisible: isVisible,
+                                            autofillHints: const [
+                                              AutofillHints.newPassword,
+                                            ],
+                                            onToggleVisibility: () =>
+                                                _isConfirmPasswordVisible
+                                                        .value =
+                                                    !isVisible,
+                                            isDark: isDark,
+                                            activeColor: accentColor,
+                                            validator: (val) {
+                                              if (val == null || val.isEmpty)
+                                                return loc.resetErrConfirmReq;
+                                              if (val !=
+                                                  _passwordController.text)
+                                                return loc.resetErrPassMismatch;
+                                              return null;
+                                            },
+                                          );
                                         },
                                       ),
                                       const SizedBox(height: 32),
-                                      Semantics(
-                                        button: true,
-                                        label: _isLoading
-                                            ? "Loading, please wait"
-                                            : loc.resetBtn,
-                                        child: Listener(
-                                          onPointerDown: (_) {
-                                            if (!_isLoading) {
-                                              setState(
-                                                () => _isSubmitPressed = true,
-                                              );
-                                            }
-                                          },
-                                          onPointerUp: (_) {
-                                            if (!_isLoading) {
-                                              setState(
-                                                () => _isSubmitPressed = false,
-                                              );
-                                            }
-                                          },
-                                          child: AnimatedScale(
-                                            scale: _isSubmitPressed
-                                                ? 0.96
-                                                : 1.0,
-                                            duration: const Duration(
-                                              milliseconds: 150,
-                                            ),
-                                            curve: Curves.easeInOut,
-                                            child: SizedBox(
-                                              width: double.infinity,
-                                              height: 56,
-                                              child: ElevatedButton(
-                                                onPressed: _isLoading
-                                                    ? null
-                                                    : _handleReset,
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: accentColor,
-                                                  foregroundColor: Colors.white,
-                                                  elevation: 0,
-                                                  textStyle: AppTypography.title
-                                                      .copyWith(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.bold,
+                                      ValueListenableBuilder<bool>(
+                                        valueListenable: _isSubmitPressed,
+                                        builder: (context, isPressed, _) {
+                                          return Semantics(
+                                            button: true,
+                                            label: isLoading
+                                                ? "Loading, please wait"
+                                                : loc.resetBtn,
+                                            child: Listener(
+                                              onPointerDown: (_) {
+                                                if (!isLoading)
+                                                  _isSubmitPressed.value = true;
+                                              },
+                                              onPointerUp: (_) {
+                                                if (!isLoading)
+                                                  _isSubmitPressed.value =
+                                                      false;
+                                              },
+                                              child: AnimatedScale(
+                                                scale: isPressed ? 0.96 : 1.0,
+                                                duration: const Duration(
+                                                  milliseconds: 150,
+                                                ),
+                                                curve: Curves.easeInOut,
+                                                child: SizedBox(
+                                                  width: double.infinity,
+                                                  height: 56,
+                                                  child: ElevatedButton(
+                                                    onPressed: isLoading
+                                                        ? null
+                                                        : _handleReset,
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor:
+                                                          accentColor,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      elevation: 0,
+                                                      textStyle: AppTypography
+                                                          .title
+                                                          .copyWith(
+                                                            fontSize: 16,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              20,
+                                                            ),
                                                       ),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          20,
-                                                        ),
+                                                    ),
+                                                    child: isLoading
+                                                        ? const SizedBox(
+                                                            width: 24,
+                                                            height: 24,
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  strokeWidth:
+                                                                      3,
+                                                                ),
+                                                          )
+                                                        : Text(loc.resetBtn),
                                                   ),
                                                 ),
-                                                child: _isLoading
-                                                    ? const SizedBox(
-                                                        width: 24,
-                                                        height: 24,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                              color:
-                                                                  Colors.white,
-                                                              strokeWidth: 3,
-                                                            ),
-                                                      )
-                                                    : Text(loc.resetBtn),
                                               ),
                                             ),
-                                          ),
-                                        ),
+                                          );
+                                        },
                                       ),
                                     ],
                                   ),
@@ -401,98 +416,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    TextInputType inputType = TextInputType.text,
-    Iterable<String>? autofillHints,
-    List<TextInputFormatter>? inputFormatters,
-    bool isPassword = false,
-    bool isPasswordVisible = false,
-    VoidCallback? onToggleVisibility,
-    required Color activeColor,
-    required bool isDark,
-    String? Function(String?)? validator,
-  }) {
-    final borderColor = isDark ? AppColors.darkStroke : Colors.grey.shade300;
-    final textColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
-    final hintColor = isDark
-        ? AppColors.darkTextSecondary
-        : Colors.grey.shade500;
-
-    return Semantics(
-      label: label,
-      textField: true,
-      child: TextFormField(
-        controller: controller,
-        keyboardType: inputType,
-        textInputAction: isPassword
-            ? TextInputAction.done
-            : TextInputAction.next,
-        obscureText: isPassword && !isPasswordVisible,
-        autofillHints: autofillHints,
-        inputFormatters: inputFormatters,
-        validator: validator,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
-        keyboardAppearance: isDark ? Brightness.dark : Brightness.light,
-        style: AppTypography.body.copyWith(
-          color: textColor,
-          fontWeight: FontWeight.w600,
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: AppTypography.body.copyWith(color: hintColor),
-          hintText: hint,
-          hintStyle: AppTypography.body.copyWith(color: hintColor),
-          prefixIcon: Icon(icon, color: hintColor, size: 22),
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                    isPasswordVisible
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
-                    color: hintColor,
-                    size: 22,
-                  ),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    if (onToggleVisibility != null) onToggleVisibility();
-                  },
-                )
-              : null,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 18,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: borderColor, width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: activeColor, width: 2),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.redAccent, width: 2),
           ),
         ),
       ),

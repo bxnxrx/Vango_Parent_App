@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:vango_parent_app/utils/app_auth_exception.dart';
 import 'app_config.dart';
 import 'backend_client.dart';
 import 'parent_data_service.dart';
@@ -132,6 +134,92 @@ class AuthService {
   Future<void> initialize() async {
     AppConfig.ensure();
     await BackendClient.instance.ensureBackendHealthy();
+  }
+
+  Future<void> signInWithPhone(String phone) async {
+    try {
+      await Supabase.instance.client.auth.signInWithOtp(phone: phone);
+    } catch (e) {
+      throw AppAuthException(code: 'phone_auth_failed', message: e.toString());
+    }
+  }
+
+  Future<void> resendEmailSignupOtp(String email) async {
+    try {
+      await Supabase.instance.client.auth.resend(
+        type: OtpType.signup,
+        email: email,
+      );
+    } catch (e) {
+      throw AppAuthException(code: 'resend_failed', message: e.toString());
+    }
+  }
+
+  Future<bool> checkUserExists(String email) async {
+    try {
+      final res = await Supabase.instance.client
+          .from('parents')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+      return res != null;
+    } catch (e) {
+      throw AppAuthException(code: 'user_check_failed', message: e.toString());
+    }
+  }
+
+  Future<void> verifyAuthOtp({
+    required bool isEmail,
+    required String identifier,
+    required String token,
+  }) async {
+    try {
+      await Supabase.instance.client.auth.verifyOTP(
+        type: isEmail ? OtpType.email : OtpType.sms,
+        token: token,
+        email: isEmail ? identifier : null,
+        phone: !isEmail ? identifier : null,
+      );
+    } catch (e) {
+      throw AppAuthException(code: 'otp_invalid', message: e.toString());
+    }
+  }
+
+  Future<void> resendAuthOtp({
+    required bool isEmail,
+    required String identifier,
+  }) async {
+    try {
+      if (isEmail) {
+        await Supabase.instance.client.auth.signInWithOtp(email: identifier);
+      } else {
+        await Supabase.instance.client.auth.signInWithOtp(phone: identifier);
+      }
+    } catch (e) {
+      throw AppAuthException(code: 'otp_resend_failed', message: e.toString());
+    }
+  }
+
+  Future<void> resetPasswordWithOtp(
+    String email,
+    String otp,
+    String newPassword,
+  ) async {
+    try {
+      await Supabase.instance.client.auth.verifyOTP(
+        email: email,
+        token: otp,
+        type: OtpType.recovery,
+      );
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+    } catch (e) {
+      throw AppAuthException(
+        code: 'password_reset_failed',
+        message: e.toString(),
+      );
+    }
   }
 
   Future<EmailAuthResult> signInOrSignUp(String email, String password) async {
