@@ -80,5 +80,17 @@
   "createErrEmailInv": "නිවැරදි විද්‍යුත් තැපෑලක් ඇතුලත් කරන්න",
   "createErrRelReq": "කරුණාකර සම්බන්ධතා වර්ගය තෝරන්න.",
   "createErrForm": "කරුණාකර පෝරමයේ දෝෂ පරීක්ෂා කරන්න.",
-  "createErrGeneric": "දෝෂයක් සිදුවිය."
+  "createErrGeneric": "දෝෂයක් සිදුවිය.",
+  "createErrGeneric": "දෝෂයක් සිදුවිය.",
+
+  "onboardingSkip": "මඟ හරින්න",
+  "onboardingTitle1": "සෑම ගමනක්ම නිරීක්ෂණය කරන්න",
+  "onboardingBody1": "සජීවී GPS, ETA අනාවැකි සහ ආරක්ෂක පරීක්ෂාවන් මඟින් ඔබව දැනුවත් කරයි.",
+  "onboardingBtn1": "අපි යමු!",
+  "onboardingTitle2": "පැමිණීම ක්ෂණිකව සටහන් කරන්න",
+  "onboardingBody2": "රියදුරු සමඟ සමමුහුර්ත වී ගමන් මාර්ගය ප්‍රශස්ත කරයි.",
+  "onboardingBtn2": "පැමිණීම සටහන් කරන්න",
+  "onboardingTitle3": "ගෙවීම් සහ සෙවුම් එකම යෙදුමකින්",
+  "onboardingBody3": "ගාස්තු ගෙවන්න, නව රියදුරන් සොයන්න, සහ ආරක්ෂිතව කතාබස් කරන්න.",
+  "onboardingBtn3": "ආරම්භ කරන්න"
 }

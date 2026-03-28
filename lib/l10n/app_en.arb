@@ -84,5 +84,17 @@
   "createErrEmailInv": "Enter a valid email address",
   "createErrRelReq": "Please select your relationship type.",
   "createErrForm": "Please check the form for errors.",
-  "createErrGeneric": "Something went wrong."
+  "createErrGeneric": "Something went wrong.",
+  "createErrGeneric": "Something went wrong.",
+  
+  "onboardingSkip": "Skip",
+  "onboardingTitle1": "Track every ride",
+  "onboardingBody1": "Live GPS, ETA predictions, and safety checks keep you in control.",
+  "onboardingBtn1": "Let's go!",
+  "onboardingTitle2": "Mark attendance instantly",
+  "onboardingBody2": "Smart toggles sync with the driver and optimize the route.",
+  "onboardingBtn2": "Set attendance",
+  "onboardingTitle3": "Payments & finder in one app",
+  "onboardingBody3": "Pay van fees, discover new drivers, and chat securely.",
+  "onboardingBtn3": "Get started"
 }

@@ -254,4 +254,37 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get createErrGeneric => 'ஏதோ தவறு நடந்துவிட்டது.';
+
+  @override
+  String get onboardingSkip => 'தவிர்';
+
+  @override
+  String get onboardingTitle1 => 'ஒவ்வொரு பயணத்தையும் கண்காணிக்கவும்';
+
+  @override
+  String get onboardingBody1 =>
+      'நேரலை GPS, ETA கணிப்புகள் மற்றும் பாதுகாப்பு சோதனைகள் உங்களை கட்டுப்பாட்டில் வைக்கும்.';
+
+  @override
+  String get onboardingBtn1 => 'போகலாம்!';
+
+  @override
+  String get onboardingTitle2 => 'வருகையை உடனடியாக குறிக்கவும்';
+
+  @override
+  String get onboardingBody2 =>
+      'ஓட்டுநருடன் ஒத்திசைக்கப்பட்டு பயண வழியை மேம்படுத்துகிறது.';
+
+  @override
+  String get onboardingBtn2 => 'வருகையை அமைக்கவும்';
+
+  @override
+  String get onboardingTitle3 => 'கொடுப்பனவுகள் மற்றும் தேடல் ஒரே செயலியில்';
+
+  @override
+  String get onboardingBody3 =>
+      'கட்டணம் செலுத்துங்கள், புதிய ஓட்டுநர்களைக் கண்டறியுங்கள், பாதுகாப்பாக அரட்டையடிக்கவும்.';
+
+  @override
+  String get onboardingBtn3 => 'தொடங்கவும்';
 }

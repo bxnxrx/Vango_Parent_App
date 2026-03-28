@@ -251,4 +251,37 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get createErrGeneric => 'දෝෂයක් සිදුවිය.';
+
+  @override
+  String get onboardingSkip => 'මඟ හරින්න';
+
+  @override
+  String get onboardingTitle1 => 'සෑම ගමනක්ම නිරීක්ෂණය කරන්න';
+
+  @override
+  String get onboardingBody1 =>
+      'සජීවී GPS, ETA අනාවැකි සහ ආරක්ෂක පරීක්ෂාවන් මඟින් ඔබව දැනුවත් කරයි.';
+
+  @override
+  String get onboardingBtn1 => 'අපි යමු!';
+
+  @override
+  String get onboardingTitle2 => 'පැමිණීම ක්ෂණිකව සටහන් කරන්න';
+
+  @override
+  String get onboardingBody2 =>
+      'රියදුරු සමඟ සමමුහුර්ත වී ගමන් මාර්ගය ප්‍රශස්ත කරයි.';
+
+  @override
+  String get onboardingBtn2 => 'පැමිණීම සටහන් කරන්න';
+
+  @override
+  String get onboardingTitle3 => 'ගෙවීම් සහ සෙවුම් එකම යෙදුමකින්';
+
+  @override
+  String get onboardingBody3 =>
+      'ගාස්තු ගෙවන්න, නව රියදුරන් සොයන්න, සහ ආරක්ෂිතව කතාබස් කරන්න.';
+
+  @override
+  String get onboardingBtn3 => 'ආරම්භ කරන්න';
 }

@@ -561,6 +561,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong.'**
   String get createErrGeneric;
+
+  /// No description provided for @onboardingSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get onboardingSkip;
+
+  /// No description provided for @onboardingTitle1.
+  ///
+  /// In en, this message translates to:
+  /// **'Track every ride'**
+  String get onboardingTitle1;
+
+  /// No description provided for @onboardingBody1.
+  ///
+  /// In en, this message translates to:
+  /// **'Live GPS, ETA predictions, and safety checks keep you in control.'**
+  String get onboardingBody1;
+
+  /// No description provided for @onboardingBtn1.
+  ///
+  /// In en, this message translates to:
+  /// **'Let\'s go!'**
+  String get onboardingBtn1;
+
+  /// No description provided for @onboardingTitle2.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark attendance instantly'**
+  String get onboardingTitle2;
+
+  /// No description provided for @onboardingBody2.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart toggles sync with the driver and optimize the route.'**
+  String get onboardingBody2;
+
+  /// No description provided for @onboardingBtn2.
+  ///
+  /// In en, this message translates to:
+  /// **'Set attendance'**
+  String get onboardingBtn2;
+
+  /// No description provided for @onboardingTitle3.
+  ///
+  /// In en, this message translates to:
+  /// **'Payments & finder in one app'**
+  String get onboardingTitle3;
+
+  /// No description provided for @onboardingBody3.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay van fees, discover new drivers, and chat securely.'**
+  String get onboardingBody3;
+
+  /// No description provided for @onboardingBtn3.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started'**
+  String get onboardingBtn3;
 }
 
 class _AppLocalizationsDelegate
