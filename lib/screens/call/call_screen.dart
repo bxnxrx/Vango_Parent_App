@@ -4,16 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-// 🚨 Parent App Imports
+// 🚨 Make sure this imports your correct app's theme!
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 
-// Your exact Agora App ID
 const String appId = '8470fb315c3f4fdfb549d4f2811e0d5a';
 
 class CallScreen extends StatefulWidget {
-  final String channelName; // The unique Room ID (e.g., the chatId)
-  final String callerName; // Name of the person you are talking to
+  final String channelName;
+  final String callerName;
 
   const CallScreen({
     super.key,
@@ -42,10 +41,8 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Future<void> _initAgora() async {
-    // 1. Request microphone permission
     await [Permission.microphone].request();
 
-    // 2. Create and initialize the Agora Engine
     _engine = createAgoraRtcEngine();
     await _engine.initialize(
       const RtcEngineContext(
@@ -54,16 +51,16 @@ class _CallScreenState extends State<CallScreen> {
       ),
     );
 
-    // 3. Set up event handlers to know when people join/leave
     _engine.registerEventHandler(
       RtcEngineEventHandler(
-        onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+        // ✨ ADDED ASYNC HERE
+        onJoinChannelSuccess: (RtcConnection connection, int elapsed) async { 
           debugPrint("✅ Joined local channel: ${connection.channelId}");
           setState(() => _isJoined = true);
 
-          // ✨ Safely turn on speakerphone AFTER joining
           try {
-            _engine.setEnableSpeakerphone(_isSpeakerOn);
+            // ✨ ADDED AWAIT HERE to prevent the -3 crash!
+            await _engine.setEnableSpeakerphone(_isSpeakerOn); 
           } catch (e) {
             debugPrint('⚠️ Could not set speakerphone: $e');
           }
@@ -72,36 +69,28 @@ class _CallScreenState extends State<CallScreen> {
           debugPrint("👋 Remote user joined: $remoteUid");
           setState(() {
             _remoteUid = remoteUid;
-            _startTimer(); // Start counting when they pick up!
+            _startTimer();
           });
         },
-        onUserOffline:
-            (
-              RtcConnection connection,
-              int remoteUid,
-              UserOfflineReasonType reason,
-            ) {
-              debugPrint("🏃 Remote user left: $remoteUid");
-              setState(() => _remoteUid = null);
-              _leaveCall(); // Auto-end call if the other person hangs up
-            },
+        onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
+          debugPrint("🏃 Remote user left: $remoteUid");
+          setState(() => _remoteUid = null);
+          _leaveCall();
+        },
       ),
     );
 
-    // 4. Enable audio
     await _engine.enableAudio();
 
-    // ✨ FIX: Agora strict 64-character limit handled via deterministic UUID
+    // ✨ Your brilliant UUID compression logic
     String safeChannelName = widget.channelName;
     if (safeChannelName.length > 64) {
-      // Compress the long string into a unique 36-character string
       safeChannelName = const Uuid().v5(Uuid.NAMESPACE_URL, widget.channelName);
     }
 
-    // We pass a blank token because we selected "App ID Only" in the console
     await _engine.joinChannel(
       token: '',
-      channelId: safeChannelName, // 🚨 Safely shortened name passed here!
+      channelId: safeChannelName, 
       uid: 0,
       options: const ChannelMediaOptions(
         clientRoleType: ClientRoleType.clientRoleBroadcaster,
@@ -128,11 +117,17 @@ class _CallScreenState extends State<CallScreen> {
     });
   }
 
-  void _toggleSpeaker() {
+  // ✨ ADDED ASYNC HERE
+  void _toggleSpeaker() async { 
     setState(() {
       _isSpeakerOn = !_isSpeakerOn;
-      _engine.setEnableSpeakerphone(_isSpeakerOn);
     });
+    try {
+      // ✨ ADDED AWAIT HERE
+      await _engine.setEnableSpeakerphone(_isSpeakerOn); 
+    } catch (e) {
+      debugPrint('⚠️ Speaker toggle error: $e');
+    }
   }
 
   Future<void> _leaveCall() async {
@@ -165,7 +160,6 @@ class _CallScreenState extends State<CallScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // --- TOP SECTION: Caller Info ---
             Column(
               children: [
                 const SizedBox(height: 80),
@@ -173,22 +167,14 @@ class _CallScreenState extends State<CallScreen> {
                   radius: 60,
                   backgroundColor: AppColors.accent.withValues(alpha: 0.15),
                   child: Text(
-                    widget.callerName.isNotEmpty
-                        ? widget.callerName[0].toUpperCase()
-                        : '?',
-                    style: AppTypography.display.copyWith(
-                      color: AppColors.accent,
-                      fontSize: 48,
-                    ),
+                    widget.callerName.isNotEmpty ? widget.callerName[0].toUpperCase() : '?',
+                    style: AppTypography.display.copyWith(color: AppColors.accent, fontSize: 48),
                   ),
                 ),
                 const SizedBox(height: 30),
                 Text(
                   widget.callerName,
-                  style: AppTypography.headline.copyWith(
-                    color: textColor,
-                    fontSize: 28,
-                  ),
+                  style: AppTypography.headline.copyWith(color: textColor, fontSize: 28),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -196,31 +182,22 @@ class _CallScreenState extends State<CallScreen> {
                   style: AppTypography.body.copyWith(
                     color: AppColors.textSecondary,
                     fontSize: 18,
-                    fontWeight: _remoteUid != null
-                        ? FontWeight.bold
-                        : FontWeight.normal,
+                    fontWeight: _remoteUid != null ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
               ],
             ),
-
-            // --- BOTTOM SECTION: Controls ---
             Padding(
               padding: const EdgeInsets.only(bottom: 60),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Speaker Button
                   _buildControlButton(
-                    icon: _isSpeakerOn
-                        ? Icons.volume_up_rounded
-                        : Icons.volume_down_rounded,
+                    icon: _isSpeakerOn ? Icons.volume_up_rounded : Icons.volume_down_rounded,
                     isActive: _isSpeakerOn,
                     onTap: _toggleSpeaker,
                     isDark: isDark,
                   ),
-
-                  // End Call Button
                   GestureDetector(
                     onTap: _leaveCall,
                     child: Container(
@@ -228,23 +205,11 @@ class _CallScreenState extends State<CallScreen> {
                       decoration: const BoxDecoration(
                         color: Colors.redAccent,
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.redAccent,
-                            blurRadius: 12,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
+                        boxShadow: [BoxShadow(color: Colors.redAccent, blurRadius: 12, offset: Offset(0, 4))],
                       ),
-                      child: const Icon(
-                        Icons.call_end_rounded,
-                        color: Colors.white,
-                        size: 36,
-                      ),
+                      child: const Icon(Icons.call_end_rounded, color: Colors.white, size: 36),
                     ),
                   ),
-
-                  // Mute Button
                   _buildControlButton(
                     icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
                     isActive: _isMuted,
@@ -271,23 +236,13 @@ class _CallScreenState extends State<CallScreen> {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isActive
-              ? (isDark ? Colors.white : Colors.black87)
-              : (isDark ? AppColors.darkSurfaceStrong : Colors.white),
+          color: isActive ? (isDark ? Colors.white : Colors.black87) : (isDark ? AppColors.darkSurfaceStrong : Colors.white),
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Icon(
           icon,
-          color: isActive
-              ? (isDark ? Colors.black : Colors.white)
-              : (isDark ? Colors.white : Colors.black87),
+          color: isActive ? (isDark ? Colors.black : Colors.white) : (isDark ? Colors.white : Colors.black87),
           size: 28,
         ),
       ),
