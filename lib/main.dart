@@ -5,7 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-// ✅ NEW: Enterprise Plugins
+// ✅ Enterprise Plugins
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 
@@ -22,19 +22,14 @@ import 'package:vango_parent_app/services/device_service.dart';
 import 'package:vango_parent_app/services/theme_service.dart';
 import 'package:vango_parent_app/services/language_service.dart';
 
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp();
-  }
-  debugPrint("📩 Background Message Received: ${message.messageId}");
-}
+// ✨ 1. GLOBAL NAVIGATOR KEY (Required for CallKit to open the Call Screen)
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // ✅ 1. GLOBAL CRASH HANDLER (Catches all Flutter UI fatal errors)
+  // GLOBAL CRASH HANDLER (Catches all Flutter UI fatal errors)
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -56,7 +51,8 @@ Future<void> main() async {
       >()
       ?.createNotificationChannel(channel);
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // ✨ 2. ATTACH THE BACKGROUND HANDLER FROM YOUR NOTIFICATION SERVICE
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
     alert: true,
@@ -73,7 +69,8 @@ Future<void> main() async {
   );
 
   try {
-    await NotificationService.instance.initialize();
+    // ✨ 3. PASS THE NAVIGATOR KEY TO THE SERVICE
+    await NotificationService.instance.initialize(navigatorKey);
     await AuthService.instance.initialize();
     await LanguageService.instance.init();
 
@@ -113,7 +110,7 @@ class VanGoApp extends StatefulWidget {
 }
 
 class _VanGoAppState extends State<VanGoApp> {
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  // Removed local navigator key so we use the global one!
   final GlobalKey<ScaffoldMessengerState> _messengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
@@ -129,7 +126,6 @@ class _VanGoAppState extends State<VanGoApp> {
       _stage = hasSeenOnboarding ? _AppStage.auth : _AppStage.onboarding;
     });
 
-    // ✅ 2. NAVIGATION ANALYTICS (Splash -> Target)
     FirebaseAnalytics.instance.logEvent(
       name: 'navigation_flow',
       parameters: {'source': 'splash', 'destination': _stage.name},
@@ -140,7 +136,6 @@ class _VanGoAppState extends State<VanGoApp> {
     if (_stage == _AppStage.onboarding) {
       setState(() => _stage = _AppStage.auth);
 
-      // ✅ 2. NAVIGATION ANALYTICS (Onboarding -> Auth)
       FirebaseAnalytics.instance.logEvent(
         name: 'navigation_flow',
         parameters: {'source': 'onboarding', 'destination': 'auth'},
@@ -156,12 +151,12 @@ class _VanGoAppState extends State<VanGoApp> {
     }
 
     if (!mounted) return;
-    _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    // ✨ Update to use the global key
+    navigatorKey.currentState?.popUntil((route) => route.isFirst);
     setState(() {
       _stage = _AppStage.home;
     });
 
-    // ✅ 2. NAVIGATION ANALYTICS (Auth -> Home)
     FirebaseAnalytics.instance.logEvent(
       name: 'navigation_flow',
       parameters: {'source': 'auth', 'destination': 'home'},
@@ -172,7 +167,6 @@ class _VanGoAppState extends State<VanGoApp> {
     if (_stage == _AppStage.home) {
       setState(() => _stage = _AppStage.auth);
 
-      // ✅ 2. NAVIGATION ANALYTICS (Home -> Auth via Sign Out)
       FirebaseAnalytics.instance.logEvent(
         name: 'navigation_flow',
         parameters: {
@@ -223,14 +217,13 @@ class _VanGoAppState extends State<VanGoApp> {
       valueListenable: ThemeService.instance.themeMode,
       builder: (context, currentThemeMode, child) {
         return MaterialApp(
-          navigatorKey: _navigatorKey,
+          navigatorKey: navigatorKey, // ✨ 4. LINK THE GLOBAL KEY HERE
           scaffoldMessengerKey: _messengerKey,
           title: 'VanGo',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
           themeMode: currentThemeMode,
-
           home: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             switchInCurve: Curves.easeInCubic,
