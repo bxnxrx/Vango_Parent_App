@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
+import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/services/app_config.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
@@ -13,84 +14,6 @@ import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/screens/auth/reset_password_screen.dart';
 import 'package:vango_parent_app/services/language_service.dart';
 import 'package:vango_parent_app/utils/auth_ui_helper.dart';
-
-const Map<AppLanguage, Map<String, String>> _localizedStrings = {
-  AppLanguage.english: {
-    'welcome': 'Welcome to',
-    'get_started': 'Get Started',
-    'subtitle': 'Enter your details to log in or sign up',
-    'phone_tab': 'Phone',
-    'email_tab': 'Email',
-    'phone_label': 'Phone Number',
-    'phone_hint': '7X XXX XXXX',
-    'email_label': 'Email Address',
-    'email_hint': 'name@example.com',
-    'pass_label': 'Password',
-    'pass_hint': '********',
-    'forgot_pass': 'Forgot Password?',
-    'continue_btn': 'Continue',
-    'or': 'Or',
-    'secure_badge': 'End-to-end encrypted',
-    'reset_sent': 'Reset link sent to @email',
-    'err_phone_req': 'Phone number is required',
-    'err_phone_inv': 'Invalid format',
-    'err_email_req': 'Email is required',
-    'err_email_inv': 'Enter a valid email address',
-    'err_pass_req': 'Password is required',
-    'err_pass_min': 'Password must be at least 8 characters',
-    'err_user_not_found': 'No account found with this email.',
-  },
-  AppLanguage.sinhala: {
-    'welcome': 'ආයුබෝවන්',
-    'get_started': 'ආරම්භ කරන්න',
-    'subtitle': 'ලොග් වීමට හෝ ලියාපදිංචි වීමට තොරතුරු ඇතුලත් කරන්න',
-    'phone_tab': 'දුරකථනය',
-    'email_tab': 'විද්‍යුත් තැපෑල',
-    'phone_label': 'දුරකථන අංකය',
-    'phone_hint': '7X XXX XXXX',
-    'email_label': 'විද්‍යුත් තැපැල් ලිපිනය',
-    'email_hint': 'name@example.com',
-    'pass_label': 'මුරපදය',
-    'pass_hint': '********',
-    'forgot_pass': 'මුරපදය අමතකද?',
-    'continue_btn': 'ඉදිරියට',
-    'or': 'හෝ',
-    'secure_badge': 'ආරක්ෂිතව සංකේතනය කර ඇත',
-    'reset_sent': 'මුරපද යළි පිහිටුවීමේ සබැඳිය යවන ලදී',
-    'err_phone_req': 'දුරකථන අංකය අවශ්‍යයි',
-    'err_phone_inv': 'වැරදි ආකෘතියකි',
-    'err_email_req': 'විද්‍යුත් තැපෑල අවශ්‍යයි',
-    'err_email_inv': 'නිවැරදි විද්‍යුත් තැපෑලක් ඇතුලත් කරන්න',
-    'err_pass_req': 'මුරපදය අවශ්‍යයි',
-    'err_pass_min': 'මුරපදය අවම වශයෙන් අකුරු 8ක් විය යුතුය',
-    'err_user_not_found': 'මෙම විද්‍යුත් තැපෑල සඳහා ගිණුමක් හමු නොවීය.',
-  },
-  AppLanguage.tamil: {
-    'welcome': 'நல்வரவு',
-    'get_started': 'தொடங்கவும்',
-    'subtitle': 'உள்நுழைய அல்லது பதிவு செய்ய விவரங்களை உள்ளிடவும்',
-    'phone_tab': 'தொலைபேசி',
-    'email_tab': 'மின்னஞ்சல்',
-    'phone_label': 'தொலைபேசி எண்',
-    'phone_hint': '7X XXX XXXX',
-    'email_label': 'மின்னஞ்சல் முகவரி',
-    'email_hint': 'name@example.com',
-    'pass_label': 'கடவுச்சொல்',
-    'pass_hint': '********',
-    'forgot_pass': 'கடவுச்சொல் மறந்துவிட்டதா?',
-    'continue_btn': 'தொடரவும்',
-    'or': 'அல்லது',
-    'secure_badge': 'பாதுகாப்பாக குறியாக்கம் செய்யப்பட்டது',
-    'reset_sent': 'கடவுச்சொல் மீட்டமைப்பு இணைப்பு அனுப்பப்பட்டது',
-    'err_phone_req': 'தொலைபேசி எண் தேவை',
-    'err_phone_inv': 'தவறான வடிவம்',
-    'err_email_req': 'மின்னஞ்சல் தேவை',
-    'err_email_inv': 'சரியான மின்னஞ்சலை உள்ளிடவும்',
-    'err_pass_req': 'கடவுச்சொல் தேவை',
-    'err_pass_min': 'கடவுச்சொல் குறைந்தது 8 எழுத்துகளைக் கொண்டிருக்க வேண்டும்',
-    'err_user_not_found': 'இந்த மின்னஞ்சலுக்கு கணக்கு எதுவும் கிடைக்கவில்லை.',
-  },
-};
 
 const String _googleIconSvg =
     '''<svg xmlns="http://www.w3.org/2000/svg" width="800px" height="800px" viewBox="-3 0 262 262" preserveAspectRatio="xMidYMid"><path d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027" fill="#4285F4"/><path d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1" fill="#34A853"/><path d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782" fill="#FBBC05"/><path d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251" fill="#EB4335"/></svg>''';
@@ -136,10 +59,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
     super.dispose();
   }
 
-  String _t(String key) =>
-      _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
-      key;
-
   String _getLanguageName(AppLanguage lang) {
     switch (lang) {
       case AppLanguage.english:
@@ -161,23 +80,26 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   }
 
   String? _validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) return _t('err_phone_req');
+    final loc = AppLocalizations.of(context)!;
+    if (value == null || value.trim().isEmpty) return loc.loginErrPhoneReq;
     final cleanPhone = value.replaceAll(' ', '');
     final phoneRegex = RegExp(r'^[0-9]{9}$');
-    if (!phoneRegex.hasMatch(cleanPhone)) return _t('err_phone_inv');
+    if (!phoneRegex.hasMatch(cleanPhone)) return loc.loginErrPhoneInv;
     return null;
   }
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return _t('err_email_req');
+    final loc = AppLocalizations.of(context)!;
+    if (value == null || value.trim().isEmpty) return loc.loginErrEmailReq;
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value.trim())) return _t('err_email_inv');
+    if (!emailRegex.hasMatch(value.trim())) return loc.loginErrEmailInv;
     return null;
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return _t('err_pass_req');
-    if (value.length < 8) return _t('err_pass_min');
+    final loc = AppLocalizations.of(context)!;
+    if (value == null || value.isEmpty) return loc.loginErrPassReq;
+    if (value.length < 8) return loc.loginErrPassMin;
     return null;
   }
 
@@ -208,6 +130,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
       widget.onOtpRequested(phone);
     } catch (e, stackTrace) {
+      if (!mounted) return;
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -219,7 +142,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
       AuthUiHelper.showMessage(
         context,
-        _t(AuthUiHelper.parseErrorKey(e)),
+        AuthUiHelper.parseErrorKey(e),
         isError: true,
       );
     } finally {
@@ -263,6 +186,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         await _checkStatusAndNotify();
       }
     } on AuthException catch (e, stackTrace) {
+      if (!mounted) return;
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_failure',
         parameters: {'method': 'email', 'reason': e.message},
@@ -284,11 +208,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         );
         AuthUiHelper.showMessage(
           context,
-          _t(AuthUiHelper.parseErrorKey(e)),
+          AuthUiHelper.parseErrorKey(e),
           isError: true,
         );
       }
     } catch (e, stackTrace) {
+      if (!mounted) return;
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_failure',
         parameters: {'method': 'email', 'reason': e.toString()},
@@ -300,7 +225,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
       AuthUiHelper.showMessage(
         context,
-        _t(AuthUiHelper.parseErrorKey(e)),
+        AuthUiHelper.parseErrorKey(e),
         isError: true,
       );
     } finally {
@@ -320,6 +245,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       return;
     }
 
+    final loc = AppLocalizations.of(context)!;
     _isLoading = true;
     HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
@@ -331,7 +257,6 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         parameters: {'method': 'forgot_password'},
       );
 
-      // ✅ ENTERPRISE DB CHECK: Validate email exists before sending reset
       final res = await Supabase.instance.client
           .from('parents')
           .select('id')
@@ -339,10 +264,11 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
           .maybeSingle();
 
       if (res == null) {
+        if (!mounted) return;
         HapticFeedback.heavyImpact();
         AuthUiHelper.showMessage(
           context,
-          _t('err_user_not_found'),
+          loc.loginErrUserNotFound,
           isError: true,
         );
         setState(() => _isLoading = false);
@@ -356,7 +282,11 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         name: 'auth_success',
         parameters: {'method': 'forgot_password', 'step': 'reset_sent'},
       );
-      AuthUiHelper.showMessage(context, _t('reset_sent'), isError: false);
+      AuthUiHelper.showMessage(
+        context,
+        loc.loginResetSent(email),
+        isError: false,
+      );
 
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
@@ -367,6 +297,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         ),
       );
     } catch (e, stackTrace) {
+      if (!mounted) return;
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_failure',
         parameters: {'method': 'forgot_password', 'reason': e.toString()},
@@ -378,7 +309,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
       AuthUiHelper.showMessage(
         context,
-        _t(AuthUiHelper.parseErrorKey(e)),
+        AuthUiHelper.parseErrorKey(e),
         isError: true,
       );
     } finally {
@@ -409,6 +340,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
       await _checkStatusAndNotify();
     } catch (e, stackTrace) {
+      if (!mounted) return;
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_failure',
         parameters: {'method': provider, 'reason': e.toString()},
@@ -420,7 +352,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
       AuthUiHelper.showMessage(
         context,
-        _t(AuthUiHelper.parseErrorKey(e)),
+        AuthUiHelper.parseErrorKey(e),
         isError: true,
       );
     } finally {
@@ -431,8 +363,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   Future<void> _checkStatusAndNotify() async {
     try {
       final status = await AuthService.instance.fetchOnboardingStatus();
+      if (!mounted) return;
       widget.onAuthenticated(status);
     } catch (e, stackTrace) {
+      if (!mounted) return;
       FirebaseCrashlytics.instance.recordError(
         e,
         stackTrace,
@@ -440,14 +374,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
       );
       AuthUiHelper.showMessage(
         context,
-        _t(AuthUiHelper.parseErrorKey(e)),
+        AuthUiHelper.parseErrorKey(e),
         isError: true,
       );
     }
   }
 
   Widget _buildLanguageSelector(bool isDark) {
-    // ✅ COLOR BUG FIX: Correctly adapts text/background depending on theme
     final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
     final selectedTextColor = isDark ? Colors.white : AppColors.accent;
     final unselectedTextColor = isDark
@@ -530,6 +463,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
@@ -597,7 +531,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          _t('welcome'),
+                                          loc.loginWelcome,
                                           style: AppTypography.headline
                                               .copyWith(
                                                 color: Colors.white.withValues(
@@ -620,9 +554,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                         ),
                                       ],
                                     ),
-                                    _buildLanguageSelector(
-                                      isDark,
-                                    ), // ✅ Passed isDark
+                                    _buildLanguageSelector(isDark),
                                   ],
                                 ),
                               ),
@@ -655,7 +587,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        _t('get_started'),
+                                        loc.loginGetStarted,
                                         style: AppTypography.headline.copyWith(
                                           fontSize: 26,
                                           fontWeight: FontWeight.w800,
@@ -664,7 +596,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        _t('subtitle'),
+                                        loc.loginSubtitle,
                                         textAlign: TextAlign.center,
                                         style: AppTypography.body.copyWith(
                                           color: textSecondary,
@@ -686,7 +618,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                           children: [
                                             Expanded(
                                               child: _ToggleTab(
-                                                label: _t('phone_tab'),
+                                                label: loc.loginPhoneTab,
                                                 isSelected: _isPhoneLogin,
                                                 isDark: isDark,
                                                 onTap: () => _switchTab(true),
@@ -694,7 +626,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                             ),
                                             Expanded(
                                               child: _ToggleTab(
-                                                label: _t('email_tab'),
+                                                label: loc.loginEmailTab,
                                                 isSelected: !_isPhoneLogin,
                                                 isDark: isDark,
                                                 onTap: () => _switchTab(false),
@@ -725,19 +657,21 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                         button: true,
                                         label: _isLoading
                                             ? "Loading, please wait"
-                                            : _t('continue_btn'),
+                                            : loc.loginContinueBtn,
                                         child: Listener(
                                           onPointerDown: (_) {
-                                            if (!_isLoading)
+                                            if (!_isLoading) {
                                               setState(
                                                 () => _isSubmitPressed = true,
                                               );
+                                            }
                                           },
                                           onPointerUp: (_) {
-                                            if (!_isLoading)
+                                            if (!_isLoading) {
                                               setState(
                                                 () => _isSubmitPressed = false,
                                               );
+                                            }
                                           },
                                           child: AnimatedScale(
                                             scale: _isSubmitPressed
@@ -784,7 +718,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                                               strokeWidth: 3,
                                                             ),
                                                       )
-                                                    : Text(_t('continue_btn')),
+                                                    : Text(
+                                                        loc.loginContinueBtn,
+                                                      ),
                                               ),
                                             ),
                                           ),
@@ -803,7 +739,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
-                                              _t('secure_badge'),
+                                              loc.loginSecureBadge,
                                               style: AppTypography.label
                                                   .copyWith(
                                                     color: textSecondary,
@@ -828,7 +764,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
                                               horizontal: 12,
                                             ),
                                             child: Text(
-                                              _t('or'),
+                                              loc.loginOr,
                                               style: TextStyle(
                                                 color: textSecondary,
                                                 fontSize: 14,
@@ -914,12 +850,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   }
 
   Widget _buildPhoneInput(Color activeColor, bool isDark) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       key: const ValueKey('PhoneInput'),
       child: _buildTextField(
         controller: _phoneController,
-        label: _t('phone_label'),
-        hint: _t('phone_hint'),
+        label: loc.loginPhoneLabel,
+        hint: loc.loginPhoneHint,
         icon: Icons.phone_android_rounded,
         inputType: TextInputType.phone,
         autofillHints: const [AutofillHints.telephoneNumberNational],
@@ -936,13 +873,14 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
   }
 
   Widget _buildEmailInput(Color activeColor, bool isDark) {
+    final loc = AppLocalizations.of(context)!;
     return Column(
       key: const ValueKey('EmailInput'),
       children: [
         _buildTextField(
           controller: _emailController,
-          label: _t('email_label'),
-          hint: _t('email_hint'),
+          label: loc.loginEmailLabel,
+          hint: loc.loginEmailHint,
           icon: Icons.email_outlined,
           inputType: TextInputType.emailAddress,
           autofillHints: const [AutofillHints.email],
@@ -953,10 +891,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
         const SizedBox(height: 16),
         _buildTextField(
           controller: _passwordController,
-          label: _t('pass_label'),
-          hint: _t('pass_hint'),
+          label: loc.loginPassLabel,
+          hint: loc.loginPassHint,
           icon: Icons.lock_outline_rounded,
           isPassword: true,
+          isPasswordVisible: _isPasswordVisible,
+          onToggleVisibility: () =>
+              setState(() => _isPasswordVisible = !_isPasswordVisible),
           autofillHints: const [AutofillHints.password],
           activeColor: activeColor,
           isDark: isDark,
@@ -979,7 +920,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> {
               ),
             ),
             onPressed: _isLoading ? null : _handleForgotPassword,
-            child: Text(_t('forgot_pass')),
+            child: Text(loc.loginForgotPass),
           ),
         ),
       ],

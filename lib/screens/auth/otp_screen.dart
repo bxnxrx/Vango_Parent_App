@@ -5,47 +5,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
+import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
 import 'package:vango_parent_app/utils/auth_ui_helper.dart';
-
-const Map<AppLanguage, Map<String, String>> _localizedStrings = {
-  AppLanguage.english: {
-    'title': 'Verify Account',
-    'subtitle_phone': 'Enter the 6-digit code sent to\n@id',
-    'subtitle_email': 'Enter the 6-digit code sent to\n@id',
-    'resend_q': "Didn't receive the code? ",
-    'resend_in': 'Resend in @sec s',
-    'resend_btn': 'Resend Code',
-    'verify_btn': 'Verify & Proceed',
-    'err_req': 'Please enter all 6 digits',
-    'success_resend': 'Verification code resent successfully',
-  },
-  AppLanguage.sinhala: {
-    'title': 'ගිණුම තහවුරු කරන්න',
-    'subtitle_phone': '@id වෙත යැවූ ඉලක්කම් 6ක කේතය ඇතුළත් කරන්න',
-    'subtitle_email': '@id වෙත යැවූ ඉලක්කම් 6ක කේතය ඇතුළත් කරන්න',
-    'resend_q': "කේතය ලැබුණේ නැද්ද? ",
-    'resend_in': 'තත්පර @sec කින් නැවත යවන්න',
-    'resend_btn': 'නැවත යවන්න',
-    'verify_btn': 'තහවුරු කර ඉදිරියට',
-    'err_req': 'කරුණාකර ඉලක්කම් 6ම ඇතුළත් කරන්න',
-    'success_resend': 'තහවුරු කිරීමේ කේතය සාර්ථකව නැවත යවන ලදී',
-  },
-  AppLanguage.tamil: {
-    'title': 'கணக்கை சரிபார்க்கவும்',
-    'subtitle_phone': '@id க்கு அனுப்பப்பட்ட 6 இலக்க குறியீட்டை உள்ளிடவும்',
-    'subtitle_email': '@id க்கு அனுப்பப்பட்ட 6 இலக்க குறியீட்டை உள்ளிடவும்',
-    'resend_q': "குறியீடு கிடைக்கவில்லையா? ",
-    'resend_in': '@sec வினாடிகளில் மீண்டும் அனுப்பு',
-    'resend_btn': 'மீண்டும் அனுப்பு',
-    'verify_btn': 'சரிபார்த்து தொடரவும்',
-    'err_req': 'அனைத்து 6 இலக்கங்களையும் உள்ளிடவும்',
-    'success_resend':
-        'சரிபார்ப்புக் குறியீடு வெற்றிகரமாக மீண்டும் அனுப்பப்பட்டது',
-  },
-};
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({
@@ -112,9 +76,6 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
-  String _t(String key) =>
-      _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
-      key;
   String _getLanguageName(AppLanguage lang) {
     switch (lang) {
       case AppLanguage.english:
@@ -132,10 +93,11 @@ class _OtpScreenState extends State<OtpScreen> {
     _countdown = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       setState(() {
-        if (_secondsLeft > 0)
+        if (_secondsLeft > 0) {
           _secondsLeft--;
-        else
+        } else {
           timer.cancel();
+        }
       });
     });
   }
@@ -143,10 +105,12 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _handleVerify() async {
     if (_isLoading) return;
 
+    final loc = AppLocalizations.of(context)!;
     final code = _controllers.map((c) => c.text).join();
+
     if (code.length < _digits) {
       HapticFeedback.heavyImpact();
-      AuthUiHelper.showMessage(context, _t('err_req'), isError: true);
+      AuthUiHelper.showMessage(context, loc.otpErrReq, isError: true);
       return;
     }
 
@@ -175,6 +139,7 @@ class _OtpScreenState extends State<OtpScreen> {
       );
       if (mounted) await widget.onVerified();
     } catch (e, stack) {
+      if (!mounted) return;
       FirebaseCrashlytics.instance.recordError(
         e,
         stack,
@@ -186,7 +151,7 @@ class _OtpScreenState extends State<OtpScreen> {
       );
       AuthUiHelper.showMessage(
         context,
-        _t(AuthUiHelper.parseErrorKey(e)),
+        AuthUiHelper.parseErrorKey(e),
         isError: true,
       );
       for (var c in _controllers) {
@@ -201,6 +166,7 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _handleResend() async {
     if (_secondsLeft > 0 || _resending) return;
 
+    final loc = AppLocalizations.of(context)!;
     setState(() => _resending = true);
     HapticFeedback.selectionClick();
 
@@ -212,22 +178,25 @@ class _OtpScreenState extends State<OtpScreen> {
       if (widget.onResendOverride != null) {
         await widget.onResendOverride!();
       } else {
-        if (widget.isEmail)
+        if (widget.isEmail) {
           await Supabase.instance.client.auth.signInWithOtp(
             email: widget.identifier,
           );
-        else
+        } else {
           await Supabase.instance.client.auth.signInWithOtp(
             phone: widget.identifier,
           );
+        }
       }
       FirebaseAnalytics.instance.logEvent(
         name: 'auth_success',
         parameters: {'method': 'otp_resend'},
       );
-      AuthUiHelper.showMessage(context, _t('success_resend'), isError: false);
+      if (!mounted) return;
+      AuthUiHelper.showMessage(context, loc.otpSuccessResend, isError: false);
       _startCountdown();
     } catch (e, stack) {
+      if (!mounted) return;
       FirebaseCrashlytics.instance.recordError(
         e,
         stack,
@@ -239,7 +208,7 @@ class _OtpScreenState extends State<OtpScreen> {
       );
       AuthUiHelper.showMessage(
         context,
-        _t(AuthUiHelper.parseErrorKey(e)),
+        AuthUiHelper.parseErrorKey(e),
         isError: true,
       );
     } finally {
@@ -330,6 +299,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
@@ -341,8 +311,9 @@ class _OtpScreenState extends State<OtpScreen> {
     return ValueListenableBuilder<AppLanguage>(
       valueListenable: LanguageService.instance.currentLanguage,
       builder: (context, currentLang, child) {
-        final subKey = widget.isEmail ? 'subtitle_email' : 'subtitle_phone';
-        final subText = _t(subKey).replaceAll('@id', widget.identifier);
+        final subText = widget.isEmail
+            ? loc.otpSubtitleEmail(widget.identifier)
+            : loc.otpSubtitlePhone(widget.identifier);
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle.light.copyWith(
@@ -404,9 +375,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                         ),
                                       ),
                                     ),
-                                    _buildLanguageSelector(
-                                      isDark,
-                                    ), // ✅ Added isDark parameter
+                                    _buildLanguageSelector(isDark),
                                   ],
                                 ),
                               ),
@@ -419,7 +388,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      _t('title'),
+                                      loc.otpTitle,
                                       style: AppTypography.headline.copyWith(
                                         color: Colors.white,
                                         fontSize: 32,
@@ -483,7 +452,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                           MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          _t('resend_q'),
+                                          loc.otpResendQ,
                                           style: AppTypography.body.copyWith(
                                             color: textSecondary,
                                           ),
@@ -492,16 +461,15 @@ class _OtpScreenState extends State<OtpScreen> {
                                           button: true,
                                           label: _resending
                                               ? "Loading, please wait"
-                                              : _t('resend_btn'),
+                                              : loc.otpResendBtn,
                                           child: GestureDetector(
                                             onTap: _handleResend,
                                             child: Text(
                                               _secondsLeft > 0
-                                                  ? _t('resend_in').replaceAll(
-                                                      '@sec',
+                                                  ? loc.otpResendIn(
                                                       _secondsLeft.toString(),
                                                     )
-                                                  : _t('resend_btn'),
+                                                  : loc.otpResendBtn,
                                               style: AppTypography.label
                                                   .copyWith(
                                                     color: _secondsLeft > 0
@@ -519,19 +487,21 @@ class _OtpScreenState extends State<OtpScreen> {
                                       button: true,
                                       label: _isLoading
                                           ? "Loading, please wait"
-                                          : _t('verify_btn'),
+                                          : loc.otpVerifyBtn,
                                       child: Listener(
                                         onPointerDown: (_) {
-                                          if (!_isLoading)
+                                          if (!_isLoading) {
                                             setState(
                                               () => _isSubmitPressed = true,
                                             );
+                                          }
                                         },
                                         onPointerUp: (_) {
-                                          if (!_isLoading)
+                                          if (!_isLoading) {
                                             setState(
                                               () => _isSubmitPressed = false,
                                             );
+                                          }
                                         },
                                         child: AnimatedScale(
                                           scale: _isSubmitPressed ? 0.96 : 1.0,
@@ -571,7 +541,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                                             strokeWidth: 3,
                                                           ),
                                                     )
-                                                  : Text(_t('verify_btn')),
+                                                  : Text(loc.otpVerifyBtn),
                                             ),
                                           ),
                                         ),
@@ -644,7 +614,6 @@ class _OtpScreenState extends State<OtpScreen> {
               contentPadding: EdgeInsets.zero,
             ),
             onChanged: (value) {
-              // ✅ OTP PASTE FIX: Robust Regex mapping
               final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
               if (digits.length > 1) {
                 final chars = digits.split('');
@@ -660,10 +629,12 @@ class _OtpScreenState extends State<OtpScreen> {
                 if (chars.length >= _digits) _handleVerify();
                 return;
               }
-              if (value.isNotEmpty && index < _digits - 1)
+              if (value.isNotEmpty && index < _digits - 1) {
                 _focusNodes[index + 1].requestFocus();
-              if (value.isEmpty && index > 0)
+              }
+              if (value.isEmpty && index > 0) {
                 _focusNodes[index - 1].requestFocus();
+              }
             },
           ),
         ),

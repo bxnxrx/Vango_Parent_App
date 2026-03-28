@@ -4,106 +4,13 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
+import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/screens/auth/otp_screen.dart';
 import 'package:vango_parent_app/services/auth_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
 import 'package:vango_parent_app/utils/auth_ui_helper.dart';
-
-const Map<AppLanguage, Map<String, String>> _localizedStrings = {
-  AppLanguage.english: {
-    'title': 'Complete Profile',
-    'header': 'Tell us about yourself',
-    'subtitle': 'We need a few details to set up your parent account.',
-    'section_personal': 'Personal Details',
-    'full_name': 'Full Name',
-    'full_name_hint': 'e.g. John Doe',
-    'mobile': 'Mobile Number',
-    'mobile_hint': '7X XXX XXXX',
-    'relationship': 'Relationship',
-    'rel_parent': 'Parent',
-    'rel_guardian': 'Guardian',
-    'rel_other': 'Other',
-    'rel_hint': 'Select Type',
-    'email_opt': 'Email Address (Optional)',
-    'email_hint': 'name@example.com',
-    'continue_btn': 'Continue',
-    'sign_out_title': 'Cancel Setup?',
-    'sign_out_body':
-        'This will completely delete your account and you will need to register again.',
-    'stay': 'Stay',
-    'sign_out': 'Delete & Sign Out',
-    'err_name_req': 'Full Name is required',
-    'err_name_min': 'Name must be at least 3 characters',
-    'err_phone_req': 'Mobile Number is required',
-    'err_phone_inv': 'Invalid format',
-    'err_email_inv': 'Enter a valid email address',
-    'err_rel_req': 'Please select your relationship type.',
-    'err_form': 'Please check the form for errors.',
-    'err_generic': 'Something went wrong.',
-  },
-  AppLanguage.sinhala: {
-    'title': 'පැතිකඩ සම්පූර්ණ කරන්න',
-    'header': 'ඔබ ගැන අපට කියන්න',
-    'subtitle': 'ඔබගේ ගිණුම සැකසීමට අපට විස්තර කිහිපයක් අවශ්‍යයි.',
-    'section_personal': 'පුද්ගලික විස්තර',
-    'full_name': 'සම්පූර්ණ නම',
-    'full_name_hint': 'උදා: කසුන් පෙරේරා',
-    'mobile': 'ජංගම දුරකථන අංකය',
-    'mobile_hint': '7X XXX XXXX',
-    'relationship': 'සම්බන්ධතාවය',
-    'rel_parent': 'දෙමාපියන්',
-    'rel_guardian': 'භාරකරු',
-    'rel_other': 'වෙනත්',
-    'rel_hint': 'වර්ගය තෝරන්න',
-    'email_opt': 'විද්‍යුත් තැපෑල (විකල්ප)',
-    'email_hint': 'name@example.com',
-    'continue_btn': 'ඉදිරියට',
-    'sign_out_title': 'අවලංගු කරන්නද?',
-    'sign_out_body': 'මෙය ඔබගේ ගිණුම සම්පූර්ණයෙන්ම මකා දමනු ඇත.',
-    'stay': 'රැඳී සිටින්න',
-    'sign_out': 'මකා ඉවත් වන්න',
-    'err_name_req': 'සම්පූර්ණ නම අවශ්‍යයි',
-    'err_name_min': 'නම අවම වශයෙන් අකුරු 3ක් විය යුතුය',
-    'err_phone_req': 'දුරකථන අංකය අවශ්‍යයි',
-    'err_phone_inv': 'වැරදි ආකෘතියකි',
-    'err_email_inv': 'නිවැරදි විද්‍යුත් තැපෑලක් ඇතුලත් කරන්න',
-    'err_rel_req': 'කරුණාකර සම්බන්ධතා වර්ගය තෝරන්න.',
-    'err_form': 'කරුණාකර පෝරමයේ දෝෂ පරීක්ෂා කරන්න.',
-    'err_generic': 'දෝෂයක් සිදුවිය.',
-  },
-  AppLanguage.tamil: {
-    'title': 'சுயவிவரத்தை முடிக்கவும்',
-    'header': 'உங்களை பற்றி கூறுங்கள்',
-    'subtitle': 'உங்கள் கணக்கை அமைக்க சில விவரங்கள் தேவை.',
-    'section_personal': 'தனிப்பட்ட விவரங்கள்',
-    'full_name': 'முழு பெயர்',
-    'full_name_hint': 'எ.கா: ஜான் டோ',
-    'mobile': 'கைபேசி எண்',
-    'mobile_hint': '7X XXX XXXX',
-    'relationship': 'உறவு',
-    'rel_parent': 'பெற்றோர்',
-    'rel_guardian': 'பாதுகாவலர்',
-    'rel_other': 'மற்றவை',
-    'rel_hint': 'வகையைத் தேர்ந்தெடுக்கவும்',
-    'email_opt': 'மின்னஞ்சல் (விருப்பத்திற்குரியது)',
-    'email_hint': 'name@example.com',
-    'continue_btn': 'தொடரவும்',
-    'sign_out_title': 'ரத்து செய்யவா?',
-    'sign_out_body': 'இது உங்கள் கணக்கை முழுமையாக நீக்கிவிடும்.',
-    'stay': 'தொடர்க',
-    'sign_out': 'நீக்கி வெளியேறு',
-    'err_name_req': 'முழு பெயர் தேவை',
-    'err_name_min': 'பெயர் குறைந்தது 3 எழுத்துகளைக் கொண்டிருக்க வேண்டும்',
-    'err_phone_req': 'தொலைபேசி எண் தேவை',
-    'err_phone_inv': 'தவறான வடிவம்',
-    'err_email_inv': 'சரியான மின்னஞ்சலை உள்ளிடவும்',
-    'err_rel_req': 'உங்கள் உறவு வகையைத் தேர்ந்தெடுக்கவும்.',
-    'err_form': 'படிவத்தில் உள்ள பிழைகளை சரிபார்க்கவும்.',
-    'err_generic': 'ஏதோ தவறு நடந்துவிட்டது.',
-  },
-};
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({
@@ -152,21 +59,22 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           _emailReadOnly = true;
         }
 
-        // ✅ PHONE PARSING FIX: Handles both +94 and 94 variations safely
         if (user?.phone != null && user!.phone!.isNotEmpty) {
           String p = user.phone!;
-          if (p.startsWith('+94'))
+          if (p.startsWith('+94')) {
             p = p.substring(3);
-          else if (p.startsWith('94') && p.length == 11)
+          } else if (p.startsWith('94') && p.length == 11) {
             p = p.substring(2);
+          }
           _phoneController.text = p;
           _phoneReadOnly = true;
         } else if (cachedPhone != null && _phoneController.text.isEmpty) {
           String p = cachedPhone;
-          if (p.startsWith('+94'))
+          if (p.startsWith('+94')) {
             p = p.substring(3);
-          else if (p.startsWith('94') && p.length == 11)
+          } else if (p.startsWith('94') && p.length == 11) {
             p = p.substring(2);
+          }
           _phoneController.text = p;
         }
       });
@@ -181,10 +89,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     super.dispose();
   }
 
-  String _t(String key) =>
-      _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
-      key;
-
   String _getLanguageName(AppLanguage lang) {
     switch (lang) {
       case AppLanguage.english:
@@ -197,37 +101,42 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   String? _validateName(String? value) {
-    if (value == null || value.trim().isEmpty) return _t('err_name_req');
-    if (value.trim().length < 3) return _t('err_name_min');
+    final loc = AppLocalizations.of(context)!;
+    if (value == null || value.trim().isEmpty) return loc.createErrNameReq;
+    if (value.trim().length < 3) return loc.createErrNameMin;
     return null;
   }
 
   String? _validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) return _t('err_phone_req');
+    final loc = AppLocalizations.of(context)!;
+    if (value == null || value.trim().isEmpty) return loc.createErrPhoneReq;
     final cleanPhone = value.replaceAll(' ', '');
     final phoneRegex = RegExp(r'^[0-9]{9}$');
-    if (!phoneRegex.hasMatch(cleanPhone)) return _t('err_phone_inv');
+    if (!phoneRegex.hasMatch(cleanPhone)) return loc.createErrPhoneInv;
     return null;
   }
 
   String? _validateEmail(String? value) {
+    final loc = AppLocalizations.of(context)!;
     if (value == null || value.trim().isEmpty) return null;
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value.trim())) return _t('err_email_inv');
+    if (!emailRegex.hasMatch(value.trim())) return loc.createErrEmailInv;
     return null;
   }
 
   Future<void> _handleSubmit() async {
     if (_submitting) return;
 
+    final loc = AppLocalizations.of(context)!;
+
     if (!_formKey.currentState!.validate()) {
       HapticFeedback.heavyImpact();
-      AuthUiHelper.showMessage(context, _t('err_form'), isError: true);
+      AuthUiHelper.showMessage(context, loc.createErrForm, isError: true);
       return;
     }
     if (_selectedRelationship == null) {
       HapticFeedback.heavyImpact();
-      AuthUiHelper.showMessage(context, _t('err_rel_req'), isError: true);
+      AuthUiHelper.showMessage(context, loc.createErrRelReq, isError: true);
       return;
     }
 
@@ -287,26 +196,22 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ),
       );
     } catch (e, stackTrace) {
-      if (mounted) {
-        setState(() => _submitting = false);
-        FirebaseCrashlytics.instance.recordError(
-          e,
-          stackTrace,
-          reason: 'Failed to verify phone linked',
-        );
-        FirebaseAnalytics.instance.logEvent(
-          name: 'auth_failure',
-          parameters: {
-            'method': 'create_account',
-            'reason': 'phone_link_failed',
-          },
-        );
-        AuthUiHelper.showMessage(
-          context,
-          _t(AuthUiHelper.parseErrorKey(e)),
-          isError: true,
-        );
-      }
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Failed to verify phone linked',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'create_account', 'reason': 'phone_link_failed'},
+      );
+      AuthUiHelper.showMessage(
+        context,
+        AuthUiHelper.parseErrorKey(e),
+        isError: true,
+      );
     }
   }
 
@@ -340,26 +245,22 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ),
       );
     } catch (e, stackTrace) {
-      if (mounted) {
-        setState(() => _submitting = false);
-        FirebaseCrashlytics.instance.recordError(
-          e,
-          stackTrace,
-          reason: 'Failed to verify email linked',
-        );
-        FirebaseAnalytics.instance.logEvent(
-          name: 'auth_failure',
-          parameters: {
-            'method': 'create_account',
-            'reason': 'email_link_failed',
-          },
-        );
-        AuthUiHelper.showMessage(
-          context,
-          _t(AuthUiHelper.parseErrorKey(e)),
-          isError: true,
-        );
-      }
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Failed to verify email linked',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {'method': 'create_account', 'reason': 'email_link_failed'},
+      );
+      AuthUiHelper.showMessage(
+        context,
+        AuthUiHelper.parseErrorKey(e),
+        isError: true,
+      );
     }
   }
 
@@ -381,25 +282,24 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
       if (mounted) widget.onProfileCompleted();
     } catch (e, stackTrace) {
-      if (mounted) {
-        FirebaseCrashlytics.instance.recordError(
-          e,
-          stackTrace,
-          reason: 'Failed to save parent profile',
-        );
-        FirebaseAnalytics.instance.logEvent(
-          name: 'auth_failure',
-          parameters: {
-            'method': 'create_account',
-            'reason': 'save_profile_failed',
-          },
-        );
-        AuthUiHelper.showMessage(
-          context,
-          _t(AuthUiHelper.parseErrorKey(e)),
-          isError: true,
-        );
-      }
+      if (!mounted) return;
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Failed to save parent profile',
+      );
+      FirebaseAnalytics.instance.logEvent(
+        name: 'auth_failure',
+        parameters: {
+          'method': 'create_account',
+          'reason': 'save_profile_failed',
+        },
+      );
+      AuthUiHelper.showMessage(
+        context,
+        AuthUiHelper.parseErrorKey(e),
+        isError: true,
+      );
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -408,6 +308,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   Future<void> _handleCancel() async {
     HapticFeedback.selectionClick();
 
+    final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkSurfaceStrong : Colors.white;
     final textColor = isDark ? AppColors.darkTextPrimary : Colors.black87;
@@ -421,18 +322,18 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             title: Text(
-              _t('sign_out_title'),
+              loc.createSignOutTitle,
               style: AppTypography.title.copyWith(color: textColor),
             ),
             content: Text(
-              _t('sign_out_body'),
+              loc.createSignOutBody,
               style: AppTypography.body.copyWith(color: textColor),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
                 child: Text(
-                  _t('stay'),
+                  loc.createStay,
                   style: AppTypography.label.copyWith(
                     color: Colors.grey.shade500,
                   ),
@@ -441,7 +342,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
                 child: Text(
-                  _t('sign_out'),
+                  loc.createSignOut,
                   style: AppTypography.label.copyWith(
                     color: Colors.redAccent.shade400,
                     fontWeight: FontWeight.bold,
@@ -459,19 +360,18 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         await AuthService.instance.cancelSignup();
         if (mounted) widget.onBack();
       } catch (e, stackTrace) {
-        if (mounted) {
-          FirebaseCrashlytics.instance.recordError(
-            e,
-            stackTrace,
-            reason: 'Failed to fully cancel signup',
-          );
-          AuthUiHelper.showMessage(
-            context,
-            _t(AuthUiHelper.parseErrorKey(e)),
-            isError: true,
-          );
-          widget.onBack();
-        }
+        if (!mounted) return;
+        FirebaseCrashlytics.instance.recordError(
+          e,
+          stackTrace,
+          reason: 'Failed to fully cancel signup',
+        );
+        AuthUiHelper.showMessage(
+          context,
+          AuthUiHelper.parseErrorKey(e),
+          isError: true,
+        );
+        widget.onBack();
       } finally {
         if (mounted) setState(() => _submitting = false);
       }
@@ -479,7 +379,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Widget _buildLanguageSelector(bool isDark) {
-    // ✅ COLOR FIX: Passes isDark locally
     final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
     final selectedTextColor = isDark ? Colors.white : AppColors.accent;
     final unselectedTextColor = isDark
@@ -562,6 +461,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
@@ -630,9 +530,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         ),
                                       ),
                                     ),
-                                    _buildLanguageSelector(
-                                      isDark,
-                                    ), // ✅ Pass isDark locally
+                                    _buildLanguageSelector(isDark),
                                   ],
                                 ),
                               ),
@@ -645,7 +543,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      _t('header'),
+                                      loc.createHeader,
                                       style: AppTypography.headline.copyWith(
                                         color: Colors.white,
                                         fontSize: 32,
@@ -655,7 +553,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      _t('subtitle'),
+                                      loc.createSubtitle,
                                       style: AppTypography.body.copyWith(
                                         color: Colors.white.withValues(
                                           alpha: 0.8,
@@ -696,7 +594,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        _t('section_personal'),
+                                        loc.createSectionPersonal,
                                         style: AppTypography.headline.copyWith(
                                           fontSize: 20,
                                           fontWeight: FontWeight.w800,
@@ -706,8 +604,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                       const SizedBox(height: 28),
                                       _buildTextField(
                                         controller: _fullNameController,
-                                        label: _t('full_name'),
-                                        hint: _t('full_name_hint'),
+                                        label: loc.createFullName,
+                                        hint: loc.createFullNameHint,
                                         icon: Icons.person_outline_rounded,
                                         autofillHints: const [
                                           AutofillHints.name,
@@ -719,8 +617,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                       const SizedBox(height: 20),
                                       _buildTextField(
                                         controller: _phoneController,
-                                        label: _t('mobile'),
-                                        hint: _t('mobile_hint'),
+                                        label: loc.createMobile,
+                                        hint: loc.createMobileHint,
                                         icon: Icons.phone_android_rounded,
                                         inputType: TextInputType.phone,
                                         autofillHints: const [
@@ -738,12 +636,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         prefixText: '+94 ',
                                       ),
                                       const SizedBox(height: 20),
-                                      _buildDropdown(isDark, accentColor),
+                                      _buildDropdown(isDark, accentColor, loc),
                                       const SizedBox(height: 20),
                                       _buildTextField(
                                         controller: _emailController,
-                                        label: _t('email_opt'),
-                                        hint: _t('email_hint'),
+                                        label: loc.createEmailOpt,
+                                        hint: loc.createEmailHint,
                                         icon: Icons.email_outlined,
                                         inputType: TextInputType.emailAddress,
                                         autofillHints: const [
@@ -759,19 +657,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                         button: true,
                                         label: _submitting
                                             ? "Loading, please wait"
-                                            : _t('continue_btn'),
+                                            : loc.createContinueBtn,
                                         child: Listener(
                                           onPointerDown: (_) {
-                                            if (!_submitting)
+                                            if (!_submitting) {
                                               setState(
                                                 () => _isSubmitPressed = true,
                                               );
+                                            }
                                           },
                                           onPointerUp: (_) {
-                                            if (!_submitting)
+                                            if (!_submitting) {
                                               setState(
                                                 () => _isSubmitPressed = false,
                                               );
+                                            }
                                           },
                                           child: AnimatedScale(
                                             scale: _isSubmitPressed
@@ -816,7 +716,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                                                               strokeWidth: 3,
                                                             ),
                                                       )
-                                                    : Text(_t('continue_btn')),
+                                                    : Text(
+                                                        loc.createContinueBtn,
+                                                      ),
                                               ),
                                             ),
                                           ),
@@ -925,14 +827,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: readOnly ? Colors.transparent : borderColor,
+              color: readOnly ? readOnlyBorder : borderColor,
               width: 1.5,
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: readOnly ? Colors.transparent : activeColor,
+              color: readOnly ? readOnlyBorder : activeColor,
               width: readOnly ? 1.5 : 2,
             ),
           ),
@@ -949,7 +851,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
-  Widget _buildDropdown(bool isDark, Color activeColor) {
+  Widget _buildDropdown(bool isDark, Color activeColor, AppLocalizations loc) {
     final borderColor = isDark ? AppColors.darkStroke : Colors.grey.shade300;
     final textColor = isDark
         ? AppColors.darkTextPrimary
@@ -957,14 +859,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final hintColor = isDark
         ? AppColors.darkTextSecondary
         : Colors.grey.shade500;
+
     final List<String> localizedTypes = [
-      _t('rel_parent'),
-      _t('rel_guardian'),
-      _t('rel_other'),
+      loc.createRelParent,
+      loc.createRelGuardian,
+      loc.createRelOther,
     ];
 
     return Semantics(
-      label: _t('relationship'),
+      label: loc.createRelationship,
       button: true,
       child: DropdownButtonFormField<String>(
         initialValue: _selectedRelationship != null
@@ -974,16 +877,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         icon: Icon(Icons.keyboard_arrow_down_rounded, color: hintColor),
         dropdownColor: isDark ? AppColors.darkSurfaceStrong : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        validator: (val) => val == null ? _t('err_rel_req') : null,
+        validator: (val) => val == null ? loc.createErrRelReq : null,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         style: AppTypography.body.copyWith(
           color: textColor,
           fontWeight: FontWeight.w600,
         ),
         decoration: InputDecoration(
-          labelText: _t('relationship'),
+          labelText: loc.createRelationship,
           labelStyle: AppTypography.body.copyWith(color: hintColor),
-          hintText: _t('rel_hint'),
+          hintText: loc.createRelHint,
           hintStyle: AppTypography.body.copyWith(color: hintColor),
           prefixIcon: Icon(
             Icons.people_outline_rounded,
@@ -1016,11 +919,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             )
             .toList(),
         onChanged: (displayVal) {
-          if (displayVal != null)
+          if (displayVal != null) {
             setState(
               () => _selectedRelationship =
                   _relationshipTypes[localizedTypes.indexOf(displayVal)],
             );
+          }
         },
       ),
     );
