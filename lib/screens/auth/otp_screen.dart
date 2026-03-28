@@ -10,6 +10,7 @@ import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
 import 'package:vango_parent_app/utils/auth_ui_helper.dart';
+import 'package:vango_parent_app/widgets/common_language_selector.dart'; // ✅ NEW
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({
@@ -76,17 +77,6 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
-  String _getLanguageName(AppLanguage lang) {
-    switch (lang) {
-      case AppLanguage.english:
-        return 'English';
-      case AppLanguage.sinhala:
-        return 'සිංහල';
-      case AppLanguage.tamil:
-        return 'தமிழ்';
-    }
-  }
-
   void _startCountdown() {
     _countdown?.cancel();
     setState(() => _secondsLeft = _countdownSeconds);
@@ -145,10 +135,6 @@ class _OtpScreenState extends State<OtpScreen> {
         stack,
         reason: 'OTP Verification Failed',
       );
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_failure',
-        parameters: {'method': 'otp_verify', 'reason': e.toString()},
-      );
       AuthUiHelper.showMessage(
         context,
         AuthUiHelper.parseErrorKey(e),
@@ -202,10 +188,6 @@ class _OtpScreenState extends State<OtpScreen> {
         stack,
         reason: 'OTP Resend Failed',
       );
-      FirebaseAnalytics.instance.logEvent(
-        name: 'auth_failure',
-        parameters: {'method': 'otp_resend', 'reason': e.toString()},
-      );
       AuthUiHelper.showMessage(
         context,
         AuthUiHelper.parseErrorKey(e),
@@ -214,87 +196,6 @@ class _OtpScreenState extends State<OtpScreen> {
     } finally {
       if (mounted) setState(() => _resending = false);
     }
-  }
-
-  Widget _buildLanguageSelector(bool isDark) {
-    final menuBgColor = isDark ? AppColors.darkSurface : Colors.white;
-    final selectedTextColor = isDark ? Colors.white : AppColors.accent;
-    final unselectedTextColor = isDark
-        ? AppColors.darkTextSecondary
-        : Colors.grey.shade700;
-
-    return Semantics(
-      button: true,
-      label: 'Select Language',
-      child: Theme(
-        data: Theme.of(context).copyWith(
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-        ),
-        child: PopupMenuButton<AppLanguage>(
-          onSelected: (AppLanguage newValue) {
-            HapticFeedback.selectionClick();
-            LanguageService.instance.setLanguage(newValue);
-          },
-          color: menuBgColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 8,
-          offset: const Offset(0, 45),
-          itemBuilder: (context) => AppLanguage.values.map((lang) {
-            final isSelected =
-                LanguageService.instance.currentLanguage.value == lang;
-            return PopupMenuItem<AppLanguage>(
-              value: lang,
-              child: Center(
-                child: Text(
-                  _getLanguageName(lang),
-                  style: AppTypography.body.copyWith(
-                    color: isSelected ? selectedTextColor : unselectedTextColor,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.language_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _getLanguageName(
-                    LanguageService.instance.currentLanguage.value,
-                  ),
-                  style: AppTypography.label.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -375,7 +276,9 @@ class _OtpScreenState extends State<OtpScreen> {
                                         ),
                                       ),
                                     ),
-                                    _buildLanguageSelector(isDark),
+                                    CommonLanguageSelector(
+                                      isDark: isDark,
+                                    ), // ✅ Uses Central Widget
                                   ],
                                 ),
                               ),
