@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:io';
+import 'package:uuid/uuid.dart';
 
 // ✨ NEW: Imports for CallKit and Call Screen
 import 'package:connectycube_flutter_call_kit/connectycube_flutter_call_kit.dart';
@@ -21,19 +22,29 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final channelName = message.data['channelName'] ?? '';
     final callerId = message.data['callerId'] ?? '';
 
+    // ✨ FIX: Generate a deterministic, VALID UUID from the channelName
+    // This safely converts "uuid1_uuid2" into a standard Apple-approved UUID format.
+    final validSessionId = const Uuid().v5(Uuid.NAMESPACE_URL, channelName);
+
     CallEvent callEvent = CallEvent(
-      sessionId: channelName, 
-      callType: 0, // 0 = Audio Call
-      callerId: callerId.hashCode, 
+      sessionId: validSessionId, // <-- Use the newly generated UUID here
+      callType: 0,
+      callerId: callerId.hashCode,
       callerName: callerName,
       opponentsIds: {},
-      userInfo: {'channelName': channelName},
+      userInfo: {
+        'channelName': channelName,
+      }, // <-- The real channelName stays safely hidden here!
     );
-    
+
     ConnectycubeFlutterCallKit.showCallNotification(callEvent);
   } else if (type == 'cancel_call') {
     final channelName = message.data['channelName'] ?? '';
-    ConnectycubeFlutterCallKit.reportCallEnded(sessionId: channelName);
+
+    // ✨ FIX: Generate the exact same UUID to successfully cancel the call
+    final validSessionId = const Uuid().v5(Uuid.NAMESPACE_URL, channelName);
+
+    ConnectycubeFlutterCallKit.reportCallEnded(sessionId: validSessionId);
   }
 }
 
@@ -47,9 +58,9 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   static const String _channelId = 'vango_notifications_v4';
-  
+
   // ✨ NEW: Navigator key to open the call screen
-  late GlobalKey<NavigatorState> navigatorKey; 
+  late GlobalKey<NavigatorState> navigatorKey;
 
   // 1. Initialize the service (✨ Now accepts the navigatorKey)
   Future<void> initialize(GlobalKey<NavigatorState> navKey) async {
@@ -71,11 +82,12 @@ class NotificationService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // iOS Setup
-    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+    const DarwinInitializationSettings iosSettings =
+        DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
@@ -132,14 +144,14 @@ class NotificationService {
       final body = message.notification?.body;
 
       if (title != null && body != null) {
-        final notificationId = message.messageId?.hashCode ?? DateTime.now().millisecond;
+        final notificationId =
+            message.messageId?.hashCode ?? DateTime.now().millisecond;
         showManualNotification(title, body, notificationId);
       }
 
       if (type == 'emergency_active') {
         debugPrint('🚨 Emergency started! Pushing red screen...');
-      } 
-      else if (type == 'emergency_resolved') {
+      } else if (type == 'emergency_resolved') {
         debugPrint('✅ Emergency resolved! Closing red screen...');
       }
     });
@@ -163,10 +175,8 @@ class NotificationService {
     if (channelName != null) {
       navigatorKey.currentState?.push(
         MaterialPageRoute(
-          builder: (context) => CallScreen(
-            channelName: channelName,
-            callerName: callerName,
-          ),
+          builder: (context) =>
+              CallScreen(channelName: channelName, callerName: callerName),
         ),
       );
     }
@@ -178,19 +188,23 @@ class NotificationService {
   }
 
   // 2. Show a notification manually (Used by foreground FCM listener)
-  Future<void> showManualNotification(String title, String body, int notificationId) async {
+  Future<void> showManualNotification(
+    String title,
+    String body,
+    int notificationId,
+  ) async {
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
-      _channelId,
-      'Parent Notifications',
-      channelDescription: 'Important updates for parents',
-      importance: Importance.max,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      icon: '@mipmap/ic_launcher',
-      styleInformation: BigTextStyleInformation(body),
-    );
+          _channelId,
+          'Parent Notifications',
+          channelDescription: 'Important updates for parents',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
+          icon: '@mipmap/ic_launcher',
+          styleInformation: BigTextStyleInformation(body),
+        );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
