@@ -3,7 +3,7 @@
 <plist version="1.0">
 	<dict>
 		<key>NSLocationWhenInUseUsageDescription</key>
-		<string>VanGo uses your location to show your child\'s van position relative to you and improve tracking visibility.</string>
+		<string>VanGo uses your location to show your child's van position relative to you and improve tracking visibility.</string>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
@@ -43,12 +43,20 @@
 			<string>UIInterfaceOrientationLandscapeLeft</string>
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+			<string>voip</string>
+			<string>audio</string>
+		</array>
 		<key>CADisableMinimumFrameDurationOnPhone</key>
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>NSCameraUsageDescription</key>
 		<string>This app needs camera access to scan driver QR codes.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>VanGo needs microphone access so you can speak with the driver during voice calls.</string>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>

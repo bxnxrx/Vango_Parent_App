@@ -27,17 +27,17 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final validSessionId = const Uuid().v5(Uuid.NAMESPACE_URL, channelName);
 
     CallEvent callEvent = CallEvent(
-      sessionId: validSessionId, // <-- Use the newly generated UUID here
+      sessionId: validSessionId,
       callType: 0,
       callerId: callerId.hashCode,
       callerName: callerName,
-      opponentsIds: {},
-      userInfo: {
-        'channelName': channelName,
-      }, // <-- The real channelName stays safely hidden here!
+      // ✨ FIX: Pass the caller ID here instead of an empty {}
+      opponentsIds: {callerId.hashCode},
+      userInfo: {'channelName': channelName},
     );
 
     ConnectycubeFlutterCallKit.showCallNotification(callEvent);
+    
   } else if (type == 'cancel_call') {
     final channelName = message.data['channelName'] ?? '';
 
