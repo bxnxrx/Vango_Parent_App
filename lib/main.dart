@@ -11,7 +11,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 
 // ✨ CallKit & Call Screen Imports
 import 'package:connectycube_flutter_call_kit/connectycube_flutter_call_kit.dart';
-import 'package:vango_parent_app/screens/call/call_screen.dart'; 
+import 'package:vango_parent_app/screens/call/call_screen.dart';
 
 import 'package:vango_parent_app/screens/app_shell.dart';
 import 'package:vango_parent_app/screens/auth/auth_flow.dart';
@@ -25,6 +25,9 @@ import 'package:vango_parent_app/services/notification_service.dart';
 import 'package:vango_parent_app/services/device_service.dart';
 import 'package:vango_parent_app/services/theme_service.dart';
 import 'package:vango_parent_app/services/language_service.dart';
+
+// ✅ Required for Localization
+import 'package:vango_parent_app/l10n/app_localizations.dart';
 
 // ✨ 1. GLOBAL NAVIGATOR KEY (Required for CallKit to open the Call Screen)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -131,7 +134,7 @@ class _VanGoAppState extends State<VanGoApp> {
     ConnectycubeFlutterCallKit.instance.init(
       onCallAccepted: (CallEvent event) async {
         debugPrint('✅ Parent tapped ANSWER on the native screen!');
-        
+
         final rawChannelName = event.userInfo?['channelName'];
         final callerName = event.callerName; // Removed dead code
 
@@ -255,20 +258,47 @@ class _VanGoAppState extends State<VanGoApp> {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeService.instance.themeMode,
       builder: (context, currentThemeMode, child) {
-        return MaterialApp(
-          navigatorKey: navigatorKey, // ✨ 4. LINK THE GLOBAL KEY HERE
-          scaffoldMessengerKey: _messengerKey,
-          title: 'VanGo',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(),
-          darkTheme: AppTheme.dark(),
-          themeMode: currentThemeMode,
-          home: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            switchInCurve: Curves.easeInCubic,
-            switchOutCurve: Curves.easeOutCubic,
-            child: currentScreen,
-          ),
+        // ✨ Add secondary ValueListenableBuilder for the Language
+        return ValueListenableBuilder<AppLanguage>(
+          valueListenable: LanguageService.instance.currentLanguage,
+          builder: (context, currentLang, child) {
+            // Map AppLanguage to actual Locale object
+            Locale appLocale;
+            switch (currentLang) {
+              case AppLanguage.sinhala:
+                appLocale = const Locale('si');
+                break;
+              case AppLanguage.tamil:
+                appLocale = const Locale('ta');
+                break;
+              case AppLanguage.english:
+              default:
+                appLocale = const Locale('en');
+                break;
+            }
+
+            return MaterialApp(
+              navigatorKey: navigatorKey, // ✨ 4. LINK THE GLOBAL KEY HERE
+              scaffoldMessengerKey: _messengerKey,
+              title: 'VanGo',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.light(),
+              darkTheme: AppTheme.dark(),
+              themeMode: currentThemeMode,
+
+              // ✅ Localization Wiring
+              locale: appLocale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+
+              home: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeInCubic,
+                switchOutCurve: Curves.easeOutCubic,
+                child: currentScreen,
+              ),
+            );
+          },
         );
       },
     );

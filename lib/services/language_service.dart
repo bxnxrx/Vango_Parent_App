@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_analytics/firebase_analytics.dart'; // ✅ ADD THIS
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 enum AppLanguage { english, sinhala, tamil }
 
@@ -24,6 +24,19 @@ class LanguageService {
     );
   }
 
+  // Helper method to feed into MaterialApp(locale: ...)
+  Locale get currentLocale {
+    switch (currentLanguage.value) {
+      case AppLanguage.sinhala:
+        return const Locale('si');
+      case AppLanguage.tamil:
+        return const Locale('ta');
+      case AppLanguage.english:
+      default:
+        return const Locale('en');
+    }
+  }
+
   Future<void> setLanguage(AppLanguage lang) async {
     if (currentLanguage.value == lang) return; // Prevent redundant saves/logs
 
@@ -32,9 +45,8 @@ class LanguageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_langKey, lang.name);
 
-    // ✅ ENTERPRISE ANALYTICS: Centralized logging guarantees consistency
     FirebaseAnalytics.instance.logEvent(
-      name: 'user_language_changed', // Standardized global event name
+      name: 'user_language_changed',
       parameters: {'language': lang.name},
     );
   }

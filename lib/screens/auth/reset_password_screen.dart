@@ -4,73 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
+import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/services/language_service.dart';
 import 'package:vango_parent_app/utils/auth_ui_helper.dart';
-
-const Map<AppLanguage, Map<String, String>> _localizedStrings = {
-  AppLanguage.english: {
-    'title': 'Create New Password',
-    'subtitle':
-        'Enter the OTP sent to your email and your new secure password.',
-    'otp_label': 'Reset Code (OTP)',
-    'otp_hint': '6-digit code',
-    'new_pass_label': 'New Password',
-    'new_pass_hint': '********',
-    'confirm_pass_label': 'Confirm Password',
-    'confirm_pass_hint': '********',
-    'reset_btn': 'Set New Password',
-    'err_otp_req': 'OTP code is required',
-    'err_pass_req': 'Password is required',
-    'err_pass_len': 'Password must be at least 8 characters',
-    'err_pass_up': 'Must contain at least one uppercase letter',
-    'err_pass_low': 'Must contain at least one lowercase letter',
-    'err_confirm_req': 'Please confirm your password',
-    'err_pass_mismatch': 'Passwords do not match',
-    'success_reset': 'Password successfully reset! Please log in.',
-  },
-  AppLanguage.sinhala: {
-    'title': 'නව මුරපදයක් සාදන්න',
-    'subtitle':
-        'ඔබගේ විද්‍යුත් තැපෑලට යැවූ OTP කේතය සහ නව මුරපදය ඇතුළත් කරන්න.',
-    'otp_label': 'යළි පිහිටුවීමේ කේතය (OTP)',
-    'otp_hint': 'ඉලක්කම් 6ක කේතය',
-    'new_pass_label': 'නව මුරපදය',
-    'new_pass_hint': '********',
-    'confirm_pass_label': 'මුරපදය තහවුරු කරන්න',
-    'confirm_pass_hint': '********',
-    'reset_btn': 'නව මුරපදය සකසන්න',
-    'err_otp_req': 'OTP කේතය අවශ්‍යයි',
-    'err_pass_req': 'මුරපදය අවශ්‍යයි',
-    'err_pass_len': 'මුරපදය අවම වශයෙන් අකුරු 8ක් විය යුතුය',
-    'err_pass_up': 'අවම වශයෙන් එක් කැපිටල් අකුරක් අඩංගු විය යුතුය',
-    'err_pass_low': 'අවම වශයෙන් එක් සිම්පල් අකුරක් අඩංගු විය යුතුය',
-    'err_confirm_req': 'කරුණාකර ඔබගේ මුරපදය තහවුරු කරන්න',
-    'err_pass_mismatch': 'මුරපද නොගැලපේ',
-    'success_reset': 'මුරපදය සාර්ථකව යළි පිහිටුවන ලදී! කරුණාකර ලොග් වන්න.',
-  },
-  AppLanguage.tamil: {
-    'title': 'புதிய கடவுச்சொல்லை உருவாக்கு',
-    'subtitle':
-        'மின்னஞ்சலுக்கு அனுப்பப்பட்ட OTP மற்றும் புதிய கடவுச்சொல்லை உள்ளிடவும்.',
-    'otp_label': 'மீட்டமைப்பு குறியீடு (OTP)',
-    'otp_hint': '6 இலக்க குறியீடு',
-    'new_pass_label': 'புதிய கடவுச்சொல்',
-    'new_pass_hint': '********',
-    'confirm_pass_label': 'கடவுச்சொல்லை உறுதிப்படுத்தவும்',
-    'confirm_pass_hint': '********',
-    'reset_btn': 'கடவுச்சொல்லை அமைக்கவும்',
-    'err_otp_req': 'OTP குறியீடு தேவை',
-    'err_pass_req': 'கடவுச்சொல் தேவை',
-    'err_pass_len': 'கடவுச்சொல் குறைந்தது 8 எழுத்துகளைக் கொண்டிருக்க வேண்டும்',
-    'err_pass_up': 'குறைந்தது ஒரு பெரிய எழுத்து இருக்க வேண்டும்',
-    'err_pass_low': 'குறைந்தது ஒரு சிறிய எழுத்து இருக்க வேண்டும்',
-    'err_confirm_req': 'உங்கள் கடவுச்சொல்லை உறுதிப்படுத்தவும்',
-    'err_pass_mismatch': 'கடவுச்சொற்கள் பொருந்தவில்லை',
-    'success_reset': 'கடவுச்சொல் வெற்றிகரமாக மாற்றப்பட்டது! உள்நுழையவும்.',
-  },
-};
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key, required this.email});
@@ -108,9 +46,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
-  String _t(String key) =>
-      _localizedStrings[LanguageService.instance.currentLanguage.value]?[key] ??
-      key;
   String _getLanguageName(AppLanguage lang) {
     switch (lang) {
       case AppLanguage.english:
@@ -123,16 +58,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return _t('err_pass_req');
-    if (value.length < 8) return _t('err_pass_len');
-    if (!value.contains(RegExp(r'[A-Z]'))) return _t('err_pass_up');
-    if (!value.contains(RegExp(r'[a-z]'))) return _t('err_pass_low');
+    final loc = AppLocalizations.of(context)!;
+    if (value == null || value.isEmpty) return loc.resetErrPassReq;
+    if (value.length < 8) return loc.resetErrPassLen;
+    if (!value.contains(RegExp(r'[A-Z]'))) return loc.resetErrPassUp;
+    if (!value.contains(RegExp(r'[a-z]'))) return loc.resetErrPassLow;
     return null;
   }
 
   String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) return _t('err_confirm_req');
-    if (value != _passwordController.text) return _t('err_pass_mismatch');
+    final loc = AppLocalizations.of(context)!;
+    if (value == null || value.isEmpty) return loc.resetErrConfirmReq;
+    if (value != _passwordController.text) return loc.resetErrPassMismatch;
     return null;
   }
 
@@ -144,6 +81,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       return;
     }
 
+    final loc = AppLocalizations.of(context)!;
     setState(() => _isLoading = true);
     HapticFeedback.selectionClick();
     FocusScope.of(context).unfocus();
@@ -172,12 +110,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       );
 
       if (!mounted) return;
-      AuthUiHelper.showMessage(context, _t('success_reset'), isError: false);
+      AuthUiHelper.showMessage(context, loc.resetSuccess, isError: false);
 
       await Future.delayed(const Duration(milliseconds: 1500));
       if (!mounted) return;
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e, stack) {
+      if (!mounted) return;
       FirebaseCrashlytics.instance.recordError(
         e,
         stack,
@@ -189,7 +128,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       );
       AuthUiHelper.showMessage(
         context,
-        _t(AuthUiHelper.parseErrorKey(e)),
+        AuthUiHelper.parseErrorKey(e),
         isError: true,
       );
     } finally {
@@ -280,12 +219,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBackground : AppColors.background;
     final cardColor = isDark ? AppColors.darkSurface : Colors.white;
-    final textColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.textPrimary;
     final accentColor = isDark ? AppColors.darkAccent : AppColors.accent;
 
     return ValueListenableBuilder<AppLanguage>(
@@ -351,9 +288,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         ),
                                       ),
                                     ),
-                                    _buildLanguageSelector(
-                                      isDark,
-                                    ), // ✅ Added isDark Parameter
+                                    _buildLanguageSelector(isDark),
                                   ],
                                 ),
                               ),
@@ -366,7 +301,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      _t('title'),
+                                      loc.resetTitle,
                                       style: AppTypography.headline.copyWith(
                                         color: Colors.white,
                                         fontSize: 32,
@@ -376,7 +311,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      _t('subtitle'),
+                                      loc.resetSubtitle,
                                       style: AppTypography.body.copyWith(
                                         color: Colors.white.withValues(
                                           alpha: 0.9,
@@ -427,8 +362,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                       const SizedBox(height: 28),
                                       _buildTextField(
                                         controller: _otpController,
-                                        label: _t('otp_label'),
-                                        hint: _t('otp_hint'),
+                                        label: loc.resetOtpLabel,
+                                        hint: loc.resetOtpHint,
                                         icon: Icons.password_rounded,
                                         inputType: TextInputType.number,
                                         autofillHints: const [
@@ -443,14 +378,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         activeColor: accentColor,
                                         validator: (val) =>
                                             val == null || val.isEmpty
-                                            ? _t('err_otp_req')
+                                            ? loc.resetErrOtpReq
                                             : null,
                                       ),
                                       const SizedBox(height: 20),
                                       _buildTextField(
                                         controller: _passwordController,
-                                        label: _t('new_pass_label'),
-                                        hint: _t('new_pass_hint'),
+                                        label: loc.resetNewPassLabel,
+                                        hint: loc.resetNewPassHint,
                                         icon: Icons.lock_outline_rounded,
                                         isPassword: true,
                                         isPasswordVisible: _isPasswordVisible,
@@ -468,8 +403,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                       const SizedBox(height: 20),
                                       _buildTextField(
                                         controller: _confirmPasswordController,
-                                        label: _t('confirm_pass_label'),
-                                        hint: _t('confirm_pass_hint'),
+                                        label: loc.resetConfirmPassLabel,
+                                        hint: loc.resetConfirmPassHint,
                                         icon: Icons.lock_reset_rounded,
                                         isPassword: true,
                                         isPasswordVisible:
@@ -490,19 +425,21 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                         button: true,
                                         label: _isLoading
                                             ? "Loading, please wait"
-                                            : _t('reset_btn'),
+                                            : loc.resetBtn,
                                         child: Listener(
                                           onPointerDown: (_) {
-                                            if (!_isLoading)
+                                            if (!_isLoading) {
                                               setState(
                                                 () => _isSubmitPressed = true,
                                               );
+                                            }
                                           },
                                           onPointerUp: (_) {
-                                            if (!_isLoading)
+                                            if (!_isLoading) {
                                               setState(
                                                 () => _isSubmitPressed = false,
                                               );
+                                            }
                                           },
                                           child: AnimatedScale(
                                             scale: _isSubmitPressed
@@ -547,7 +484,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                                               strokeWidth: 3,
                                                             ),
                                                       )
-                                                    : Text(_t('reset_btn')),
+                                                    : Text(loc.resetBtn),
                                               ),
                                             ),
                                           ),
