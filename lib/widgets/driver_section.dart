@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:vango_parent_app/l10n/app_localizations.dart';
+import 'package:vango_parent_app/models/driver_profile.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 
@@ -11,7 +12,7 @@ class DriverSection extends StatelessWidget {
   final TextEditingController inviteCodeController;
   final String? inviteCodeError;
   final bool isValidatingCode;
-  final Map<String, dynamic>? verifiedDriverDetails;
+  final DriverProfile? verifiedDriverDetails;
   final VoidCallback onVerifyCode;
   final VoidCallback onScanQRCode;
   final VoidCallback onCodeChanged;
@@ -89,7 +90,7 @@ class DriverSection extends StatelessWidget {
               style: const TextStyle(color: Colors.white54, fontSize: 13),
             ),
             value: hasDriver,
-            activeColor: AppColors.accent,
+            activeThumbColor: AppColors.accent, // ✅ Fixed deprecation warning
             activeTrackColor: AppColors.accent.withValues(alpha: 0.3),
             inactiveThumbColor: Colors.grey,
             inactiveTrackColor: Colors.white10,
@@ -235,20 +236,21 @@ class DriverSection extends StatelessWidget {
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Divider(height: 1, color: Colors.white10),
                   ),
+                  // ✅ Fixed to match DriverProfile properties
                   _buildDriverDetailRow(
                     Icons.person_outline,
                     l10n.driverNameLabel,
-                    verifiedDriverDetails!['driverName'] as String?,
+                    verifiedDriverDetails!.name,
                   ),
                   _buildDriverDetailRow(
                     Icons.directions_car_outlined,
                     l10n.driverVehicleLabel,
-                    '${verifiedDriverDetails!['vehicleMake']} ${verifiedDriverDetails!['vehicleModel']}',
+                    verifiedDriverDetails!.vehicleType,
                   ),
                   _buildDriverDetailRow(
                     Icons.location_on_outlined,
                     l10n.driverAreaLabel,
-                    '${verifiedDriverDetails!['city'] ?? ''}, ${verifiedDriverDetails!['district'] ?? ''}',
+                    verifiedDriverDetails!.route,
                   ),
                 ],
               ),

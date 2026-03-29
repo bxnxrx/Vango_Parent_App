@@ -144,7 +144,7 @@ class ContactSection extends StatelessWidget {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) {
-                      return 'Required';
+                      return l10n.studentNameRequired;
                     }
                     if (!RegExp(r'^7\d{8}$').hasMatch(v.trim())) {
                       return l10n.invalidSlNumber;
