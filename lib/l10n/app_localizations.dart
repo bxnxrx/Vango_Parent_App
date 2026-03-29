@@ -621,6 +621,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Get started'**
   String get onboardingBtn3;
+
+  /// No description provided for @manageChildrenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Children'**
+  String get manageChildrenTitle;
+
+  /// No description provided for @addStudentBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Student'**
+  String get addStudentBtn;
+
+  /// No description provided for @removeStudentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure: Remove Student'**
+  String get removeStudentTitle;
+
+  /// No description provided for @removeStudentConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove {childName}? This action cannot be undone and will permanently delete tracking history.'**
+  String removeStudentConfirmation(String childName);
+
+  /// No description provided for @cancelBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelBtn;
+
+  /// No description provided for @removeBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Permanently'**
+  String get removeBtn;
+
+  /// No description provided for @studentRemovedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'{childName} removed successfully.'**
+  String studentRemovedSuccess(String childName);
+
+  /// No description provided for @errorRemovingStudent.
+  ///
+  /// In en, this message translates to:
+  /// **'Error removing student: {error}'**
+  String errorRemovingStudent(String error);
+
+  /// No description provided for @connectionErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection Error'**
+  String get connectionErrorTitle;
+
+  /// No description provided for @retryConnectionBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry Connection'**
+  String get retryConnectionBtn;
+
+  /// No description provided for @noStudentsAddedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No students added yet'**
+  String get noStudentsAddedTitle;
+
+  /// No description provided for @addChildrenSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your children to start tracking their rides securely.'**
+  String get addChildrenSubtitle;
+
+  /// No description provided for @addFirstStudentBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Add First Student'**
+  String get addFirstStudentBtn;
+
+  /// No description provided for @editProfileBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Profile'**
+  String get editProfileBtn;
+
+  /// No description provided for @removeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get removeTooltip;
+
+  /// No description provided for @genericError.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong securely fetching data. Please try again.'**
+  String get genericError;
+
+  /// No description provided for @deleteError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not remove the student securely. Please try again.'**
+  String get deleteError;
 }
 
 class _AppLocalizationsDelegate

@@ -92,5 +92,38 @@
   "onboardingBtn2": "පැමිණීම සටහන් කරන්න",
   "onboardingTitle3": "ගෙවීම් සහ සෙවුම් එකම යෙදුමකින්",
   "onboardingBody3": "ගාස්තු ගෙවන්න, නව රියදුරන් සොයන්න, සහ ආරක්ෂිතව කතාබස් කරන්න.",
-  "onboardingBtn3": "ආරම්භ කරන්න"
+  "onboardingBtn3": "ආරම්භ කරන්න",
+  
+  "manageChildrenTitle": "ළමුන් කළමනාකරණය",
+  "addStudentBtn": "සිසුවා එකතු කරන්න",
+  "removeStudentTitle": "ආරක්ෂිතයි: සිසුවා ඉවත් කරන්න",
+  "removeStudentConfirmation": "ඔබට {childName} ඉවත් කිරීමට අවශ්‍ය බව විශ්වාසද? මෙම ක්‍රියාව ආපසු හැරවිය නොහැක.",
+  "@removeStudentConfirmation": {
+    "placeholders": {
+      "childName": { "type": "String" }
+    }
+  },
+  "cancelBtn": "අවලංගු කරන්න",
+  "removeBtn": "ස්ථිරවම ඉවත් කරන්න",
+  "studentRemovedSuccess": "{childName} සාර්ථකව ඉවත් කරන ලදී.",
+  "@studentRemovedSuccess": {
+    "placeholders": {
+      "childName": { "type": "String" }
+    }
+  },
+  "errorRemovingStudent": "ඉවත් කිරීමේ දෝෂයකි: {error}",
+  "@errorRemovingStudent": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "connectionErrorTitle": "සම්බන්ධතා දෝෂයකි",
+  "retryConnectionBtn": "නැවත උත්සාහ කරන්න",
+  "noStudentsAddedTitle": "තවමත් සිසුන් එකතු කර නොමැත",
+  "addChildrenSubtitle": "ඔවුන්ගේ ගමන් නිරීක්ෂණය කිරීමට ඔබේ දරුවන් එකතු කරන්න.",
+  "addFirstStudentBtn": "පළමු සිසුවා එකතු කරන්න",
+  "editProfileBtn": "පැතිකඩ සංස්කරණය",
+  "removeTooltip": "ඉවත් කරන්න",
+  "genericError": "දත්ත ලබා ගැනීමේදී දෝෂයක් ඇති විය. කරුණාකර නැවත උත්සාහ කරන්න.",
+  "deleteError": "සිසුවා ඉවත් කිරීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න."
 }

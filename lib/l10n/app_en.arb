@@ -96,5 +96,39 @@
   "onboardingBtn2": "Set attendance",
   "onboardingTitle3": "Payments & finder in one app",
   "onboardingBody3": "Pay van fees, discover new drivers, and chat securely.",
-  "onboardingBtn3": "Get started"
+  "onboardingBtn3": "Get started",
+
+  "manageChildrenTitle": "Manage Children",
+  "addStudentBtn": "Add Student",
+  "removeStudentTitle": "Secure: Remove Student",
+  "removeStudentConfirmation": "Are you sure you want to remove {childName}? This action cannot be undone and will permanently delete tracking history.",
+  "@removeStudentConfirmation": {
+    "placeholders": {
+      "childName": { "type": "String" }
+    }
+  },
+  "cancelBtn": "Cancel",
+  "removeBtn": "Remove Permanently",
+  "studentRemovedSuccess": "{childName} removed successfully.",
+  "@studentRemovedSuccess": {
+    "placeholders": {
+      "childName": { "type": "String" }
+    }
+  },
+  "errorRemovingStudent": "Error removing student: {error}",
+  "@errorRemovingStudent": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "connectionErrorTitle": "Connection Error",
+  "retryConnectionBtn": "Retry Connection",
+  "noStudentsAddedTitle": "No students added yet",
+  "addChildrenSubtitle": "Add your children to start tracking their rides securely.",
+  "addFirstStudentBtn": "Add First Student",
+  "editProfileBtn": "Edit Profile",
+  "removeTooltip": "Remove",
+  "genericError": "Something went wrong securely fetching data. Please try again.",
+  "deleteError": "Could not remove the student securely. Please try again."
+
 }

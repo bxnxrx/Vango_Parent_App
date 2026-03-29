@@ -92,5 +92,38 @@
   "onboardingBtn2": "வருகையை அமைக்கவும்",
   "onboardingTitle3": "கொடுப்பனவுகள் மற்றும் தேடல் ஒரே செயலியில்",
   "onboardingBody3": "கட்டணம் செலுத்துங்கள், புதிய ஓட்டுநர்களைக் கண்டறியுங்கள், பாதுகாப்பாக அரட்டையடிக்கவும்.",
-  "onboardingBtn3": "தொடங்கவும்"
+  "onboardingBtn3": "தொடங்கவும்",
+
+  "manageChildrenTitle": "குழந்தைகளை நிர்வகி",
+  "addStudentBtn": "மாணவரைச் சேர்",
+  "removeStudentTitle": "பாதுகாப்பானது: மாணவரை அகற்று",
+  "removeStudentConfirmation": "{childName} ஐ அகற்ற விரும்புகிறீர்களா? இந்த செயலை மாற்ற முடியாது.",
+  "@removeStudentConfirmation": {
+    "placeholders": {
+      "childName": { "type": "String" }
+    }
+  },
+  "cancelBtn": "ரத்துசெய்",
+  "removeBtn": "நிரந்தரமாக அகற்று",
+  "studentRemovedSuccess": "{childName} வெற்றிகரமாக அகற்றப்பட்டார்.",
+  "@studentRemovedSuccess": {
+    "placeholders": {
+      "childName": { "type": "String" }
+    }
+  },
+  "errorRemovingStudent": "மாணவரை அகற்றுவதில் பிழை: {error}",
+  "@errorRemovingStudent": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "connectionErrorTitle": "இணைப்பு பிழை",
+  "retryConnectionBtn": "மீண்டும் இணைக்க முயற்சிக்கவும்",
+  "noStudentsAddedTitle": "இன்னும் மாணவர்கள் சேர்க்கப்படவில்லை",
+  "addChildrenSubtitle": "சவாரிகளைக் கண்காணிக்க உங்கள் குழந்தைகளைச் சேர்க்கவும்.",
+  "addFirstStudentBtn": "முதல் மாணவரைச் சேர்",
+  "editProfileBtn": "சுயவிவரத்தைத் திருத்து",
+  "removeTooltip": "அகற்று",
+  "genericError": "தரவைப் பெறுவதில் பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.",
+  "deleteError": "மாணவரை அகற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்."
 }

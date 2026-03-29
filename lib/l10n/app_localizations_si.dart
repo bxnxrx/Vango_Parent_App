@@ -284,4 +284,64 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get onboardingBtn3 => 'ආරම්භ කරන්න';
+
+  @override
+  String get manageChildrenTitle => 'ළමුන් කළමනාකරණය';
+
+  @override
+  String get addStudentBtn => 'සිසුවා එකතු කරන්න';
+
+  @override
+  String get removeStudentTitle => 'ආරක්ෂිතයි: සිසුවා ඉවත් කරන්න';
+
+  @override
+  String removeStudentConfirmation(String childName) {
+    return 'ඔබට $childName ඉවත් කිරීමට අවශ්‍ය බව විශ්වාසද? මෙම ක්‍රියාව ආපසු හැරවිය නොහැක.';
+  }
+
+  @override
+  String get cancelBtn => 'අවලංගු කරන්න';
+
+  @override
+  String get removeBtn => 'ස්ථිරවම ඉවත් කරන්න';
+
+  @override
+  String studentRemovedSuccess(String childName) {
+    return '$childName සාර්ථකව ඉවත් කරන ලදී.';
+  }
+
+  @override
+  String errorRemovingStudent(String error) {
+    return 'ඉවත් කිරීමේ දෝෂයකි: $error';
+  }
+
+  @override
+  String get connectionErrorTitle => 'සම්බන්ධතා දෝෂයකි';
+
+  @override
+  String get retryConnectionBtn => 'නැවත උත්සාහ කරන්න';
+
+  @override
+  String get noStudentsAddedTitle => 'තවමත් සිසුන් එකතු කර නොමැත';
+
+  @override
+  String get addChildrenSubtitle =>
+      'ඔවුන්ගේ ගමන් නිරීක්ෂණය කිරීමට ඔබේ දරුවන් එකතු කරන්න.';
+
+  @override
+  String get addFirstStudentBtn => 'පළමු සිසුවා එකතු කරන්න';
+
+  @override
+  String get editProfileBtn => 'පැතිකඩ සංස්කරණය';
+
+  @override
+  String get removeTooltip => 'ඉවත් කරන්න';
+
+  @override
+  String get genericError =>
+      'දත්ත ලබා ගැනීමේදී දෝෂයක් ඇති විය. කරුණාකර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get deleteError =>
+      'සිසුවා ඉවත් කිරීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.';
 }

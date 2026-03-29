@@ -282,4 +282,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingBtn3 => 'Get started';
+
+  @override
+  String get manageChildrenTitle => 'Manage Children';
+
+  @override
+  String get addStudentBtn => 'Add Student';
+
+  @override
+  String get removeStudentTitle => 'Secure: Remove Student';
+
+  @override
+  String removeStudentConfirmation(String childName) {
+    return 'Are you sure you want to remove $childName? This action cannot be undone and will permanently delete tracking history.';
+  }
+
+  @override
+  String get cancelBtn => 'Cancel';
+
+  @override
+  String get removeBtn => 'Remove Permanently';
+
+  @override
+  String studentRemovedSuccess(String childName) {
+    return '$childName removed successfully.';
+  }
+
+  @override
+  String errorRemovingStudent(String error) {
+    return 'Error removing student: $error';
+  }
+
+  @override
+  String get connectionErrorTitle => 'Connection Error';
+
+  @override
+  String get retryConnectionBtn => 'Retry Connection';
+
+  @override
+  String get noStudentsAddedTitle => 'No students added yet';
+
+  @override
+  String get addChildrenSubtitle =>
+      'Add your children to start tracking their rides securely.';
+
+  @override
+  String get addFirstStudentBtn => 'Add First Student';
+
+  @override
+  String get editProfileBtn => 'Edit Profile';
+
+  @override
+  String get removeTooltip => 'Remove';
+
+  @override
+  String get genericError =>
+      'Something went wrong securely fetching data. Please try again.';
+
+  @override
+  String get deleteError =>
+      'Could not remove the student securely. Please try again.';
 }

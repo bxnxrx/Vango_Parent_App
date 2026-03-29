@@ -287,4 +287,64 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get onboardingBtn3 => 'தொடங்கவும்';
+
+  @override
+  String get manageChildrenTitle => 'குழந்தைகளை நிர்வகி';
+
+  @override
+  String get addStudentBtn => 'மாணவரைச் சேர்';
+
+  @override
+  String get removeStudentTitle => 'பாதுகாப்பானது: மாணவரை அகற்று';
+
+  @override
+  String removeStudentConfirmation(String childName) {
+    return '$childName ஐ அகற்ற விரும்புகிறீர்களா? இந்த செயலை மாற்ற முடியாது.';
+  }
+
+  @override
+  String get cancelBtn => 'ரத்துசெய்';
+
+  @override
+  String get removeBtn => 'நிரந்தரமாக அகற்று';
+
+  @override
+  String studentRemovedSuccess(String childName) {
+    return '$childName வெற்றிகரமாக அகற்றப்பட்டார்.';
+  }
+
+  @override
+  String errorRemovingStudent(String error) {
+    return 'மாணவரை அகற்றுவதில் பிழை: $error';
+  }
+
+  @override
+  String get connectionErrorTitle => 'இணைப்பு பிழை';
+
+  @override
+  String get retryConnectionBtn => 'மீண்டும் இணைக்க முயற்சிக்கவும்';
+
+  @override
+  String get noStudentsAddedTitle => 'இன்னும் மாணவர்கள் சேர்க்கப்படவில்லை';
+
+  @override
+  String get addChildrenSubtitle =>
+      'சவாரிகளைக் கண்காணிக்க உங்கள் குழந்தைகளைச் சேர்க்கவும்.';
+
+  @override
+  String get addFirstStudentBtn => 'முதல் மாணவரைச் சேர்';
+
+  @override
+  String get editProfileBtn => 'சுயவிவரத்தைத் திருத்து';
+
+  @override
+  String get removeTooltip => 'அகற்று';
+
+  @override
+  String get genericError =>
+      'தரவைப் பெறுவதில் பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.';
+
+  @override
+  String get deleteError =>
+      'மாணவரை அகற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.';
 }
