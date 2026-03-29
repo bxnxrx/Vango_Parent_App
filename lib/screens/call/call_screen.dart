@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -13,11 +12,13 @@ const String appId = '8470fb315c3f4fdfb549d4f2811e0d5a';
 class CallScreen extends StatefulWidget {
   final String channelName;
   final String callerName;
+  final String agoraToken; // ✅ Real token from backend
 
   const CallScreen({
     super.key,
     required this.channelName,
     required this.callerName,
+    required this.agoraToken,
   });
 
   @override
@@ -82,15 +83,15 @@ class _CallScreenState extends State<CallScreen> {
 
     await _engine.enableAudio();
 
-    // ✨ Your brilliant UUID compression logic
+    // ✅ MUST match the driver app's truncation exactly — both use substring(0,64)
     String safeChannelName = widget.channelName;
     if (safeChannelName.length > 64) {
-      safeChannelName = const Uuid().v5(Uuid.NAMESPACE_URL, widget.channelName);
+      safeChannelName = safeChannelName.substring(0, 64);
     }
 
     await _engine.joinChannel(
-      token: '',
-      channelId: safeChannelName, 
+      token: widget.agoraToken, // ✅ Use the real Agora token
+      channelId: safeChannelName,
       uid: 0,
       options: const ChannelMediaOptions(
         clientRoleType: ClientRoleType.clientRoleBroadcaster,

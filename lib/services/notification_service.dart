@@ -18,22 +18,25 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final type = message.data['type'];
 
   if (type == 'incoming_call') {
-    final callerName = message.data['callerName'] ?? 'VanGo Driver';
+    final callerName  = message.data['callerName']  ?? 'VanGo Driver';
     final channelName = message.data['channelName'] ?? '';
-    final callerId = message.data['callerId'] ?? '';
+    final callerId    = message.data['callerId']    ?? '';
+    final agoraToken  = message.data['agoraToken']  ?? '';
 
-    // ✨ FIX: Generate a deterministic, VALID UUID from the channelName
-    // This safely converts "uuid1_uuid2" into a standard Apple-approved UUID format.
+    // Convert channelName to a valid UUID for CallKit's sessionId
     final validSessionId = const Uuid().v5(Uuid.NAMESPACE_URL, channelName);
 
     CallEvent callEvent = CallEvent(
-      sessionId: validSessionId,
-      callType: 0,
-      callerId: callerId.hashCode,
-      callerName: callerName,
-      // ✨ FIX: Pass the caller ID here instead of an empty {}
+      sessionId:   validSessionId,
+      callType:    0,
+      callerId:    callerId.hashCode,
+      callerName:  callerName,
       opponentsIds: {callerId.hashCode},
-      userInfo: {'channelName': channelName},
+      // ✅ Store both channelName AND agoraToken so _onCallAccepted can use them
+      userInfo: {
+        'channelName': channelName,
+        'agoraToken':  agoraToken,
+      },
     );
 
     ConnectycubeFlutterCallKit.showCallNotification(callEvent);
@@ -167,16 +170,20 @@ class NotificationService {
     });
   }
 
-  // ✨ NEW: Handle Call Answer
+  // Handle Call Answer
   Future<void> _onCallAccepted(CallEvent callEvent) async {
-    final channelName = callEvent.userInfo?['channelName'] as String?;
-    final callerName = callEvent.callerName;
+    final channelName = callEvent.userInfo?['channelName'] as String? ?? '';
+    final agoraToken  = callEvent.userInfo?['agoraToken']  as String? ?? '';
+    final callerName  = callEvent.callerName;
 
-    if (channelName != null) {
+    if (channelName.isNotEmpty) {
       navigatorKey.currentState?.push(
         MaterialPageRoute(
-          builder: (context) =>
-              CallScreen(channelName: channelName, callerName: callerName),
+          builder: (context) => CallScreen(
+            channelName: channelName,
+            callerName:  callerName,
+            agoraToken:  agoraToken, // ✅ pass the real token
+          ),
         ),
       );
     }

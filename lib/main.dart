@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -141,7 +141,8 @@ class _VanGoAppState extends State<VanGoApp> {
         debugPrint('✅ Parent tapped ANSWER on the native screen!');
 
         final rawChannelName = event.userInfo?['channelName'];
-        final callerName = event.callerName; // Removed dead code
+        final agoraToken     = event.userInfo?['agoraToken'] as String? ?? '';
+        final callerName     = event.callerName;
 
         if (rawChannelName != null) {
           String safeChannelName = rawChannelName.toString();
@@ -149,13 +150,13 @@ class _VanGoAppState extends State<VanGoApp> {
             safeChannelName = safeChannelName.substring(0, 64);
           }
 
-          // Wait half a second so the app wakes up before navigating
           Future.delayed(const Duration(milliseconds: 500), () {
             navigatorKey.currentState?.push(
               MaterialPageRoute(
                 builder: (context) => CallScreen(
                   channelName: safeChannelName,
-                  callerName: callerName,
+                  callerName:  callerName,
+                  agoraToken:  agoraToken, // ✅ real token
                 ),
               ),
             );
