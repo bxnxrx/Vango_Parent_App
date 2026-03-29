@@ -19,27 +19,6 @@ class ManageChildrenScreen extends ConsumerStatefulWidget {
 }
 
 class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      ref.read(manageChildrenProvider.notifier).loadMore();
-    }
-  }
-
   String _getLocalizedError(String key, AppLocalizations l10n) {
     if (key == 'deleteError') return l10n.deleteError;
     return l10n.genericError;
@@ -62,14 +41,14 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              l10n.cancelBtn,
+              l10n.cancelBtnText,
               style: const TextStyle(color: Colors.grey),
             ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.removeBtn),
+            child: Text(l10n.removeTooltip),
           ),
         ],
       ),
@@ -165,7 +144,6 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
       body: Stack(
         children: [
           CustomScrollView(
-            controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverAppBar(
@@ -194,15 +172,6 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
                 ),
                 sliver: _buildBodyContent(state, l10n),
               ),
-              if (state.isLoadingMore)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Center(
-                      child: CircularProgressIndicator(color: AppColors.accent),
-                    ),
-                  ),
-                ),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),

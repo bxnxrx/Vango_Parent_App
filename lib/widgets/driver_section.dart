@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 
@@ -28,19 +30,20 @@ class DriverSection extends StatelessWidget {
   });
 
   Widget _buildDriverDetailRow(IconData icon, String label, String? value) {
-    if (value == null || value.trim().isEmpty || value == 'null null')
+    if (value == null || value.trim().isEmpty || value == 'null null') {
       return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: AppColors.textSecondary),
+          Icon(icon, size: 16, color: Colors.white54),
           const SizedBox(width: 8),
           Text(
             '$label: ',
             style: AppTypography.body.copyWith(
-              color: AppColors.textSecondary,
+              color: Colors.white54,
               fontSize: 13,
             ),
           ),
@@ -48,6 +51,7 @@ class DriverSection extends StatelessWidget {
             child: Text(
               value,
               style: AppTypography.body.copyWith(
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
@@ -60,66 +64,112 @@ class DriverSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.surfaceStrong,
+            color: const Color(0xFF1E1E1E),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.stroke),
+            border: Border.all(color: Colors.white10),
           ),
           child: SwitchListTile(
-            title: const Text('Already have a driver?'),
+            title: Text(
+              l10n.alreadyHaveDriver,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             subtitle: Text(
-              hasDriver
-                  ? 'Enter their invite code below'
-                  : 'I will find a driver later',
+              hasDriver ? l10n.enterInviteCodeBelow : l10n.findDriverLater,
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
             ),
             value: hasDriver,
-            activeThumbColor: AppColors.accent,
+            activeColor: AppColors.accent,
+            activeTrackColor: AppColors.accent.withValues(alpha: 0.3),
+            inactiveThumbColor: Colors.grey,
+            inactiveTrackColor: Colors.white10,
             onChanged: (val) {
               HapticFeedback.lightImpact();
+              FirebaseAnalytics.instance.logEvent(
+                name: 'toggle_has_driver',
+                parameters: {'status': val.toString()},
+              );
               onHasDriverChanged(val);
             },
             secondary: Icon(
               hasDriver ? Icons.local_taxi : Icons.person_search,
-              color: AppColors.accent,
+              color: hasDriver ? AppColors.accent : Colors.white54,
             ),
           ),
         ),
         if (hasDriver) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: TextFormField(
                   controller: inviteCodeController,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.bold,
+                  ),
                   textCapitalization: TextCapitalization.characters,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   decoration: InputDecoration(
-                    labelText: 'Driver Invite Code',
-                    prefixIcon: const Icon(Icons.vpn_key_outlined),
+                    filled: true,
+                    fillColor: const Color(0xFF141414),
+                    labelText: l10n.driverInviteCode,
+                    labelStyle: const TextStyle(
+                      color: Colors.white54,
+                      letterSpacing: 0,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.vpn_key_outlined,
+                      color: Colors.white54,
+                    ),
                     suffixIcon: IconButton(
                       icon: const Icon(
                         Icons.qr_code_scanner,
                         color: AppColors.accent,
                       ),
                       onPressed: onScanQRCode,
-                      tooltip: 'Scan QR Code',
+                      tooltip: l10n.scanQRCodeTooltip,
                     ),
                     errorText: inviteCodeError,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(
+                        color: AppColors.accent,
+                        width: 2,
+                      ),
+                    ),
+                    errorStyle: const TextStyle(color: Colors.redAccent),
                   ),
                   onChanged: (_) => onCodeChanged(),
                   validator: (v) {
-                    if (!hasDriver) return null;
-                    if (v == null || v.isEmpty) return 'Code is required';
-                    if (v.trim().length != 8)
-                      return 'Code must be exactly 8 characters';
-                    if (verifiedDriverDetails == null)
-                      return 'Please verify the code first';
+                    if (!hasDriver) {
+                      return null;
+                    }
+                    if (v == null || v.isEmpty) {
+                      return l10n.codeRequired;
+                    }
+                    if (v.trim().length != 8) {
+                      return l10n.codeLengthError;
+                    }
+                    if (verifiedDriverDetails == null) {
+                      return l10n.verifyCodeFirst;
+                    }
                     return null;
                   },
                 ),
@@ -144,7 +194,10 @@ class DriverSection extends StatelessWidget {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text('Verify'),
+                      : Text(
+                          l10n.verifyBtn,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
             ],
@@ -154,11 +207,9 @@ class DriverSection extends StatelessWidget {
               margin: const EdgeInsets.only(top: 16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.05),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppColors.success.withValues(alpha: 0.3),
-                ),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,14 +218,14 @@ class DriverSection extends StatelessWidget {
                     children: [
                       const Icon(
                         Icons.check_circle,
-                        color: AppColors.success,
+                        color: Colors.greenAccent,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Driver Found & Validated!',
+                        l10n.driverFoundValidated,
                         style: AppTypography.title.copyWith(
-                          color: AppColors.success,
+                          color: Colors.greenAccent,
                           fontSize: 15,
                         ),
                       ),
@@ -182,21 +233,21 @@ class DriverSection extends StatelessWidget {
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(height: 1, color: AppColors.stroke),
+                    child: Divider(height: 1, color: Colors.white10),
                   ),
                   _buildDriverDetailRow(
                     Icons.person_outline,
-                    'Name',
-                    verifiedDriverDetails!['driverName'],
+                    l10n.driverNameLabel,
+                    verifiedDriverDetails!['driverName'] as String?,
                   ),
                   _buildDriverDetailRow(
                     Icons.directions_car_outlined,
-                    'Vehicle',
+                    l10n.driverVehicleLabel,
                     '${verifiedDriverDetails!['vehicleMake']} ${verifiedDriverDetails!['vehicleModel']}',
                   ),
                   _buildDriverDetailRow(
                     Icons.location_on_outlined,
-                    'Operating Area',
+                    l10n.driverAreaLabel,
                     '${verifiedDriverDetails!['city'] ?? ''}, ${verifiedDriverDetails!['district'] ?? ''}',
                   ),
                 ],

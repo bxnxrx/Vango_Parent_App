@@ -723,6 +723,450 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not remove the student securely. Please try again.'**
   String get deleteError;
+
+  /// No description provided for @addChildTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add New Student'**
+  String get addChildTitle;
+
+  /// No description provided for @editChildTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Student Details'**
+  String get editChildTitle;
+
+  /// No description provided for @addChildSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the details below to set up the student profile.'**
+  String get addChildSubtitle;
+
+  /// No description provided for @addPhotoLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Photo'**
+  String get addPhotoLabel;
+
+  /// No description provided for @personalInfoSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal Information'**
+  String get personalInfoSection;
+
+  /// No description provided for @studentNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Student Full Name'**
+  String get studentNameLabel;
+
+  /// No description provided for @studentNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Name is required'**
+  String get studentNameRequired;
+
+  /// No description provided for @ageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Age (2-21)'**
+  String get ageLabel;
+
+  /// No description provided for @ageRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Age is required'**
+  String get ageRequired;
+
+  /// No description provided for @ageInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Must be a valid number between 2 and 21'**
+  String get ageInvalid;
+
+  /// No description provided for @emergencyContactSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency Contact Number'**
+  String get emergencyContactSection;
+
+  /// No description provided for @useParentProfileNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Parent Profile Number'**
+  String get useParentProfileNumber;
+
+  /// No description provided for @previouslyUsedNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Previously Used'**
+  String get previouslyUsedNumber;
+
+  /// No description provided for @addNewNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a New Number'**
+  String get addNewNumber;
+
+  /// No description provided for @newEmergencyContactLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New Emergency Contact'**
+  String get newEmergencyContactLabel;
+
+  /// No description provided for @invalidSlNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid SL number (e.g. 712345678)'**
+  String get invalidSlNumber;
+
+  /// No description provided for @tapVerifyConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Verify to confirm this number'**
+  String get tapVerifyConfirm;
+
+  /// No description provided for @schoolRouteDetailsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'School & Route Details'**
+  String get schoolRouteDetailsSection;
+
+  /// No description provided for @schoolNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'School Name'**
+  String get schoolNameLabel;
+
+  /// No description provided for @schoolNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Start typing school name...'**
+  String get schoolNameHint;
+
+  /// No description provided for @schoolRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'School is required'**
+  String get schoolRequired;
+
+  /// No description provided for @pickupLocationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup Location'**
+  String get pickupLocationLabel;
+
+  /// No description provided for @tapToSetOnMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to set on Map'**
+  String get tapToSetOnMap;
+
+  /// No description provided for @pickupRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup location is required'**
+  String get pickupRequired;
+
+  /// No description provided for @dropLocationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop Location'**
+  String get dropLocationLabel;
+
+  /// No description provided for @dropRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop location is required'**
+  String get dropRequired;
+
+  /// No description provided for @etaSchoolLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated Time Arriving at School'**
+  String get etaSchoolLabel;
+
+  /// No description provided for @etaRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrival time is required'**
+  String get etaRequired;
+
+  /// No description provided for @distanceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Distance'**
+  String get distanceLabel;
+
+  /// No description provided for @trafficDelayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Traffic Delay'**
+  String get trafficDelayLabel;
+
+  /// No description provided for @suggestedLeaveByLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested Leave By'**
+  String get suggestedLeaveByLabel;
+
+  /// No description provided for @confirmPickupTimeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Pickup Time (Driver sees this)'**
+  String get confirmPickupTimeLabel;
+
+  /// No description provided for @pickupTimeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup time is required'**
+  String get pickupTimeRequired;
+
+  /// No description provided for @smallDescriptionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Small Description / Special Notes (Optional)'**
+  String get smallDescriptionLabel;
+
+  /// No description provided for @smallDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Any allergies, special needs, or notes for the driver...'**
+  String get smallDescriptionHint;
+
+  /// No description provided for @saveStudentBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Student Details'**
+  String get saveStudentBtn;
+
+  /// No description provided for @updateProfileBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Profile'**
+  String get updateProfileBtn;
+
+  /// No description provided for @savingStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving...'**
+  String get savingStatus;
+
+  /// No description provided for @errorSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Error saving: {error}'**
+  String errorSaving(String error);
+
+  /// No description provided for @studentSavedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} saved successfully!'**
+  String studentSavedSuccess(String name);
+
+  /// No description provided for @duplicateStudentError.
+  ///
+  /// In en, this message translates to:
+  /// **'This student is already added to this school.'**
+  String get duplicateStudentError;
+
+  /// No description provided for @verifyContactError.
+  ///
+  /// In en, this message translates to:
+  /// **'Please tap Verify to confirm the new emergency contact number.'**
+  String get verifyContactError;
+
+  /// No description provided for @verifyDriverError.
+  ///
+  /// In en, this message translates to:
+  /// **'Please verify the driver invite code.'**
+  String get verifyDriverError;
+
+  /// No description provided for @cameraDeniedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera access denied. Please check permissions.'**
+  String get cameraDeniedError;
+
+  /// No description provided for @alreadyHaveDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have a driver?'**
+  String get alreadyHaveDriver;
+
+  /// No description provided for @enterInviteCodeBelow.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter their invite code below'**
+  String get enterInviteCodeBelow;
+
+  /// No description provided for @findDriverLater.
+  ///
+  /// In en, this message translates to:
+  /// **'I will find a driver later'**
+  String get findDriverLater;
+
+  /// No description provided for @driverInviteCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver Invite Code'**
+  String get driverInviteCode;
+
+  /// No description provided for @scanQRCodeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR Code'**
+  String get scanQRCodeTooltip;
+
+  /// No description provided for @codeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Code is required'**
+  String get codeRequired;
+
+  /// No description provided for @codeLengthError.
+  ///
+  /// In en, this message translates to:
+  /// **'Code must be exactly 8 characters'**
+  String get codeLengthError;
+
+  /// No description provided for @verifyCodeFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Please verify the code first'**
+  String get verifyCodeFirst;
+
+  /// No description provided for @verifyBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get verifyBtn;
+
+  /// No description provided for @driverFoundValidated.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver Found & Validated!'**
+  String get driverFoundValidated;
+
+  /// No description provided for @driverNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get driverNameLabel;
+
+  /// No description provided for @driverVehicleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle'**
+  String get driverVehicleLabel;
+
+  /// No description provided for @driverAreaLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Operating Area'**
+  String get driverAreaLabel;
+
+  /// No description provided for @verifyEmergencyContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify Emergency Contact'**
+  String get verifyEmergencyContact;
+
+  /// No description provided for @sentCodeTo.
+  ///
+  /// In en, this message translates to:
+  /// **'We sent a 6-digit code to {phone}'**
+  String sentCodeTo(String phone);
+
+  /// No description provided for @sixDigitSmsCode.
+  ///
+  /// In en, this message translates to:
+  /// **'6-Digit SMS Code'**
+  String get sixDigitSmsCode;
+
+  /// No description provided for @resendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend Code'**
+  String get resendCode;
+
+  /// No description provided for @resendIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend in {seconds}s'**
+  String resendIn(int seconds);
+
+  /// No description provided for @confirmCodeBtn.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Code'**
+  String get confirmCodeBtn;
+
+  /// No description provided for @codeResentSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Code resent successfully!'**
+  String get codeResentSuccess;
+
+  /// No description provided for @failedToResendCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to resend code'**
+  String get failedToResendCode;
+
+  /// No description provided for @invalidCodeTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid code. Please try again.'**
+  String get invalidCodeTryAgain;
+
+  /// No description provided for @cancelBtnText.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelBtnText;
+
+  /// No description provided for @doneBtnText.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get doneBtnText;
+
+  /// No description provided for @selectArrivalTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Arrival Time'**
+  String get selectArrivalTime;
+
+  /// No description provided for @scanQrCodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR Code'**
+  String get scanQrCodeTitle;
+
+  /// No description provided for @failedToSendOtp.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send OTP'**
+  String get failedToSendOtp;
+
+  /// No description provided for @failedToVerifyOtp.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to verify OTP'**
+  String get failedToVerifyOtp;
+
+  /// No description provided for @otpVerificationSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency Contact Verified Successfully'**
+  String get otpVerificationSuccess;
+
+  /// No description provided for @driverNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Driver not found or invalid code'**
+  String get driverNotFound;
 }
 
 class _AppLocalizationsDelegate
