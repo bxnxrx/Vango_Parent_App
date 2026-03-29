@@ -52,6 +52,19 @@ jobs:
         run: flutter analyze
         continue-on-error: true 
 
+      # --- ✅ ADDED STEP: Fix R8/Proguard Minification Errors ---
+      - name: Add Proguard Rules to Fix R8 Crashes
+        run: |
+          touch android/app/proguard-rules.pro
+          cat <<EOF >> android/app/proguard-rules.pro
+          
+          # Fix for R8 OkHttp/Conscrypt Missing classes
+          -dontwarn org.conscrypt.**
+          -keep class org.conscrypt.** { *; }
+          -dontwarn org.bouncycastle.**
+          -dontwarn org.openjsse.**
+          EOF
+
       # 6. Build the Android APK
       - name: Build APK
         run: flutter build apk --release

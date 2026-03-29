@@ -9,6 +9,9 @@ import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// Import the Language Selector Widget
+import 'package:vango_parent_app/widgets/common_language_selector.dart';
+
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
@@ -101,11 +104,7 @@ class _AppShellState extends State<AppShell> {
               Align(
                 alignment: Alignment.topRight,
                 child: IconButton(
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: textColor,
-                    size: 30,
-                  ), // 👇 Dynamic Close Icon
+                  icon: Icon(Icons.close_rounded, color: textColor, size: 30),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
@@ -114,9 +113,7 @@ class _AppShellState extends State<AppShell> {
                 height: 250,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.surface, // 👇 Dynamic Surface
+                  color: Theme.of(context).colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.3),
@@ -129,9 +126,7 @@ class _AppShellState extends State<AppShell> {
                   child: Text(
                     _parentName.isNotEmpty ? _parentName[0].toUpperCase() : 'P',
                     style: TextStyle(
-                      color: isDark
-                          ? AppColors.darkAccent
-                          : AppColors.accent, // 👇 Dynamic Accent
+                      color: isDark ? AppColors.darkAccent : AppColors.accent,
                       fontSize: 100,
                       fontWeight: FontWeight.bold,
                     ),
@@ -144,13 +139,11 @@ class _AppShellState extends State<AppShell> {
                 style: AppTypography.title.copyWith(
                   color: textColor,
                   fontSize: 24,
-                ), // 👇 Dynamic Text
+                ),
               ),
               Text(
                 _userEmail,
-                style: AppTypography.body.copyWith(
-                  color: secondaryTextColor,
-                ), // 👇 Dynamic Secondary Text
+                style: AppTypography.body.copyWith(color: secondaryTextColor),
               ),
             ],
           ),
@@ -166,23 +159,19 @@ class _AppShellState extends State<AppShell> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(
-          context,
-        ).colorScheme.surface, // 👇 Dynamic Dialog Background
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-            color: Theme.of(context).dividerColor,
-          ), // 👇 Dynamic Border
+          side: BorderSide(color: Theme.of(context).dividerColor),
         ),
         title: Text(
           'Sign Out',
           style: AppTypography.title.copyWith(color: textColor),
-        ), // 👇 Dynamic Text
+        ),
         content: Text(
           'Are you sure you want to log out of your account?',
           style: AppTypography.body.copyWith(color: textColor),
-        ), // 👇 Dynamic Text
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -192,7 +181,7 @@ class _AppShellState extends State<AppShell> {
                 color: isDark
                     ? AppColors.darkTextSecondary
                     : AppColors.textSecondary,
-              ), // 👇 Dynamic Cancel Button
+              ),
             ),
           ),
           ElevatedButton(
@@ -235,17 +224,15 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       key: _scaffoldKey,
-      drawer: _buildDrawer(context), // Pass context to pull theme
+      drawer: _buildDrawer(context),
       body: SafeArea(child: pages[_index]),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: Theme.of(
-          context,
-        ).colorScheme.surface, // 👇 Dynamic Nav Bar Background
+        backgroundColor: Theme.of(context).colorScheme.surface,
         selectedIndex: _index,
         onDestinationSelected: _selectTab,
         indicatorColor: isDark
             ? AppColors.darkAccent.withOpacity(0.2)
-            : AppColors.accentLow, // 👇 Dynamic Indicator
+            : AppColors.accentLow,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -279,9 +266,6 @@ class _AppShellState extends State<AppShell> {
 
   Drawer _buildDrawer(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final brandColor = isDark
-        ? AppColors.darkAccent
-        : AppColors.accent; // 👇 Dynamic Brand Color
 
     return Drawer(
       backgroundColor: Colors.transparent,
@@ -293,13 +277,11 @@ class _AppShellState extends State<AppShell> {
               filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).scaffoldBackgroundColor.withOpacity(
-                    0.85,
-                  ), // 👇 Dynamic Blurred Overlay
+                  color: Theme.of(
+                    context,
+                  ).scaffoldBackgroundColor.withOpacity(0.85),
                   border: Border(
-                    right: BorderSide(
-                      color: Theme.of(context).dividerColor,
-                    ), // 👇 Dynamic Border
+                    right: BorderSide(color: Theme.of(context).dividerColor),
                   ),
                 ),
               ),
@@ -323,8 +305,7 @@ class _AppShellState extends State<AppShell> {
                         horizontal: 16,
                       ),
                       decoration: BoxDecoration(
-                        gradient:
-                            AppColors.buttonGradient, // Keep brand gradient
+                        gradient: AppColors.buttonGradient,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Column(
@@ -346,9 +327,8 @@ class _AppShellState extends State<AppShell> {
                                 _parentName.isNotEmpty
                                     ? _parentName[0].toUpperCase()
                                     : 'P',
-                                style: TextStyle(
-                                  color: AppColors
-                                      .accent, // Kept light accent since circle is always white
+                                style: const TextStyle(
+                                  color: AppColors.accent,
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -411,12 +391,37 @@ class _AppShellState extends State<AppShell> {
                   label: 'Attendance',
                   index: 4,
                 ),
+
                 const Spacer(),
+
+                // --- LANGUAGE SETTING ---
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Language',
+                        style: AppTypography.body.copyWith(
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      CommonLanguageSelector(isDark: isDark),
+                    ],
+                  ),
+                ),
+
+                // ------------------------
                 Divider(
                   indent: 20,
                   endIndent: 20,
                   color: Theme.of(context).dividerColor,
-                ), // 👇 Dynamic Divider
+                ),
 
                 Padding(
                   padding: const EdgeInsets.all(20.0),
@@ -429,9 +434,7 @@ class _AppShellState extends State<AppShell> {
                         horizontal: 16,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.danger.withOpacity(
-                          0.1,
-                        ), // Danger keeps its semantic meaning
+                        color: AppColors.danger.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(15),
                         border: Border.all(
                           color: AppColors.danger.withOpacity(0.3),
@@ -477,7 +480,6 @@ class _AppShellState extends State<AppShell> {
     final bool isSelected = _index == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // 👇 Dynamic text and icon colors based on theme and selection state
     final defaultTextColor =
         Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textPrimary;
     final defaultIconColor = isDark

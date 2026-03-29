@@ -282,4 +282,301 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingBtn3 => 'Get started';
+
+  @override
+  String get manageChildrenTitle => 'Manage Children';
+
+  @override
+  String get addStudentBtn => 'Add Student';
+
+  @override
+  String get removeStudentTitle => 'Secure: Remove Student';
+
+  @override
+  String removeStudentConfirmation(String childName) {
+    return 'Are you sure you want to remove $childName? This action cannot be undone and will permanently delete tracking history.';
+  }
+
+  @override
+  String get cancelBtn => 'Cancel';
+
+  @override
+  String get removeBtn => 'Remove Permanently';
+
+  @override
+  String studentRemovedSuccess(String childName) {
+    return '$childName removed successfully.';
+  }
+
+  @override
+  String errorRemovingStudent(String error) {
+    return 'Error removing student: $error';
+  }
+
+  @override
+  String get connectionErrorTitle => 'Connection Error';
+
+  @override
+  String get retryConnectionBtn => 'Retry Connection';
+
+  @override
+  String get noStudentsAddedTitle => 'No students added yet';
+
+  @override
+  String get addChildrenSubtitle =>
+      'Add your children to start tracking their rides securely.';
+
+  @override
+  String get addFirstStudentBtn => 'Add First Student';
+
+  @override
+  String get editProfileBtn => 'Edit Profile';
+
+  @override
+  String get removeTooltip => 'Remove';
+
+  @override
+  String get genericError =>
+      'Something went wrong securely fetching data. Please try again.';
+
+  @override
+  String get deleteError =>
+      'Could not remove the student securely. Please try again.';
+
+  @override
+  String get addChildTitle => 'Add New Student';
+
+  @override
+  String get editChildTitle => 'Edit Student Details';
+
+  @override
+  String get addChildSubtitle =>
+      'Fill in the details below to set up the student profile.';
+
+  @override
+  String get addPhotoLabel => 'Add Photo';
+
+  @override
+  String get personalInfoSection => 'Personal Information';
+
+  @override
+  String get studentNameLabel => 'Student Full Name';
+
+  @override
+  String get studentNameRequired => 'Name is required';
+
+  @override
+  String get ageLabel => 'Age (2-21)';
+
+  @override
+  String get ageRequired => 'Age is required';
+
+  @override
+  String get ageInvalid => 'Must be a valid number between 2 and 21';
+
+  @override
+  String get emergencyContactSection => 'Emergency Contact Number';
+
+  @override
+  String get useParentProfileNumber => 'Use Parent Profile Number';
+
+  @override
+  String get previouslyUsedNumber => 'Previously Used';
+
+  @override
+  String get addNewNumber => 'Add a New Number';
+
+  @override
+  String get newEmergencyContactLabel => 'New Emergency Contact';
+
+  @override
+  String get invalidSlNumber => 'Invalid SL number (e.g. 712345678)';
+
+  @override
+  String get tapVerifyConfirm => 'Tap Verify to confirm this number';
+
+  @override
+  String get schoolRouteDetailsSection => 'School & Route Details';
+
+  @override
+  String get schoolNameLabel => 'School Name';
+
+  @override
+  String get schoolNameHint => 'Start typing school name...';
+
+  @override
+  String get schoolRequired => 'School is required';
+
+  @override
+  String get pickupLocationLabel => 'Pickup Location';
+
+  @override
+  String get tapToSetOnMap => 'Tap to set on Map';
+
+  @override
+  String get pickupRequired => 'Pickup location is required';
+
+  @override
+  String get dropLocationLabel => 'Drop Location';
+
+  @override
+  String get dropRequired => 'Drop location is required';
+
+  @override
+  String get etaSchoolLabel => 'Estimated Time Arriving at School';
+
+  @override
+  String get etaRequired => 'Arrival time is required';
+
+  @override
+  String get distanceLabel => 'Distance';
+
+  @override
+  String get trafficDelayLabel => 'Traffic Delay';
+
+  @override
+  String get suggestedLeaveByLabel => 'Suggested Leave By';
+
+  @override
+  String get confirmPickupTimeLabel => 'Confirm Pickup Time (Driver sees this)';
+
+  @override
+  String get pickupTimeRequired => 'Pickup time is required';
+
+  @override
+  String get smallDescriptionLabel =>
+      'Small Description / Special Notes (Optional)';
+
+  @override
+  String get smallDescriptionHint =>
+      'Any allergies, special needs, or notes for the driver...';
+
+  @override
+  String get saveStudentBtn => 'Save Student Details';
+
+  @override
+  String get updateProfileBtn => 'Update Profile';
+
+  @override
+  String get savingStatus => 'Saving...';
+
+  @override
+  String errorSaving(String error) {
+    return 'Error saving: $error';
+  }
+
+  @override
+  String studentSavedSuccess(String name) {
+    return '$name saved successfully!';
+  }
+
+  @override
+  String get duplicateStudentError =>
+      'This student is already added to this school.';
+
+  @override
+  String get verifyContactError =>
+      'Please tap Verify to confirm the new emergency contact number.';
+
+  @override
+  String get verifyDriverError => 'Please verify the driver invite code.';
+
+  @override
+  String get cameraDeniedError =>
+      'Camera access denied. Please check permissions.';
+
+  @override
+  String get alreadyHaveDriver => 'Already have a driver?';
+
+  @override
+  String get enterInviteCodeBelow => 'Enter their invite code below';
+
+  @override
+  String get findDriverLater => 'I will find a driver later';
+
+  @override
+  String get driverInviteCode => 'Driver Invite Code';
+
+  @override
+  String get scanQRCodeTooltip => 'Scan QR Code';
+
+  @override
+  String get codeRequired => 'Code is required';
+
+  @override
+  String get codeLengthError => 'Code must be exactly 8 characters';
+
+  @override
+  String get verifyCodeFirst => 'Please verify the code first';
+
+  @override
+  String get verifyBtn => 'Verify';
+
+  @override
+  String get driverFoundValidated => 'Driver Found & Validated!';
+
+  @override
+  String get driverNameLabel => 'Name';
+
+  @override
+  String get driverVehicleLabel => 'Vehicle';
+
+  @override
+  String get driverAreaLabel => 'Operating Area';
+
+  @override
+  String get verifyEmergencyContact => 'Verify Emergency Contact';
+
+  @override
+  String sentCodeTo(String phone) {
+    return 'We sent a 6-digit code to $phone';
+  }
+
+  @override
+  String get sixDigitSmsCode => '6-Digit SMS Code';
+
+  @override
+  String get resendCode => 'Resend Code';
+
+  @override
+  String resendIn(int seconds) {
+    return 'Resend in ${seconds}s';
+  }
+
+  @override
+  String get confirmCodeBtn => 'Confirm Code';
+
+  @override
+  String get codeResentSuccess => 'Code resent successfully!';
+
+  @override
+  String get failedToResendCode => 'Failed to resend code';
+
+  @override
+  String get invalidCodeTryAgain => 'Invalid code. Please try again.';
+
+  @override
+  String get cancelBtnText => 'Cancel';
+
+  @override
+  String get doneBtnText => 'Done';
+
+  @override
+  String get selectArrivalTime => 'Select Arrival Time';
+
+  @override
+  String get scanQrCodeTitle => 'Scan QR Code';
+
+  @override
+  String get failedToSendOtp => 'Failed to send OTP';
+
+  @override
+  String get failedToVerifyOtp => 'Failed to verify OTP';
+
+  @override
+  String get otpVerificationSuccess =>
+      'Emergency Contact Verified Successfully';
+
+  @override
+  String get driverNotFound => 'Driver not found or invalid code';
 }

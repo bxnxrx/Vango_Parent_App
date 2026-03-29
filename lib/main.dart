@@ -9,6 +9,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 
+// ✅ Riverpod Import Added
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 // ✨ CallKit & Call Screen Imports
 import 'package:connectycube_flutter_call_kit/connectycube_flutter_call_kit.dart';
 import 'package:vango_parent_app/screens/call/call_screen.dart';
@@ -94,7 +97,8 @@ Future<void> main() async {
 
     await deviceService.syncDeviceData();
 
-    runApp(const VanGoApp());
+    // ✅ WRAPPED THE APP IN ProviderScope
+    runApp(const ProviderScope(child: VanGoApp()));
   } catch (error, stackTrace) {
     // Record startup errors to Crashlytics before falling back to Offline App
     FirebaseCrashlytics.instance.recordError(
@@ -103,7 +107,8 @@ Future<void> main() async {
       reason: 'Parent app offline startup crash',
     );
     debugPrint('Parent app offline: $error');
-    runApp(ParentOfflineApp(error: error));
+    // ✅ WRAPPED THE FALLBACK APP IN ProviderScope as well
+    runApp(ProviderScope(child: ParentOfflineApp(error: error)));
   }
 }
 
@@ -315,7 +320,7 @@ class ParentOfflineApp extends StatelessWidget {
     messenger.clearSnackBars();
     try {
       await AuthService.instance.initialize();
-      runApp(const VanGoApp());
+      runApp(const ProviderScope(child: VanGoApp()));
     } catch (retryError) {
       messenger.showSnackBar(
         SnackBar(content: Text('Still offline: ${retryError.toString()}')),

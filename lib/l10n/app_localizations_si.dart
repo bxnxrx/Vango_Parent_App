@@ -284,4 +284,295 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get onboardingBtn3 => 'ආරම්භ කරන්න';
+
+  @override
+  String get manageChildrenTitle => 'ළමුන් කළමනාකරණය';
+
+  @override
+  String get addStudentBtn => 'සිසුවා එකතු කරන්න';
+
+  @override
+  String get removeStudentTitle => 'ආරක්ෂිතයි: සිසුවා ඉවත් කරන්න';
+
+  @override
+  String removeStudentConfirmation(String childName) {
+    return 'ඔබට $childName ඉවත් කිරීමට අවශ්‍ය බව විශ්වාසද? මෙම ක්‍රියාව ආපසු හැරවිය නොහැක.';
+  }
+
+  @override
+  String get cancelBtn => 'අවලංගු කරන්න';
+
+  @override
+  String get removeBtn => 'ස්ථිරවම ඉවත් කරන්න';
+
+  @override
+  String studentRemovedSuccess(String childName) {
+    return '$childName සාර්ථකව ඉවත් කරන ලදී.';
+  }
+
+  @override
+  String errorRemovingStudent(String error) {
+    return 'ඉවත් කිරීමේ දෝෂයකි: $error';
+  }
+
+  @override
+  String get connectionErrorTitle => 'සම්බන්ධතා දෝෂයකි';
+
+  @override
+  String get retryConnectionBtn => 'නැවත උත්සාහ කරන්න';
+
+  @override
+  String get noStudentsAddedTitle => 'තවමත් සිසුන් එකතු කර නොමැත';
+
+  @override
+  String get addChildrenSubtitle =>
+      'ඔවුන්ගේ ගමන් නිරීක්ෂණය කිරීමට ඔබේ දරුවන් එකතු කරන්න.';
+
+  @override
+  String get addFirstStudentBtn => 'පළමු සිසුවා එකතු කරන්න';
+
+  @override
+  String get editProfileBtn => 'පැතිකඩ සංස්කරණය';
+
+  @override
+  String get removeTooltip => 'ඉවත් කරන්න';
+
+  @override
+  String get genericError =>
+      'දත්ත ලබා ගැනීමේදී දෝෂයක් ඇති විය. කරුණාකර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get deleteError =>
+      'සිසුවා ඉවත් කිරීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get addChildTitle => 'නව සිසුවා එකතු කරන්න';
+
+  @override
+  String get editChildTitle => 'සිසු තොරතුරු සංස්කරණය';
+
+  @override
+  String get addChildSubtitle => 'සිසු පැතිකඩ සැකසීමට පහත තොරතුරු පුරවන්න.';
+
+  @override
+  String get addPhotoLabel => 'ඡායාරූපය එකතු කරන්න';
+
+  @override
+  String get personalInfoSection => 'පුද්ගලික තොරතුරු';
+
+  @override
+  String get studentNameLabel => 'සිසුවාගේ සම්පූර්ණ නම';
+
+  @override
+  String get studentNameRequired => 'නම අවශ්‍යයි';
+
+  @override
+  String get ageLabel => 'වයස (2-21)';
+
+  @override
+  String get ageRequired => 'වයස අවශ්‍යයි';
+
+  @override
+  String get ageInvalid => '2 ත් 21 ත් අතර වලංගු අංකයක් විය යුතුය';
+
+  @override
+  String get emergencyContactSection => 'හදිසි ඇමතුම් අංකය';
+
+  @override
+  String get useParentProfileNumber => 'දෙමාපිය පැතිකඩ අංකය භාවිතා කරන්න';
+
+  @override
+  String get previouslyUsedNumber => 'පෙර භාවිතා කළ';
+
+  @override
+  String get addNewNumber => 'නව අංකයක් එක් කරන්න';
+
+  @override
+  String get newEmergencyContactLabel => 'නව හදිසි ඇමතුම් අංකය';
+
+  @override
+  String get invalidSlNumber => 'අවලංගු ශ්‍රී ලංකා අංකයකි (උදා. 712345678)';
+
+  @override
+  String get tapVerifyConfirm => 'මෙම අංකය තහවුරු කිරීමට Verify ඔබන්න';
+
+  @override
+  String get schoolRouteDetailsSection => 'පාසල සහ ගමන් මාර්ගය';
+
+  @override
+  String get schoolNameLabel => 'පාසලේ නම';
+
+  @override
+  String get schoolNameHint => 'පාසලේ නම ටයිප් කරන්න...';
+
+  @override
+  String get schoolRequired => 'පාසල අවශ්‍යයි';
+
+  @override
+  String get pickupLocationLabel => 'නැංවීමේ ස්ථානය';
+
+  @override
+  String get tapToSetOnMap => 'සිතියම මත සැකසීමට ඔබන්න';
+
+  @override
+  String get pickupRequired => 'නැංවීමේ ස්ථානය අවශ්‍යයි';
+
+  @override
+  String get dropLocationLabel => 'බැස්සවීමේ ස්ථානය';
+
+  @override
+  String get dropRequired => 'බැස්සවීමේ ස්ථානය අවශ්‍යයි';
+
+  @override
+  String get etaSchoolLabel => 'පාසලට ළඟා වන ඇස්තමේන්තුගත කාලය';
+
+  @override
+  String get etaRequired => 'පැමිණීමේ වේලාව අවශ්‍යයි';
+
+  @override
+  String get distanceLabel => 'දුර';
+
+  @override
+  String get trafficDelayLabel => 'මාර්ග තදබදය';
+
+  @override
+  String get suggestedLeaveByLabel => 'පිටවිය යුතු යෝජිත වේලාව';
+
+  @override
+  String get confirmPickupTimeLabel => 'නැංවීමේ වේලාව තහවුරු කරන්න';
+
+  @override
+  String get pickupTimeRequired => 'නැංවීමේ වේලාව අවශ්‍යයි';
+
+  @override
+  String get smallDescriptionLabel => 'කුඩා විස්තරයක් (විකල්ප)';
+
+  @override
+  String get smallDescriptionHint => 'රියදුරා සඳහා සටහන්...';
+
+  @override
+  String get saveStudentBtn => 'සිසු තොරතුරු සුරකින්න';
+
+  @override
+  String get updateProfileBtn => 'පැතිකඩ යාවත්කාලීන කරන්න';
+
+  @override
+  String get savingStatus => 'සුරකිමින්...';
+
+  @override
+  String errorSaving(String error) {
+    return 'දෝෂයකි: $error';
+  }
+
+  @override
+  String studentSavedSuccess(String name) {
+    return '$name සාර්ථකව සුරකින ලදී!';
+  }
+
+  @override
+  String get duplicateStudentError => 'මෙම සිසුවා දැනටමත් එකතු කර ඇත.';
+
+  @override
+  String get verifyContactError => 'කරුණාකර නව අංකය තහවුරු කරන්න.';
+
+  @override
+  String get verifyDriverError => 'කරුණාකර රියදුරු කේතය තහවුරු කරන්න.';
+
+  @override
+  String get cameraDeniedError => 'කැමරා ප්‍රවේශය ප්‍රතික්ෂේප විය.';
+
+  @override
+  String get alreadyHaveDriver => 'දැනටමත් රියදුරෙකු සිටීද?';
+
+  @override
+  String get enterInviteCodeBelow => 'ඔවුන්ගේ ආරාධනා කේතය පහතින් ඇතුලත් කරන්න';
+
+  @override
+  String get findDriverLater => 'මම පසුව රියදුරෙකු සොයා ගනිමි';
+
+  @override
+  String get driverInviteCode => 'රියදුරු ආරාධනා කේතය';
+
+  @override
+  String get scanQRCodeTooltip => 'QR කේතය ස්කෑන් කරන්න';
+
+  @override
+  String get codeRequired => 'කේතය අවශ්‍යයි';
+
+  @override
+  String get codeLengthError => 'කේතය අක්ෂර 8 කින් සමන්විත විය යුතුය';
+
+  @override
+  String get verifyCodeFirst => 'කරුණාකර පළමුව කේතය තහවුරු කරන්න';
+
+  @override
+  String get verifyBtn => 'තහවුරු කරන්න';
+
+  @override
+  String get driverFoundValidated => 'රියදුරු හමුවී තහවුරු කරන ලදී!';
+
+  @override
+  String get driverNameLabel => 'නම';
+
+  @override
+  String get driverVehicleLabel => 'වාහනය';
+
+  @override
+  String get driverAreaLabel => 'මෙහෙයුම් ප්‍රදේශය';
+
+  @override
+  String get verifyEmergencyContact => 'හදිසි ඇමතුම් අංකය තහවුරු කරන්න';
+
+  @override
+  String sentCodeTo(String phone) {
+    return 'අපි $phone වෙත ඉලක්කම් 6 ක කේතයක් යැව්වෙමු';
+  }
+
+  @override
+  String get sixDigitSmsCode => 'ඉලක්කම් 6ක SMS කේතය';
+
+  @override
+  String get resendCode => 'නැවත කේතය යවන්න';
+
+  @override
+  String resendIn(int seconds) {
+    return 'තත්පර $seconds කින් නැවත යවන්න';
+  }
+
+  @override
+  String get confirmCodeBtn => 'කේතය තහවුරු කරන්න';
+
+  @override
+  String get codeResentSuccess => 'කේතය සාර්ථකව නැවත යවන ලදී!';
+
+  @override
+  String get failedToResendCode => 'කේතය නැවත යැවීමට නොහැකි විය';
+
+  @override
+  String get invalidCodeTryAgain => 'අවලංගු කේතයකි. කරුණාකර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get cancelBtnText => 'අවලංගු කරන්න';
+
+  @override
+  String get doneBtnText => 'අවසන්';
+
+  @override
+  String get selectArrivalTime => 'පැමිණීමේ වේලාව තෝරන්න';
+
+  @override
+  String get scanQrCodeTitle => 'QR කේතය ස්කෑන් කරන්න';
+
+  @override
+  String get failedToSendOtp => 'OTP යැවීමට නොහැකි විය';
+
+  @override
+  String get failedToVerifyOtp => 'OTP තහවුරු කිරීමට නොහැකි විය';
+
+  @override
+  String get otpVerificationSuccess =>
+      'හදිසි ඇමතුම් අංකය සාර්ථකව තහවුරු කරන ලදී';
+
+  @override
+  String get driverNotFound => 'රියදුරු හමු නොවීය හෝ අවලංගු කේතයකි';
 }
