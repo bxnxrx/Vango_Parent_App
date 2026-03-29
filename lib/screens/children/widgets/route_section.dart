@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
@@ -322,7 +323,7 @@ class RouteSection extends StatelessWidget {
             autovalidateMode: AutovalidateMode.onUserInteraction,
             decoration: _buildInputDecoration(
               l10n.confirmPickupTimeLabel,
-              'e.g. 06:45 AM',
+              l10n.pickupTimeExample, // ✅ HARDCODED TEXT REMOVED
               Icons.alarm_on,
               isDark,
             ).copyWith(prefixIconColor: Colors.green),

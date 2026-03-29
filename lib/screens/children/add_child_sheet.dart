@@ -120,9 +120,8 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     _dropLng = widget.existingChild?.dropLng;
 
     _etaSchoolController = TextEditingController(
-      text: widget.existingChild?.etaSchool ?? '07:00 AM',
-    );
-
+      text: widget.existingChild?.etaSchool ?? '',
+    ); // Initialized locally later via l10n
     _hasDriver = false;
 
     _previouslyUsedNumbers = widget.existingChildren
@@ -136,6 +135,17 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
     if (_pickupLat != null && _dropLat != null) {
       _calculateRoute();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Safely assign l10n values only available after init
+    if (_etaSchoolController.text.isEmpty) {
+      _etaSchoolController.text = AppLocalizations.of(
+        context,
+      )!.defaultPickupTime;
     }
   }
 
@@ -434,7 +444,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       final String? scannedCode = await Navigator.push<String>(
         context,
         MaterialPageRoute(
-          // ✅ SECURE CONTEXT FIX: Pass the distinct scannerContext to prevent Navigator tree conflicts
           builder: (scannerContext) => Scaffold(
             backgroundColor: Colors.black,
             appBar: AppBar(
@@ -456,7 +465,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                   if (barcode.rawValue != null) {
                     hasScanned = true;
                     HapticFeedback.heavyImpact();
-                    // ✅ Pop specific to the scanner's context
                     Navigator.pop(scannerContext, barcode.rawValue);
                     break;
                   }
@@ -634,6 +642,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
   Future<void> _pickLocation({
     required TextEditingController controller,
+    required AppLocalizations l10n,
     bool isPickup = false,
     bool isDrop = false,
   }) async {
@@ -651,7 +660,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     final PickResult? result = await Navigator.push(
       context,
       MaterialPageRoute(
-        // ✅ SECURE CONTEXT FIX: Pass placeContext to safely isolate navigation
         builder: (placeContext) => Theme(
           data: ThemeData(
             brightness: isDark ? Brightness.dark : Brightness.light,
@@ -730,8 +738,8 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                                   children: [
                                     Text(
                                       isPickup
-                                          ? "Pickup Location"
-                                          : "Drop-off Location",
+                                          ? l10n.pickupLocation
+                                          : l10n.dropLocation, // ✅ HARDCODED TEXT REMOVED
                                       style: TextStyle(
                                         color: isDark
                                             ? Colors.white54
@@ -743,7 +751,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                                     const SizedBox(height: 4),
                                     Text(
                                       selectedPlace?.formattedAddress ??
-                                          "Move map to adjust location",
+                                          l10n.moveMapToAdjust, // ✅ HARDCODED TEXT REMOVED
                                       style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
@@ -778,7 +786,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                                   : () => Navigator.pop(
                                       placeContext,
                                       selectedPlace,
-                                    ), // ✅ Pop the exact map layer
+                                    ),
                               child: state == SearchingState.Searching
                                   ? const SizedBox(
                                       height: 20,
@@ -788,14 +796,14 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                                         strokeWidth: 2,
                                       ),
                                     )
-                                  : const Text(
-                                      'Confirm Location',
-                                      style: TextStyle(
+                                  : Text(
+                                      l10n.confirmLocation,
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
                                       ),
-                                    ),
+                                    ), // ✅ HARDCODED TEXT REMOVED
                             ),
                           ),
                         ],
@@ -922,8 +930,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           dropLocation: _dropLocationController.text.trim(),
           dropLat: _dropLat,
           dropLng: _dropLng,
+          // ✅ SECURE DEFAULT VALUE VIA L10N
           pickupTime: _pickupTimeController.text.trim().isEmpty
-              ? '06:45 AM'
+              ? l10n.defaultPickupTime
               : _pickupTimeController.text.trim(),
           etaSchool: _etaSchoolController.text.trim(),
           emergencyContact: finalEmergencyContact,
@@ -1024,7 +1033,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ Added Premium Back Button Header
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1192,6 +1200,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
                 const SizedBox(height: 24),
 
+                // ✅ Passing Localizations cleanly to route section
                 RouteSection(
                   schoolController: _schoolController,
                   pickupLocationController: _pickupLocationController,
@@ -1203,10 +1212,12 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                       .searchSchoolsProxied(query),
                   onPickupTap: () => _pickLocation(
                     controller: _pickupLocationController,
+                    l10n: l10n,
                     isPickup: true,
                   ),
                   onDropTap: () => _pickLocation(
                     controller: _dropLocationController,
+                    l10n: l10n,
                     isDrop: true,
                   ),
                   onEtaTap: () => _selectTime(context, isDark),

@@ -1167,6 +1167,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Driver not found or invalid code'**
   String get driverNotFound;
+
+  /// No description provided for @pickupLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup Location'**
+  String get pickupLocation;
+
+  /// No description provided for @dropLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop-off Location'**
+  String get dropLocation;
+
+  /// No description provided for @moveMapToAdjust.
+  ///
+  /// In en, this message translates to:
+  /// **'Move map to adjust location'**
+  String get moveMapToAdjust;
+
+  /// No description provided for @confirmLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Location'**
+  String get confirmLocation;
+
+  /// No description provided for @pickupTimeExample.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 06:45 AM'**
+  String get pickupTimeExample;
+
+  /// No description provided for @defaultPickupTime.
+  ///
+  /// In en, this message translates to:
+  /// **'06:45 AM'**
+  String get defaultPickupTime;
 }
 
 class _AppLocalizationsDelegate

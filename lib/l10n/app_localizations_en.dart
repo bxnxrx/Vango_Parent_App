@@ -579,4 +579,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get driverNotFound => 'Driver not found or invalid code';
+
+  @override
+  String get pickupLocation => 'Pickup Location';
+
+  @override
+  String get dropLocation => 'Drop-off Location';
+
+  @override
+  String get moveMapToAdjust => 'Move map to adjust location';
+
+  @override
+  String get confirmLocation => 'Confirm Location';
+
+  @override
+  String get pickupTimeExample => 'e.g. 06:45 AM';
+
+  @override
+  String get defaultPickupTime => '06:45 AM';
 }

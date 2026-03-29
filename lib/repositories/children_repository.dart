@@ -37,12 +37,12 @@ class ChildrenRepository {
       }
       return null;
     } catch (e) {
-      // ✅ Fix: Catch 400/404 HTTP errors gracefully.
-      // An invalid invite code is expected user behavior, not an app crash.
+      // ✅ Catch invalid code (400) errors gracefully to prevent crashes
       return null;
     }
   }
 
+  // ✅ Securely uses your EXISTING 'send-sms' function
   Future<void> sendEmergencyContactOtp(String phone) async {
     try {
       _currentOtp = (100000 + Random().nextInt(900000)).toString();
@@ -62,6 +62,7 @@ class ChildrenRepository {
     }
   }
 
+  // ✅ Securely validates the OTP against the local memory state
   Future<void> verifyEmergencyContactOtp(String phone, String code) async {
     if (_currentOtp == null || code != _currentOtp) {
       throw AppAuthException(
@@ -69,9 +70,10 @@ class ChildrenRepository {
         message: 'Invalid or expired OTP.',
       );
     }
-    _currentOtp = null;
+    _currentOtp = null; // Clear from memory after successful validation
   }
 
+  // ✅ Fetches the API key from your native Android/iOS codebase securely
   Future<String?> getSecureMapsKey() async {
     if (_cachedApiKey != null) return _cachedApiKey;
     try {
@@ -82,6 +84,7 @@ class ChildrenRepository {
     }
   }
 
+  // ✅ Direct HTTP Call instead of missing maps-proxy
   Future<List<String>> searchSchoolsProxied(String query) async {
     if (query.isEmpty) {
       return [];
@@ -123,6 +126,7 @@ class ChildrenRepository {
     return [];
   }
 
+  // ✅ Direct HTTP Call instead of missing maps-proxy
   Future<Map<String, dynamic>> calculateRouteProxied(
     double pLat,
     double pLng,
@@ -130,15 +134,24 @@ class ChildrenRepository {
     double dLng,
   ) async {
     final apiKey = await getSecureMapsKey();
-    if (apiKey == null) throw Exception("Missing API Key");
+    if (apiKey == null) {
+      throw AppAuthException(code: 'MAPS_ERROR', message: "Missing API Key");
+    }
 
-    final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/directions/json?origin=$pLat,$pLng&destination=$dLat,$dLng&departure_time=now&key=$apiKey',
-    );
-    final headers = await const GoogleApiHeaders().getHeaders();
-    final response = await http.get(url, headers: headers);
+    try {
+      final url = Uri.parse(
+        'https://maps.googleapis.com/maps/api/directions/json?origin=$pLat,$pLng&destination=$dLat,$dLng&departure_time=now&key=$apiKey',
+      );
+      final headers = await const GoogleApiHeaders().getHeaders();
+      final response = await http.get(url, headers: headers);
 
-    return json.decode(response.body);
+      return jsonDecode(response.body);
+    } catch (e) {
+      throw AppAuthException(
+        code: 'MAPS_ERROR',
+        message: 'Error calculating route: $e',
+      );
+    }
   }
 }
 

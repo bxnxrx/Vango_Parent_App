@@ -207,5 +207,11 @@
   "failedToSendOtp": "OTP යැවීමට නොහැකි විය",
   "failedToVerifyOtp": "OTP තහවුරු කිරීමට නොහැකි විය",
   "otpVerificationSuccess": "හදිසි ඇමතුම් අංකය සාර්ථකව තහවුරු කරන ලදී",
-  "driverNotFound": "රියදුරු හමු නොවීය හෝ අවලංගු කේතයකි"
+  "driverNotFound": "රියදුරු හමු නොවීය හෝ අවලංගු කේතයකි",
+  "pickupLocation": "නැංවීමේ ස්ථානය",
+  "dropLocation": "බැස්සවීමේ ස්ථානය",
+  "moveMapToAdjust": "ස්ථානය වෙනස් කිරීමට සිතියම ගෙන යන්න",
+  "confirmLocation": "ස්ථානය තහවුරු කරන්න",
+  "pickupTimeExample": "උදා. 06:45 AM",
+  "defaultPickupTime": "06:45 AM"
 }
