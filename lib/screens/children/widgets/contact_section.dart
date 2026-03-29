@@ -32,6 +32,7 @@ class ContactSection extends StatelessWidget {
     required String title,
     required bool isSelected,
     required VoidCallback onTap,
+    required bool isDark,
   }) {
     return InkWell(
       onTap: onTap,
@@ -42,11 +43,18 @@ class ContactSection extends StatelessWidget {
           children: [
             Icon(
               isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: isSelected ? AppColors.accent : Colors.white54,
+              color: isSelected
+                  ? AppColors.accent
+                  : (isDark ? Colors.white54 : AppColors.textSecondary),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Text(title, style: const TextStyle(color: Colors.white)),
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isDark ? Colors.white : AppColors.textPrimary,
+                ),
+              ),
             ),
           ],
         ),
@@ -57,6 +65,7 @@ class ContactSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,15 +74,17 @@ class ContactSection extends StatelessWidget {
           l10n.emergencyContactSection,
           style: AppTypography.title.copyWith(
             fontSize: 16,
-            color: Colors.white,
+            color: isDark ? Colors.white : AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade50,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(
+              color: isDark ? Colors.white10 : AppColors.stroke,
+            ),
           ),
           child: Column(
             children: [
@@ -84,6 +95,7 @@ class ContactSection extends StatelessWidget {
                   HapticFeedback.selectionClick();
                   onOptionChanged('parent');
                 },
+                isDark: isDark,
               ),
               ...previouslyUsedNumbers.map(
                 (phone) => _buildCustomRadio(
@@ -93,6 +105,7 @@ class ContactSection extends StatelessWidget {
                     HapticFeedback.selectionClick();
                     onOptionChanged(phone);
                   },
+                  isDark: isDark,
                 ),
               ),
               _buildCustomRadio(
@@ -102,6 +115,7 @@ class ContactSection extends StatelessWidget {
                   HapticFeedback.selectionClick();
                   onOptionChanged('new');
                 },
+                isDark: isDark,
               ),
             ],
           ),
@@ -114,21 +128,29 @@ class ContactSection extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: emergencyContactController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                   readOnly: isCustomContactVerified,
                   keyboardType: TextInputType.phone,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E1E1E),
+                    fillColor: isDark
+                        ? const Color(0xFF1E1E1E)
+                        : Colors.grey.shade100,
                     labelText: l10n.newEmergencyContactLabel,
                     prefixText: '+94 ',
-                    prefixStyle: const TextStyle(color: Colors.white),
-                    prefixIcon: const Icon(
-                      Icons.phone_outlined,
-                      color: Colors.white54,
+                    prefixStyle: TextStyle(
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
-                    labelStyle: const TextStyle(color: Colors.white54),
+                    prefixIcon: Icon(
+                      Icons.phone_outlined,
+                      color: isDark ? Colors.white54 : AppColors.textSecondary,
+                    ),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.white54 : AppColors.textSecondary,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
@@ -162,9 +184,13 @@ class ContactSection extends StatelessWidget {
                       : (isSendingOtp ? null : onVerifyRequested),
                   style: FilledButton.styleFrom(
                     backgroundColor: isCustomContactVerified
-                        ? const Color(0xFF1E1E1E)
+                        ? (isDark
+                              ? const Color(0xFF1E1E1E)
+                              : Colors.grey.shade300)
                         : AppColors.accent,
-                    foregroundColor: Colors.white,
+                    foregroundColor: isCustomContactVerified
+                        ? (isDark ? Colors.white : AppColors.textPrimary)
+                        : Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),

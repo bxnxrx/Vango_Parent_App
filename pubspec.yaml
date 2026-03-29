@@ -56,6 +56,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
 
   flutter_lints: ^5.0.0
   flutter_native_splash: ^2.4.7
@@ -71,3 +72,8 @@ flutter:
 dependency_overrides:
   package_info_plus: ^8.2.1
   http: ^1.2.1
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"

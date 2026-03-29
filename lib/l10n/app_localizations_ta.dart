@@ -584,4 +584,22 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get driverNotFound => 'சாரதி காணப்படவில்லை அல்லது தவறான குறியீடு';
+
+  @override
+  String get pickupLocation => 'ஏற்றும் இடம்';
+
+  @override
+  String get dropLocation => 'இறக்கும் இடம்';
+
+  @override
+  String get moveMapToAdjust => 'இடத்தை மாற்ற வரைபடத்தை நகர்த்தவும்';
+
+  @override
+  String get confirmLocation => 'இடத்தை உறுதிப்படுத்தவும்';
+
+  @override
+  String get pickupTimeExample => 'உ.ம். 06:45 AM';
+
+  @override
+  String get defaultPickupTime => '06:45 AM';
 }

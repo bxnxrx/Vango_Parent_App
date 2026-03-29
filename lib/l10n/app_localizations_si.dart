@@ -575,4 +575,22 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get driverNotFound => 'රියදුරු හමු නොවීය හෝ අවලංගු කේතයකි';
+
+  @override
+  String get pickupLocation => 'නැංවීමේ ස්ථානය';
+
+  @override
+  String get dropLocation => 'බැස්සවීමේ ස්ථානය';
+
+  @override
+  String get moveMapToAdjust => 'ස්ථානය වෙනස් කිරීමට සිතියම ගෙන යන්න';
+
+  @override
+  String get confirmLocation => 'ස්ථානය තහවුරු කරන්න';
+
+  @override
+  String get pickupTimeExample => 'උදා. 06:45 AM';
+
+  @override
+  String get defaultPickupTime => '06:45 AM';
 }
