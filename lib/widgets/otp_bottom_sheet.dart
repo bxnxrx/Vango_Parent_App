@@ -9,8 +9,8 @@ import 'package:vango_parent_app/theme/app_typography.dart';
 
 class OtpBottomSheet extends StatefulWidget {
   final String phone;
-  final Future<bool> Function() onResend;
-  final Future<bool> Function(String otp) onVerify;
+  final Future<void> Function() onResend; // ✅ Changed to Future<void>
+  final Future<void> Function(String otp) onVerify; // ✅ Changed to Future<void>
 
   const OtpBottomSheet({
     super.key,
@@ -68,37 +68,30 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
     await _analytics.logEvent(name: 'otp_resend_clicked');
 
     try {
-      final success = await widget.onResend();
-      if (!mounted) {
-        return;
-      }
+      await widget.onResend();
 
-      if (success) {
-        _startTimer();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.codeResentSuccess),
-            backgroundColor: Colors.green.shade800,
-          ),
-        );
-      } else {
-        setState(() => _errorMessage = l10n.failedToResendCode);
-      }
+      if (!mounted) return;
+      _startTimer();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.codeResentSuccess),
+          backgroundColor: Colors.green.shade800,
+        ),
+      );
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
         e,
         stack,
         reason: 'Failed to resend OTP code',
       );
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() => _errorMessage = l10n.failedToResendCode);
     }
   }
 
   Future<void> _handleVerify(AppLocalizations l10n) async {
-    if (_otpController.text.length != 6) {
+    // ✅ UI Lock: Prevents double verification
+    if (_otpController.text.length != 6 || _isVerifying) {
       return;
     }
 
@@ -108,15 +101,15 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
     });
     HapticFeedback.lightImpact();
 
-    final isValid = await widget.onVerify(_otpController.text.trim());
-    if (!mounted) {
-      return;
-    }
+    try {
+      await widget.onVerify(_otpController.text.trim());
 
-    if (isValid) {
+      if (!mounted) return;
       await _analytics.logEvent(name: 'otp_verification_success');
       Navigator.pop(context, true);
-    } else {
+    } catch (e, stack) {
+      if (!mounted) return;
+
       HapticFeedback.heavyImpact();
       await _analytics.logEvent(name: 'otp_verification_failed');
       setState(() {

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
@@ -193,7 +194,7 @@ class RouteSection extends StatelessWidget {
           onTap: onEtaTap,
           decoration: _buildDarkInputDecoration(
             l10n.etaSchoolLabel,
-            'Tap to select time',
+            l10n.selectArrivalTime,
             Icons.access_time_filled,
             suffix: const Icon(Icons.edit_calendar, color: Colors.white54),
           ),

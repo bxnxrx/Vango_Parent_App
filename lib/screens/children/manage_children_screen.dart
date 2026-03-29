@@ -19,8 +19,31 @@ class ManageChildrenScreen extends ConsumerStatefulWidget {
 }
 
 class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      ref.read(manageChildrenProvider.notifier).loadMore();
+    }
+  }
+
   String _getLocalizedError(String key, AppLocalizations l10n) {
-    if (key == 'deleteError') return l10n.deleteError;
+    if (key == 'deleteError') {
+      return l10n.deleteError;
+    }
     return l10n.genericError;
   }
 
@@ -58,7 +81,9 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
       final success = await ref
           .read(manageChildrenProvider.notifier)
           .deleteChild(child.id);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       final scaffoldMessenger = ScaffoldMessenger.of(context);
       if (success) {
@@ -69,7 +94,6 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
           ),
         );
       } else {
-        // Safe UI mapped error handling
         final currentError = ref.read(manageChildrenProvider).errorMessageKey;
         if (currentError != null) {
           scaffoldMessenger.showSnackBar(
@@ -140,10 +164,10 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
               backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
             ),
-      // Overlay Stack enforces security by preventing UI interaction during writes
       body: Stack(
         children: [
           CustomScrollView(
+            controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
               SliverAppBar(
@@ -172,11 +196,18 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
                 ),
                 sliver: _buildBodyContent(state, l10n),
               ),
+              if (state.isLoadingMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(
+                      child: CircularProgressIndicator(color: AppColors.accent),
+                    ),
+                  ),
+                ),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
-
-          // SECURE INTERACTION BLOCKER
           if (state.isOverlayLoading)
             Positioned.fill(
               child: Container(

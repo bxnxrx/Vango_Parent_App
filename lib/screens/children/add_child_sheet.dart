@@ -1,25 +1,20 @@
-import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart'; // Added Cupertino for DatePicker
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_place_picker_mb/google_maps_place_picker.dart';
 import 'package:flutter_google_maps_webservices/places.dart' as places;
-import 'package:google_api_headers/google_api_headers.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
+import 'package:vango_parent_app/models/driver_profile.dart';
 import 'package:vango_parent_app/repositories/children_repository.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
@@ -74,7 +69,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
   bool _isCalculatingRoute = false;
 
   bool _isValidatingCode = false;
-  Map<String, dynamic>? _verifiedDriverDetails;
+  DriverProfile? _verifiedDriverDetails;
   String? _inviteCodeError;
 
   double? _pickupLat;
@@ -92,7 +87,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     super.initState();
     _analytics.logEvent(
       name: 'open_add_child_sheet',
-      parameters: {'is_editing': _isEditing},
+      parameters: {'is_editing': _isEditing.toString()},
     );
 
     _nameController = TextEditingController(
@@ -190,15 +185,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
   String _normalizePhone(String phone) {
     String p = phone.trim();
-    if (p.startsWith('+94')) {
-      return p;
-    }
-    if (p.startsWith('07')) {
-      return '+94${p.substring(1)}';
-    }
-    if (p.startsWith('7')) {
-      return '+94$p';
-    }
+    if (p.startsWith('+94')) return p;
+    if (p.startsWith('07')) return '+94${p.substring(1)}';
+    if (p.startsWith('7')) return '+94$p';
     return p;
   }
 
@@ -267,15 +256,12 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     setState(() => _isSendingOtp = true);
 
     try {
-      String currentOtp = (100000 + Random().nextInt(900000)).toString();
-      await Supabase.instance.client.functions.invoke(
-        'send-sms',
-        body: {'phone': formattedPhone, 'otp': currentOtp},
-      );
+      // ✅ Now cleanly awaiting throwing methods rather than checking return flags
+      await ref
+          .read(childrenRepositoryProvider)
+          .sendEmergencyContactOtp(formattedPhone);
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() => _isSendingOtp = false);
 
       final bool? isVerified = await showModalBottomSheet<bool>(
@@ -288,16 +274,15 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         builder: (ctx) => OtpBottomSheet(
           phone: formattedPhone,
           onResend: () async {
-            String newOtp = (100000 + Random().nextInt(900000)).toString();
-            await Supabase.instance.client.functions.invoke(
-              'send-sms',
-              body: {'phone': formattedPhone, 'otp': newOtp},
-            );
-            currentOtp = newOtp;
-            return true;
+            // Exceptions thrown here are naturally caught inside the BottomSheet
+            await ref
+                .read(childrenRepositoryProvider)
+                .sendEmergencyContactOtp(formattedPhone);
           },
           onVerify: (otp) async {
-            return otp == currentOtp;
+            await ref
+                .read(childrenRepositoryProvider)
+                .verifyEmergencyContactOtp(formattedPhone, otp);
           },
         ),
       );
@@ -307,8 +292,8 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         setState(() => _isCustomContactVerified = true);
         if (mounted) {
           scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('Verified!'),
+            SnackBar(
+              content: Text(l10n.otpVerificationSuccess),
               backgroundColor: Colors.green,
             ),
           );
@@ -318,13 +303,13 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       FirebaseCrashlytics.instance.recordError(
         e,
         stack,
-        reason: 'OTP send failed',
+        reason: 'OTP process failed completely',
       );
       if (mounted) {
         setState(() => _isSendingOtp = false);
         scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: Text('Failed: $e'),
+            content: Text(l10n.genericError),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -332,9 +317,11 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     }
   }
 
+  // ✅ Re-added the missing _selectTime method
   Future<void> _selectTime(BuildContext context) async {
     HapticFeedback.selectionClick();
     FocusManager.instance.primaryFocus?.unfocus();
+    final l10n = AppLocalizations.of(context)!;
 
     DateTime initialTime = DateTime.now();
 
@@ -362,13 +349,13 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(builderContext),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(color: Colors.white54),
+                      child: Text(
+                        l10n.cancelBtnText,
+                        style: const TextStyle(color: Colors.white54),
                       ),
                     ),
                     Text(
-                      'Select Arrival Time',
+                      l10n.selectArrivalTime,
                       style: AppTypography.title.copyWith(
                         fontSize: 16,
                         color: Colors.white,
@@ -376,9 +363,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(builderContext),
-                      child: const Text(
-                        'Done',
-                        style: TextStyle(
+                      child: Text(
+                        l10n.doneBtnText,
+                        style: const TextStyle(
                           color: AppColors.accent,
                           fontWeight: FontWeight.bold,
                         ),
@@ -398,12 +385,8 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                       setState(() {
                         int h = newDate.hour;
                         String ampm = h >= 12 ? 'PM' : 'AM';
-                        if (h == 0) {
-                          h = 12;
-                        }
-                        if (h > 12) {
-                          h -= 12;
-                        }
+                        if (h == 0) h = 12;
+                        if (h > 12) h -= 12;
                         _etaSchoolController.text =
                             '${h.toString().padLeft(2, '0')}:${newDate.minute.toString().padLeft(2, '0')} $ampm';
                         if (_pickupLat != null && _dropLat != null) {
@@ -432,9 +415,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           builder: (context) => Scaffold(
             backgroundColor: Colors.black,
             appBar: AppBar(
-              title: const Text(
-                'Scan QR Code',
-                style: TextStyle(color: Colors.white),
+              title: Text(
+                l10n.scanQrCodeTitle,
+                style: const TextStyle(color: Colors.white),
               ),
               backgroundColor: Colors.black,
               iconTheme: const IconThemeData(color: Colors.white),
@@ -459,7 +442,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         setState(
           () => _inviteCodeController.text = scannedCode.trim().toUpperCase(),
         );
-        _verifyCode();
+        _verifyCode(l10n);
       }
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
@@ -467,24 +450,21 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         stack,
         reason: 'QR Scan failure',
       );
-      if (mounted) {
+      if (mounted)
         scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text(l10n.cameraDeniedError),
             backgroundColor: Colors.redAccent,
           ),
         );
-      }
     }
   }
 
-  Future<void> _verifyCode() async {
+  Future<void> _verifyCode(AppLocalizations l10n) async {
     HapticFeedback.lightImpact();
     FocusManager.instance.primaryFocus?.unfocus();
     final code = _inviteCodeController.text.trim();
-    if (code.isEmpty) {
-      return;
-    }
+    if (code.isEmpty) return;
 
     setState(() {
       _isValidatingCode = true;
@@ -493,18 +473,18 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     });
 
     try {
-      final result = await ref
+      final driverModel = await ref
           .read(childrenRepositoryProvider)
           .verifyInviteCode(code);
       if (mounted) {
         setState(() {
           _isValidatingCode = false;
-          if (result['valid'] == true) {
+          if (driverModel != null) {
             HapticFeedback.mediumImpact();
-            _verifiedDriverDetails = result;
+            _verifiedDriverDetails = driverModel;
           } else {
             HapticFeedback.heavyImpact();
-            _inviteCodeError = result['message'] ?? 'Invalid code';
+            _inviteCodeError = l10n.driverNotFound;
           }
         });
       }
@@ -517,7 +497,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       if (mounted) {
         setState(() {
           _isValidatingCode = false;
-          _inviteCodeError = e.toString().replaceAll('Exception: ', '').trim();
+          _inviteCodeError = l10n.genericError;
         });
       }
     }
@@ -527,25 +507,19 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     if (_pickupLat == null ||
         _pickupLng == null ||
         _dropLat == null ||
-        _dropLng == null) {
+        _dropLng == null)
       return;
-    }
-
-    final apiKey = await ref.read(childrenRepositoryProvider).getNativeApiKey();
-    if (apiKey == null || apiKey.isEmpty) {
-      return;
-    }
-
     setState(() => _isCalculatingRoute = true);
 
     try {
-      final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/directions/json?origin=$_pickupLat,$_pickupLng&destination=$_dropLat,$_dropLng&departure_time=now&key=$apiKey',
-      );
-      final headers = await const GoogleApiHeaders().getHeaders();
-      final response = await http.get(url, headers: headers);
-      final data = json.decode(response.body);
-
+      final data = await ref
+          .read(childrenRepositoryProvider)
+          .calculateRouteProxied(
+            _pickupLat!,
+            _pickupLng!,
+            _dropLat!,
+            _dropLng!,
+          );
       if (data['status'] == 'OK' && data['routes'].isNotEmpty) {
         final leg = data['routes'][0]['legs'][0];
         if (mounted) {
@@ -561,12 +535,10 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       FirebaseCrashlytics.instance.recordError(
         e,
         stack,
-        reason: 'Route calc failed',
+        reason: 'Route calc proxy failed',
       );
     } finally {
-      if (mounted) {
-        setState(() => _isCalculatingRoute = false);
-      }
+      if (mounted) setState(() => _isCalculatingRoute = false);
     }
   }
 
@@ -578,10 +550,10 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     HapticFeedback.lightImpact();
     FocusManager.instance.primaryFocus?.unfocus();
 
-    final apiKey = await ref.read(childrenRepositoryProvider).getNativeApiKey();
-    if (apiKey == null || apiKey.isEmpty || !mounted) {
-      return;
-    }
+    final apiKey = await ref
+        .read(childrenRepositoryProvider)
+        .getSecureMapsKey();
+    if (apiKey == null || apiKey.isEmpty || !mounted) return;
 
     final PickResult? result = await Navigator.push(
       context,
@@ -608,9 +580,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       ),
     );
 
-    if (!mounted || result == null) {
-      return;
-    }
+    if (!mounted || result == null) return;
 
     setState(() {
       controller.text = result.formattedAddress ?? result.name ?? '';
@@ -623,9 +593,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       }
     });
 
-    if (_pickupLat != null && _dropLat != null) {
-      _calculateRoute();
-    }
+    if (_pickupLat != null && _dropLat != null) _calculateRoute();
   }
 
   Future<void> _submit(AppLocalizations l10n) async {
@@ -634,9 +602,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     if (!_isEditing) {
       final isDuplicate = widget.existingChildren.any(
@@ -696,9 +662,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         final uploadedPath = await _dataService.uploadChildPhoto(
           _selectedImage!,
         );
-        if (uploadedPath != null) {
-          finalImageUrl = uploadedPath;
-        }
+        if (uploadedPath != null) finalImageUrl = uploadedPath;
       }
 
       if (!_isEditing) {
@@ -746,7 +710,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
       _analytics.logEvent(
         name: 'save_child_success',
-        parameters: {'is_edit': _isEditing},
+        parameters: {'is_edit': _isEditing.toString()},
       );
 
       if (mounted) {
@@ -771,15 +735,13 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         HapticFeedback.heavyImpact();
         scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: Text(l10n.errorSaving(e.toString())),
+            content: Text(l10n.genericError),
             backgroundColor: Colors.redAccent,
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -868,12 +830,8 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                     null,
                     Icons.person_outline,
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return l10n.studentNameRequired;
-                    }
-                    return null;
-                  },
+                  validator: (v) =>
+                      v == null || v.isEmpty ? l10n.studentNameRequired : null,
                 ),
                 const SizedBox(height: 12),
 
@@ -888,13 +846,10 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                     Icons.cake_outlined,
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return l10n.ageRequired;
-                    }
+                    if (v == null || v.isEmpty) return l10n.ageRequired;
                     final age = int.tryParse(v);
-                    if (age == null || age < 2 || age > 21) {
+                    if (age == null || age < 2 || age > 21)
                       return l10n.ageInvalid;
-                    }
                     return null;
                   },
                 ),
@@ -928,8 +883,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                   dropLocationController: _dropLocationController,
                   etaSchoolController: _etaSchoolController,
                   pickupTimeController: _pickupTimeController,
-                  searchSchools: (query) =>
-                      ref.read(childrenRepositoryProvider).searchSchools(query),
+                  searchSchools: (query) => ref
+                      .read(childrenRepositoryProvider)
+                      .searchSchoolsProxied(query),
                   onPickupTap: () => _pickLocation(
                     controller: _pickupLocationController,
                     isPickup: true,
@@ -938,7 +894,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                     controller: _dropLocationController,
                     isDrop: true,
                   ),
-                  onEtaTap: () => _selectTime(context),
+                  onEtaTap: () => _selectTime(
+                    context,
+                  ), // ✅ Now connects to the added method
                   routeDistance: _routeDistance,
                   routeDuration: _routeDuration,
                   isCalculatingRoute: _isCalculatingRoute,
@@ -961,15 +919,13 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                     inviteCodeError: _inviteCodeError,
                     isValidatingCode: _isValidatingCode,
                     verifiedDriverDetails: _verifiedDriverDetails,
-                    onVerifyCode: _verifyCode,
+                    onVerifyCode: () => _verifyCode(l10n),
                     onScanQRCode: () => _scanQRCode(l10n),
                     onCodeChanged: () {
-                      if (_verifiedDriverDetails != null) {
+                      if (_verifiedDriverDetails != null)
                         setState(() => _verifiedDriverDetails = null);
-                      }
-                      if (_inviteCodeError != null) {
+                      if (_inviteCodeError != null)
                         setState(() => _inviteCodeError = null);
-                      }
                     },
                   ),
                 ),
