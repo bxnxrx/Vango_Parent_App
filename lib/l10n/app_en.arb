@@ -210,5 +210,11 @@
   "failedToSendOtp": "Failed to send OTP",
   "failedToVerifyOtp": "Failed to verify OTP",
   "otpVerificationSuccess": "Emergency Contact Verified Successfully",
-  "driverNotFound": "Driver not found or invalid code"
+  "driverNotFound": "Driver not found or invalid code",
+  "pickupLocation": "Pickup Location",
+  "dropLocation": "Drop-off Location",
+  "moveMapToAdjust": "Move map to adjust location",
+  "confirmLocation": "Confirm Location",
+  "pickupTimeExample": "e.g. 06:45 AM",
+  "defaultPickupTime": "06:45 AM"
 }

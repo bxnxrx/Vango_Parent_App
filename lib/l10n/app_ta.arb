@@ -207,5 +207,11 @@
   "failedToSendOtp": "OTP அனுப்ப முடியவில்லை",
   "failedToVerifyOtp": "OTP உறுதிப்படுத்த முடியவில்லை",
   "otpVerificationSuccess": "அவசர தொடர்பு வெற்றிகரமாக உறுதிப்படுத்தப்பட்டது",
-  "driverNotFound": "சாரதி காணப்படவில்லை அல்லது தவறான குறியீடு"
+  "driverNotFound": "சாரதி காணப்படவில்லை அல்லது தவறான குறியீடு",
+  "pickupLocation": "ஏற்றும் இடம்",
+  "dropLocation": "இறக்கும் இடம்",
+  "moveMapToAdjust": "இடத்தை மாற்ற வரைபடத்தை நகர்த்தவும்",
+  "confirmLocation": "இடத்தை உறுதிப்படுத்தவும்",
+  "pickupTimeExample": "உ.ம். 06:45 AM",
+  "defaultPickupTime": "06:45 AM"
 }

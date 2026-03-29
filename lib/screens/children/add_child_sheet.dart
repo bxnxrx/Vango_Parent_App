@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart'; // Added Cupertino for DatePicker
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -120,8 +120,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     _dropLng = widget.existingChild?.dropLng;
 
     _etaSchoolController = TextEditingController(
-      text: widget.existingChild?.etaSchool ?? '07:00 AM',
-    );
+      text: widget.existingChild?.etaSchool ?? '',
+    ); // Initialized locally later via l10n
+    _hasDriver = false;
 
     _previouslyUsedNumbers = widget.existingChildren
         .map((c) => c.emergencyContact)
@@ -137,19 +138,36 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     }
   }
 
-  InputDecoration _buildDarkInputDecoration(
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Safely assign l10n values only available after init
+    if (_etaSchoolController.text.isEmpty) {
+      _etaSchoolController.text = AppLocalizations.of(
+        context,
+      )!.defaultPickupTime;
+    }
+  }
+
+  InputDecoration _buildInputDecoration(
     String label,
     String? hint,
     IconData icon,
+    bool isDark,
   ) {
     return InputDecoration(
       filled: true,
-      fillColor: const Color(0xFF1E1E1E),
+      fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
       labelText: label,
       hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.white54),
-      labelStyle: const TextStyle(color: Colors.white54),
-      hintStyle: const TextStyle(color: Colors.white30),
+      prefixIcon: Icon(
+        icon,
+        color: isDark ? Colors.white54 : AppColors.textSecondary,
+      ),
+      labelStyle: TextStyle(
+        color: isDark ? Colors.white54 : AppColors.textSecondary,
+      ),
+      hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black26),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
@@ -256,7 +274,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     setState(() => _isSendingOtp = true);
 
     try {
-      // ✅ Now cleanly awaiting throwing methods rather than checking return flags
       await ref
           .read(childrenRepositoryProvider)
           .sendEmergencyContactOtp(formattedPhone);
@@ -264,17 +281,17 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       if (!mounted) return;
       setState(() => _isSendingOtp = false);
 
+      final isDark = Theme.of(context).brightness == Brightness.dark;
       final bool? isVerified = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         builder: (ctx) => OtpBottomSheet(
           phone: formattedPhone,
           onResend: () async {
-            // Exceptions thrown here are naturally caught inside the BottomSheet
             await ref
                 .read(childrenRepositoryProvider)
                 .sendEmergencyContactOtp(formattedPhone);
@@ -290,14 +307,13 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       if (isVerified == true) {
         HapticFeedback.mediumImpact();
         setState(() => _isCustomContactVerified = true);
-        if (mounted) {
+        if (mounted)
           scaffoldMessenger.showSnackBar(
             SnackBar(
               content: Text(l10n.otpVerificationSuccess),
               backgroundColor: Colors.green,
             ),
           );
-        }
       }
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
@@ -317,8 +333,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     }
   }
 
-  // ✅ Re-added the missing _selectTime method
-  Future<void> _selectTime(BuildContext context) async {
+  Future<void> _selectTime(BuildContext context, bool isDark) async {
     HapticFeedback.selectionClick();
     FocusManager.instance.primaryFocus?.unfocus();
     final l10n = AppLocalizations.of(context)!;
@@ -327,7 +342,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
     await showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -341,8 +356,12 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                   horizontal: 16,
                   vertical: 12,
                 ),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Colors.white10)),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: isDark ? Colors.white10 : AppColors.stroke,
+                    ),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -351,14 +370,18 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                       onPressed: () => Navigator.pop(builderContext),
                       child: Text(
                         l10n.cancelBtnText,
-                        style: const TextStyle(color: Colors.white54),
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.white54
+                              : AppColors.textSecondary,
+                        ),
                       ),
                     ),
                     Text(
                       l10n.selectArrivalTime,
                       style: AppTypography.title.copyWith(
                         fontSize: 16,
-                        color: Colors.white,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
                     ),
                     TextButton(
@@ -376,7 +399,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
               ),
               Expanded(
                 child: CupertinoTheme(
-                  data: const CupertinoThemeData(brightness: Brightness.dark),
+                  data: CupertinoThemeData(
+                    brightness: isDark ? Brightness.dark : Brightness.light,
+                  ),
                   child: CupertinoDatePicker(
                     mode: CupertinoDatePickerMode.time,
                     initialDateTime: initialTime,
@@ -385,8 +410,12 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                       setState(() {
                         int h = newDate.hour;
                         String ampm = h >= 12 ? 'PM' : 'AM';
-                        if (h == 0) h = 12;
-                        if (h > 12) h -= 12;
+                        if (h == 0) {
+                          h = 12;
+                        }
+                        if (h > 12) {
+                          h -= 12;
+                        }
                         _etaSchoolController.text =
                             '${h.toString().padLeft(2, '0')}:${newDate.minute.toString().padLeft(2, '0')} $ampm';
                         if (_pickupLat != null && _dropLat != null) {
@@ -408,11 +437,14 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     HapticFeedback.selectionClick();
     FocusManager.instance.primaryFocus?.unfocus();
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    bool hasScanned = false;
+
     try {
       final String? scannedCode = await Navigator.push<String>(
         context,
         MaterialPageRoute(
-          builder: (context) => Scaffold(
+          builder: (scannerContext) => Scaffold(
             backgroundColor: Colors.black,
             appBar: AppBar(
               title: Text(
@@ -424,11 +456,16 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
             ),
             body: MobileScanner(
               onDetect: (capture) {
+                if (hasScanned) {
+                  return;
+                }
+
                 final List<Barcode> barcodes = capture.barcodes;
                 for (final barcode in barcodes) {
                   if (barcode.rawValue != null) {
+                    hasScanned = true;
                     HapticFeedback.heavyImpact();
-                    Navigator.pop(context, barcode.rawValue);
+                    Navigator.pop(scannerContext, barcode.rawValue);
                     break;
                   }
                 }
@@ -487,19 +524,69 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
             _inviteCodeError = l10n.driverNotFound;
           }
         });
+        _formKey.currentState?.validate();
       }
-    } catch (e, stack) {
-      FirebaseCrashlytics.instance.recordError(
-        e,
-        stack,
-        reason: 'Invite code verification failed',
-      );
+    } catch (e) {
       if (mounted) {
         setState(() {
           _isValidatingCode = false;
-          _inviteCodeError = l10n.genericError;
+          HapticFeedback.heavyImpact();
+          _inviteCodeError = l10n.driverNotFound;
         });
+        _formKey.currentState?.validate();
       }
+    }
+  }
+
+  String? _getSuggestedDepartureTime(int durationSeconds) {
+    final text = _etaSchoolController.text.trim().toLowerCase();
+    if (text.isEmpty) {
+      return null;
+    }
+
+    final regex = RegExp(r'(\d{1,2})[:.]?(\d{2})?\s*(am|pm)?');
+    final match = regex.firstMatch(text);
+    if (match == null) {
+      return null;
+    }
+
+    try {
+      int hour = int.parse(match.group(1)!);
+      int minute = match.group(2) != null ? int.parse(match.group(2)!) : 0;
+      String? ampm = match.group(3);
+
+      if (ampm == 'pm' && hour < 12) {
+        hour += 12;
+      }
+      if (ampm == 'am' && hour == 12) {
+        hour = 0;
+      }
+
+      DateTime targetTime = DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
+        hour,
+        minute,
+      );
+      DateTime leaveTime = targetTime.subtract(
+        Duration(seconds: durationSeconds),
+      );
+
+      int h = leaveTime.hour;
+      int m = leaveTime.minute;
+      String period = h >= 12 ? 'PM' : 'AM';
+
+      if (h == 0) {
+        h = 12;
+      }
+      if (h > 12) {
+        h -= 12;
+      }
+
+      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')} $period';
+    } catch (e) {
+      return null;
     }
   }
 
@@ -507,8 +594,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     if (_pickupLat == null ||
         _pickupLng == null ||
         _dropLat == null ||
-        _dropLng == null)
+        _dropLng == null) {
       return;
+    }
     setState(() => _isCalculatingRoute = true);
 
     try {
@@ -528,6 +616,14 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
             _routeDuration = leg['duration_in_traffic'] != null
                 ? leg['duration_in_traffic']['text']
                 : leg['duration']['text'];
+
+            final durationSecs = leg['duration_in_traffic'] != null
+                ? leg['duration_in_traffic']['value']
+                : leg['duration']['value'];
+            final suggestedTime = _getSuggestedDepartureTime(durationSecs);
+            if (suggestedTime != null) {
+              _pickupTimeController.text = suggestedTime;
+            }
           });
         }
       }
@@ -538,34 +634,48 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         reason: 'Route calc proxy failed',
       );
     } finally {
-      if (mounted) setState(() => _isCalculatingRoute = false);
+      if (mounted) {
+        setState(() => _isCalculatingRoute = false);
+      }
     }
   }
 
   Future<void> _pickLocation({
     required TextEditingController controller,
+    required AppLocalizations l10n,
     bool isPickup = false,
     bool isDrop = false,
   }) async {
     HapticFeedback.lightImpact();
     FocusManager.instance.primaryFocus?.unfocus();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final apiKey = await ref
         .read(childrenRepositoryProvider)
         .getSecureMapsKey();
-    if (apiKey == null || apiKey.isEmpty || !mounted) return;
+    if (apiKey == null || apiKey.isEmpty || !mounted) {
+      return;
+    }
 
     final PickResult? result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => Theme(
-          data: ThemeData.dark().copyWith(
+        builder: (placeContext) => Theme(
+          data: ThemeData(
+            brightness: isDark ? Brightness.dark : Brightness.light,
             primaryColor: AppColors.accent,
-            scaffoldBackgroundColor: const Color(0xFF121212),
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.accent,
-              surface: Color(0xFF1E1E1E),
-            ),
+            scaffoldBackgroundColor: isDark
+                ? const Color(0xFF121212)
+                : Colors.white,
+            colorScheme: isDark
+                ? const ColorScheme.dark(
+                    primary: AppColors.accent,
+                    surface: Color(0xFF1E1E1E),
+                  )
+                : const ColorScheme.light(
+                    primary: AppColors.accent,
+                    surface: Colors.white,
+                  ),
           ),
           child: PlacePicker(
             apiKey: apiKey,
@@ -575,12 +685,150 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
             initialPosition: const LatLng(6.9271, 79.8612),
             useCurrentLocation: true,
             selectInitialPosition: true,
+            selectedPlaceWidgetBuilder:
+                (innerContext, selectedPlace, state, isSearchBarFocused) {
+                  if (isSearchBarFocused) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Positioned(
+                    bottom: 24,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDark ? Colors.white10 : AppColors.stroke,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: isDark ? 0.5 : 0.1,
+                            ),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accent.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.person_pin_circle,
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isPickup
+                                          ? l10n.pickupLocation
+                                          : l10n.dropLocation, // ✅ HARDCODED TEXT REMOVED
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.white54
+                                            : AppColors.textSecondary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      selectedPlace?.formattedAddress ??
+                                          l10n.moveMapToAdjust, // ✅ HARDCODED TEXT REMOVED
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark
+                                            ? Colors.white
+                                            : AppColors.textPrimary,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.accent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              onPressed:
+                                  (state == SearchingState.Searching ||
+                                      selectedPlace == null ||
+                                      selectedPlace.geometry == null)
+                                  ? null
+                                  : () => Navigator.pop(
+                                      placeContext,
+                                      selectedPlace,
+                                    ),
+                              child: state == SearchingState.Searching
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      l10n.confirmLocation,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ), // ✅ HARDCODED TEXT REMOVED
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+            pinBuilder: (innerContext, state) {
+              if (state == PinState.Preparing) {
+                return const SizedBox.shrink();
+              }
+              return const Icon(
+                Icons.location_on_rounded,
+                size: 50,
+                color: AppColors.accent,
+              );
+            },
           ),
         ),
       ),
     );
 
-    if (!mounted || result == null) return;
+    if (!mounted || result == null) {
+      return;
+    }
 
     setState(() {
       controller.text = result.formattedAddress ?? result.name ?? '';
@@ -593,7 +841,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       }
     });
 
-    if (_pickupLat != null && _dropLat != null) _calculateRoute();
+    if (_pickupLat != null && _dropLat != null) {
+      _calculateRoute();
+    }
   }
 
   Future<void> _submit(AppLocalizations l10n) async {
@@ -602,7 +852,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     if (!_isEditing) {
       final isDuplicate = widget.existingChildren.any(
@@ -662,7 +914,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         final uploadedPath = await _dataService.uploadChildPhoto(
           _selectedImage!,
         );
-        if (uploadedPath != null) finalImageUrl = uploadedPath;
+        if (uploadedPath != null) {
+          finalImageUrl = uploadedPath;
+        }
       }
 
       if (!_isEditing) {
@@ -676,8 +930,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           dropLocation: _dropLocationController.text.trim(),
           dropLat: _dropLat,
           dropLng: _dropLng,
+          // ✅ SECURE DEFAULT VALUE VIA L10N
           pickupTime: _pickupTimeController.text.trim().isEmpty
-              ? '06:45 AM'
+              ? l10n.defaultPickupTime
               : _pickupTimeController.text.trim(),
           etaSchool: _etaSchoolController.text.trim(),
           emergencyContact: finalEmergencyContact,
@@ -741,13 +996,17 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     ImageProvider? currentAvatar;
     if (_selectedImage != null) {
       currentAvatar = FileImage(_selectedImage!);
@@ -761,11 +1020,11 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF121212),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF121212) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         ),
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -774,23 +1033,71 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _isEditing ? l10n.editChildTitle : l10n.addChildTitle,
-                  style: AppTypography.headline.copyWith(color: Colors.white),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0, right: 12.0),
+                      child: InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(50),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white10
+                                : Colors.grey.shade200,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.arrow_back_rounded,
+                            color: isDark
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _isEditing
+                                ? l10n.editChildTitle
+                                : l10n.addChildTitle,
+                            style: AppTypography.headline.copyWith(
+                              color: isDark
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            l10n.addChildSubtitle,
+                            style: AppTypography.body.copyWith(
+                              color: isDark
+                                  ? Colors.white54
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.addChildSubtitle,
-                  style: AppTypography.body.copyWith(color: Colors.white54),
-                ),
-                const SizedBox(height: 24),
+
+                const SizedBox(height: 32),
 
                 Center(
                   child: GestureDetector(
                     onTap: _pickImage,
                     child: CircleAvatar(
                       radius: 44,
-                      backgroundColor: const Color(0xFF1E1E1E),
+                      backgroundColor: isDark
+                          ? const Color(0xFF1E1E1E)
+                          : Colors.grey.shade100,
                       backgroundImage: currentAvatar,
                       child: currentAvatar == null
                           ? const Icon(
@@ -806,7 +1113,10 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                 Center(
                   child: Text(
                     l10n.addPhotoLabel,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -815,41 +1125,54 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                   l10n.personalInfoSection,
                   style: AppTypography.title.copyWith(
                     fontSize: 16,
-                    color: Colors.white,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 12),
 
                 TextFormField(
                   controller: _nameController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                   textCapitalization: TextCapitalization.words,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
-                  decoration: _buildDarkInputDecoration(
+                  decoration: _buildInputDecoration(
                     l10n.studentNameLabel,
                     null,
                     Icons.person_outline,
+                    isDark,
                   ),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? l10n.studentNameRequired : null,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return l10n.studentNameRequired;
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
 
                 TextFormField(
                   controller: _ageController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                   keyboardType: TextInputType.number,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
-                  decoration: _buildDarkInputDecoration(
+                  decoration: _buildInputDecoration(
                     l10n.ageLabel,
                     null,
                     Icons.cake_outlined,
+                    isDark,
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return l10n.ageRequired;
+                    if (v == null || v.isEmpty) {
+                      return l10n.ageRequired;
+                    }
                     final age = int.tryParse(v);
-                    if (age == null || age < 2 || age > 21)
+                    if (age == null || age < 2 || age > 21) {
                       return l10n.ageInvalid;
+                    }
                     return null;
                   },
                 ),
@@ -877,6 +1200,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
                 const SizedBox(height: 24),
 
+                // ✅ Passing Localizations cleanly to route section
                 RouteSection(
                   schoolController: _schoolController,
                   pickupLocationController: _pickupLocationController,
@@ -888,15 +1212,15 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                       .searchSchoolsProxied(query),
                   onPickupTap: () => _pickLocation(
                     controller: _pickupLocationController,
+                    l10n: l10n,
                     isPickup: true,
                   ),
                   onDropTap: () => _pickLocation(
                     controller: _dropLocationController,
+                    l10n: l10n,
                     isDrop: true,
                   ),
-                  onEtaTap: () => _selectTime(
-                    context,
-                  ), // ✅ Now connects to the added method
+                  onEtaTap: () => _selectTime(context, isDark),
                   routeDistance: _routeDistance,
                   routeDuration: _routeDuration,
                   isCalculatingRoute: _isCalculatingRoute,
@@ -922,10 +1246,12 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                     onVerifyCode: () => _verifyCode(l10n),
                     onScanQRCode: () => _scanQRCode(l10n),
                     onCodeChanged: () {
-                      if (_verifiedDriverDetails != null)
+                      if (_verifiedDriverDetails != null) {
                         setState(() => _verifiedDriverDetails = null);
-                      if (_inviteCodeError != null)
+                      }
+                      if (_inviteCodeError != null) {
                         setState(() => _inviteCodeError = null);
+                      }
                     },
                   ),
                 ),
@@ -933,19 +1259,27 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _descriptionController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                   maxLines: 3,
                   textCapitalization: TextCapitalization.sentences,
                   decoration:
-                      _buildDarkInputDecoration(
+                      _buildInputDecoration(
                         l10n.smallDescriptionLabel,
                         l10n.smallDescriptionHint,
                         Icons.notes,
+                        isDark,
                       ).copyWith(
                         alignLabelWithHint: true,
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.only(bottom: 40),
-                          child: Icon(Icons.notes, color: Colors.white54),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(bottom: 40),
+                          child: Icon(
+                            Icons.notes,
+                            color: isDark
+                                ? Colors.white54
+                                : AppColors.textSecondary,
+                          ),
                         ),
                       ),
                 ),

@@ -509,4 +509,70 @@ class ParentDataService {
   Future<void> setDefaultCard(String cardId) async {
     await _backend.patch('/api/parents/cards/$cardId/default', {});
   }
+
+  // ✅ 1. Secure OTP Calls
+  Future<void> sendEmergencyContactOtp(String phone) async {
+    await _backend.post('/api/parents/emergency-contact/otp/send', {
+      'phone': phone,
+    });
+  }
+
+  Future<void> verifyEmergencyContactOtp(String phone, String code) async {
+    final response = await _backend.post(
+      '/api/parents/emergency-contact/otp/verify',
+      {'phone': phone, 'code': code},
+    );
+
+    if (response is Map && response['verified'] != true) {
+      throw Exception('OTP Verification failed on backend.');
+    }
+  }
+
+  // ✅ 2. Secure Maps Proxy Calls
+  Future<List<String>> proxyMapsAutocomplete(String query) async {
+    final response = await _backend.get(
+      '/api/maps/autocomplete',
+      queryParameters: {'input': query},
+    );
+
+    if (response is Map && response['status'] == 'OK') {
+      final keywords = [
+        "school",
+        "college",
+        "university",
+        "campus",
+        "institute",
+        "academy",
+        "international",
+        "vidyalaya",
+        "balika",
+        "montessori",
+      ];
+      return (response['predictions'] as List)
+          .map<String>((p) => p['description'] as String)
+          .where(
+            (description) =>
+                keywords.any((k) => description.toLowerCase().contains(k)),
+          )
+          .toList();
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> proxyMapsDirections(
+    double pLat,
+    double pLng,
+    double dLat,
+    double dLng,
+  ) async {
+    final response = await _backend.get(
+      '/api/maps/directions',
+      queryParameters: {'origin': '$pLat,$pLng', 'destination': '$dLat,$dLng'},
+    );
+
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+    throw Exception('Invalid maps response format');
+  }
 }
