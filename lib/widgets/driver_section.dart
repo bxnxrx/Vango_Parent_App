@@ -30,7 +30,12 @@ class DriverSection extends StatelessWidget {
     required this.onCodeChanged,
   });
 
-  Widget _buildDriverDetailRow(IconData icon, String label, String? value) {
+  Widget _buildDriverDetailRow(
+    IconData icon,
+    String label,
+    String? value,
+    bool isDark,
+  ) {
     if (value == null || value.trim().isEmpty || value == 'null null') {
       return const SizedBox.shrink();
     }
@@ -39,12 +44,16 @@ class DriverSection extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Colors.white54),
+          Icon(
+            icon,
+            size: 16,
+            color: isDark ? Colors.white54 : AppColors.textSecondary,
+          ),
           const SizedBox(width: 8),
           Text(
             '$label: ',
             style: AppTypography.body.copyWith(
-              color: Colors.white54,
+              color: isDark ? Colors.white54 : AppColors.textSecondary,
               fontSize: 13,
             ),
           ),
@@ -52,7 +61,7 @@ class DriverSection extends StatelessWidget {
             child: Text(
               value,
               style: AppTypography.body.copyWith(
-                color: Colors.white,
+                color: isDark ? Colors.white : AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
@@ -66,6 +75,7 @@ class DriverSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,27 +83,32 @@ class DriverSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade50,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(
+              color: isDark ? Colors.white10 : AppColors.stroke,
+            ),
           ),
           child: SwitchListTile(
             title: Text(
               l10n.alreadyHaveDriver,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: isDark ? Colors.white : AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
             ),
             subtitle: Text(
               hasDriver ? l10n.enterInviteCodeBelow : l10n.findDriverLater,
-              style: const TextStyle(color: Colors.white54, fontSize: 13),
+              style: TextStyle(
+                color: isDark ? Colors.white54 : AppColors.textSecondary,
+                fontSize: 13,
+              ),
             ),
             value: hasDriver,
-            activeThumbColor: AppColors.accent, // ✅ Fixed deprecation warning
+            activeThumbColor: AppColors.accent,
             activeTrackColor: AppColors.accent.withValues(alpha: 0.3),
             inactiveThumbColor: Colors.grey,
-            inactiveTrackColor: Colors.white10,
+            inactiveTrackColor: isDark ? Colors.white10 : Colors.grey.shade300,
             onChanged: (val) {
               HapticFeedback.lightImpact();
               FirebaseAnalytics.instance.logEvent(
@@ -104,7 +119,9 @@ class DriverSection extends StatelessWidget {
             },
             secondary: Icon(
               hasDriver ? Icons.local_taxi : Icons.person_search,
-              color: hasDriver ? AppColors.accent : Colors.white54,
+              color: hasDriver
+                  ? AppColors.accent
+                  : (isDark ? Colors.white54 : AppColors.textSecondary),
             ),
           ),
         ),
@@ -116,8 +133,8 @@ class DriverSection extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: inviteCodeController,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
                     letterSpacing: 1.5,
                     fontWeight: FontWeight.bold,
                   ),
@@ -125,15 +142,17 @@ class DriverSection extends StatelessWidget {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF141414),
+                    fillColor: isDark
+                        ? const Color(0xFF141414)
+                        : Colors.grey.shade100,
                     labelText: l10n.driverInviteCode,
-                    labelStyle: const TextStyle(
-                      color: Colors.white54,
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.white54 : AppColors.textSecondary,
                       letterSpacing: 0,
                     ),
-                    prefixIcon: const Icon(
+                    prefixIcon: Icon(
                       Icons.vpn_key_outlined,
-                      color: Colors.white54,
+                      color: isDark ? Colors.white54 : AppColors.textSecondary,
                     ),
                     suffixIcon: IconButton(
                       icon: const Icon(
@@ -197,7 +216,10 @@ class DriverSection extends StatelessWidget {
                         )
                       : Text(
                           l10n.verifyBtn,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                 ),
               ),
@@ -219,38 +241,43 @@ class DriverSection extends StatelessWidget {
                     children: [
                       const Icon(
                         Icons.check_circle,
-                        color: Colors.greenAccent,
+                        color: Colors.green,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         l10n.driverFoundValidated,
                         style: AppTypography.title.copyWith(
-                          color: Colors.greenAccent,
+                          color: Colors.green,
                           fontSize: 15,
                         ),
                       ),
                     ],
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(height: 1, color: Colors.white10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(
+                      height: 1,
+                      color: isDark ? Colors.white10 : AppColors.stroke,
+                    ),
                   ),
-                  // ✅ Fixed to match DriverProfile properties
                   _buildDriverDetailRow(
                     Icons.person_outline,
                     l10n.driverNameLabel,
                     verifiedDriverDetails!.name,
+                    isDark,
                   ),
                   _buildDriverDetailRow(
                     Icons.directions_car_outlined,
                     l10n.driverVehicleLabel,
                     verifiedDriverDetails!.vehicleType,
+                    isDark,
                   ),
                   _buildDriverDetailRow(
                     Icons.location_on_outlined,
                     l10n.driverAreaLabel,
                     verifiedDriverDetails!.route,
+                    isDark,
                   ),
                 ],
               ),

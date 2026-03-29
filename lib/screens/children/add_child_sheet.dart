@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart'; // Added Cupertino for DatePicker
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -137,19 +137,25 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     }
   }
 
-  InputDecoration _buildDarkInputDecoration(
+  InputDecoration _buildInputDecoration(
     String label,
     String? hint,
     IconData icon,
+    bool isDark,
   ) {
     return InputDecoration(
       filled: true,
-      fillColor: const Color(0xFF1E1E1E),
+      fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
       labelText: label,
       hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.white54),
-      labelStyle: const TextStyle(color: Colors.white54),
-      hintStyle: const TextStyle(color: Colors.white30),
+      prefixIcon: Icon(
+        icon,
+        color: isDark ? Colors.white54 : AppColors.textSecondary,
+      ),
+      labelStyle: TextStyle(
+        color: isDark ? Colors.white54 : AppColors.textSecondary,
+      ),
+      hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black26),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
@@ -256,7 +262,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     setState(() => _isSendingOtp = true);
 
     try {
-      // ✅ Now cleanly awaiting throwing methods rather than checking return flags
       await ref
           .read(childrenRepositoryProvider)
           .sendEmergencyContactOtp(formattedPhone);
@@ -264,17 +269,17 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       if (!mounted) return;
       setState(() => _isSendingOtp = false);
 
+      final isDark = Theme.of(context).brightness == Brightness.dark;
       final bool? isVerified = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         builder: (ctx) => OtpBottomSheet(
           phone: formattedPhone,
           onResend: () async {
-            // Exceptions thrown here are naturally caught inside the BottomSheet
             await ref
                 .read(childrenRepositoryProvider)
                 .sendEmergencyContactOtp(formattedPhone);
@@ -290,14 +295,13 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       if (isVerified == true) {
         HapticFeedback.mediumImpact();
         setState(() => _isCustomContactVerified = true);
-        if (mounted) {
+        if (mounted)
           scaffoldMessenger.showSnackBar(
             SnackBar(
               content: Text(l10n.otpVerificationSuccess),
               backgroundColor: Colors.green,
             ),
           );
-        }
       }
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
@@ -317,8 +321,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     }
   }
 
-  // ✅ Re-added the missing _selectTime method
-  Future<void> _selectTime(BuildContext context) async {
+  Future<void> _selectTime(BuildContext context, bool isDark) async {
     HapticFeedback.selectionClick();
     FocusManager.instance.primaryFocus?.unfocus();
     final l10n = AppLocalizations.of(context)!;
@@ -327,7 +330,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
     await showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -341,8 +344,12 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                   horizontal: 16,
                   vertical: 12,
                 ),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Colors.white10)),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: isDark ? Colors.white10 : AppColors.stroke,
+                    ),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -351,14 +358,18 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                       onPressed: () => Navigator.pop(builderContext),
                       child: Text(
                         l10n.cancelBtnText,
-                        style: const TextStyle(color: Colors.white54),
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.white54
+                              : AppColors.textSecondary,
+                        ),
                       ),
                     ),
                     Text(
                       l10n.selectArrivalTime,
                       style: AppTypography.title.copyWith(
                         fontSize: 16,
-                        color: Colors.white,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
                     ),
                     TextButton(
@@ -376,7 +387,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
               ),
               Expanded(
                 child: CupertinoTheme(
-                  data: const CupertinoThemeData(brightness: Brightness.dark),
+                  data: CupertinoThemeData(
+                    brightness: isDark ? Brightness.dark : Brightness.light,
+                  ),
                   child: CupertinoDatePicker(
                     mode: CupertinoDatePickerMode.time,
                     initialDateTime: initialTime,
@@ -503,6 +516,46 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     }
   }
 
+  // ✅ Calculates Suggested Departure Time Based on ETA and Route Duration
+  String? _getSuggestedDepartureTime(int durationSeconds) {
+    final text = _etaSchoolController.text.trim().toLowerCase();
+    if (text.isEmpty) return null;
+
+    final regex = RegExp(r'(\d{1,2})[:.]?(\d{2})?\s*(am|pm)?');
+    final match = regex.firstMatch(text);
+    if (match == null) return null;
+
+    try {
+      int hour = int.parse(match.group(1)!);
+      int minute = match.group(2) != null ? int.parse(match.group(2)!) : 0;
+      String? ampm = match.group(3);
+
+      if (ampm == 'pm' && hour < 12) hour += 12;
+      if (ampm == 'am' && hour == 12) hour = 0;
+
+      DateTime targetTime = DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
+        hour,
+        minute,
+      );
+      DateTime leaveTime = targetTime.subtract(
+        Duration(seconds: durationSeconds),
+      );
+
+      int h = leaveTime.hour;
+      int m = leaveTime.minute;
+      String period = h >= 12 ? 'PM' : 'AM';
+      if (h == 0) h = 12;
+      if (h > 12) h -= 12;
+
+      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')} $period';
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> _calculateRoute() async {
     if (_pickupLat == null ||
         _pickupLng == null ||
@@ -528,6 +581,15 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
             _routeDuration = leg['duration_in_traffic'] != null
                 ? leg['duration_in_traffic']['text']
                 : leg['duration']['text'];
+
+            // ✅ Auto-Set the Pickup Time based on route duration
+            final durationSecs = leg['duration_in_traffic'] != null
+                ? leg['duration_in_traffic']['value']
+                : leg['duration']['value'];
+            final suggestedTime = _getSuggestedDepartureTime(durationSecs);
+            if (suggestedTime != null) {
+              _pickupTimeController.text = suggestedTime;
+            }
           });
         }
       }
@@ -549,6 +611,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
   }) async {
     HapticFeedback.lightImpact();
     FocusManager.instance.primaryFocus?.unfocus();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final apiKey = await ref
         .read(childrenRepositoryProvider)
@@ -559,13 +622,21 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       context,
       MaterialPageRoute(
         builder: (context) => Theme(
-          data: ThemeData.dark().copyWith(
+          data: ThemeData(
+            brightness: isDark ? Brightness.dark : Brightness.light,
             primaryColor: AppColors.accent,
-            scaffoldBackgroundColor: const Color(0xFF121212),
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.accent,
-              surface: Color(0xFF1E1E1E),
-            ),
+            scaffoldBackgroundColor: isDark
+                ? const Color(0xFF121212)
+                : Colors.white,
+            colorScheme: isDark
+                ? const ColorScheme.dark(
+                    primary: AppColors.accent,
+                    surface: Color(0xFF1E1E1E),
+                  )
+                : const ColorScheme.light(
+                    primary: AppColors.accent,
+                    surface: Colors.white,
+                  ),
           ),
           child: PlacePicker(
             apiKey: apiKey,
@@ -575,6 +646,136 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
             initialPosition: const LatLng(6.9271, 79.8612),
             useCurrentLocation: true,
             selectInitialPosition: true,
+            selectedPlaceWidgetBuilder:
+                (context, selectedPlace, state, isSearchBarFocused) {
+                  if (isSearchBarFocused) return const SizedBox.shrink();
+                  return Positioned(
+                    bottom: 24,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDark ? Colors.white10 : AppColors.stroke,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: isDark ? 0.5 : 0.1,
+                            ),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accent.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.person_pin_circle,
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isPickup
+                                          ? "Pickup Location"
+                                          : "Drop-off Location",
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.white54
+                                            : AppColors.textSecondary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      selectedPlace?.formattedAddress ??
+                                          "Move map to adjust location",
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark
+                                            ? Colors.white
+                                            : AppColors.textPrimary,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.accent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              onPressed:
+                                  (state == SearchingState.Searching ||
+                                      selectedPlace == null ||
+                                      selectedPlace.geometry == null)
+                                  ? null
+                                  : () => Navigator.of(
+                                      context,
+                                    ).pop(selectedPlace),
+                              child: state == SearchingState.Searching
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Confirm Location',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+            pinBuilder: (context, state) {
+              if (state == PinState.Preparing) return const SizedBox.shrink();
+              return const Icon(
+                Icons.location_on_rounded,
+                size: 50,
+                color: AppColors.accent,
+              );
+            },
           ),
         ),
       ),
@@ -748,6 +949,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark; // ✅ Dynamic Theme
+
     ImageProvider? currentAvatar;
     if (_selectedImage != null) {
       currentAvatar = FileImage(_selectedImage!);
@@ -761,9 +965,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF121212),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF121212) : Colors.white, // ✅ Adaptive
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         child: Form(
@@ -776,12 +980,16 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
               children: [
                 Text(
                   _isEditing ? l10n.editChildTitle : l10n.addChildTitle,
-                  style: AppTypography.headline.copyWith(color: Colors.white),
+                  style: AppTypography.headline.copyWith(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   l10n.addChildSubtitle,
-                  style: AppTypography.body.copyWith(color: Colors.white54),
+                  style: AppTypography.body.copyWith(
+                    color: isDark ? Colors.white54 : AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 24),
 
@@ -790,7 +998,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                     onTap: _pickImage,
                     child: CircleAvatar(
                       radius: 44,
-                      backgroundColor: const Color(0xFF1E1E1E),
+                      backgroundColor: isDark
+                          ? const Color(0xFF1E1E1E)
+                          : Colors.grey.shade100,
                       backgroundImage: currentAvatar,
                       child: currentAvatar == null
                           ? const Icon(
@@ -806,7 +1016,10 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                 Center(
                   child: Text(
                     l10n.addPhotoLabel,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -815,20 +1028,23 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                   l10n.personalInfoSection,
                   style: AppTypography.title.copyWith(
                     fontSize: 16,
-                    color: Colors.white,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 12),
 
                 TextFormField(
                   controller: _nameController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                   textCapitalization: TextCapitalization.words,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
-                  decoration: _buildDarkInputDecoration(
+                  decoration: _buildInputDecoration(
                     l10n.studentNameLabel,
                     null,
                     Icons.person_outline,
+                    isDark,
                   ),
                   validator: (v) =>
                       v == null || v.isEmpty ? l10n.studentNameRequired : null,
@@ -837,13 +1053,16 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
                 TextFormField(
                   controller: _ageController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                   keyboardType: TextInputType.number,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
-                  decoration: _buildDarkInputDecoration(
+                  decoration: _buildInputDecoration(
                     l10n.ageLabel,
                     null,
                     Icons.cake_outlined,
+                    isDark,
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return l10n.ageRequired;
@@ -894,9 +1113,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                     controller: _dropLocationController,
                     isDrop: true,
                   ),
-                  onEtaTap: () => _selectTime(
-                    context,
-                  ), // ✅ Now connects to the added method
+                  onEtaTap: () => _selectTime(context, isDark),
                   routeDistance: _routeDistance,
                   routeDuration: _routeDuration,
                   isCalculatingRoute: _isCalculatingRoute,
@@ -904,48 +1121,47 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
                 const SizedBox(height: 24),
 
-                Theme(
-                  data: Theme.of(context).copyWith(
-                    inputDecorationTheme: const InputDecorationTheme(
-                      labelStyle: TextStyle(color: Colors.white54),
-                      hintStyle: TextStyle(color: Colors.white30),
-                    ),
-                  ),
-                  child: DriverSection(
-                    hasDriver: _hasDriver,
-                    onHasDriverChanged: (val) =>
-                        setState(() => _hasDriver = val),
-                    inviteCodeController: _inviteCodeController,
-                    inviteCodeError: _inviteCodeError,
-                    isValidatingCode: _isValidatingCode,
-                    verifiedDriverDetails: _verifiedDriverDetails,
-                    onVerifyCode: () => _verifyCode(l10n),
-                    onScanQRCode: () => _scanQRCode(l10n),
-                    onCodeChanged: () {
-                      if (_verifiedDriverDetails != null)
-                        setState(() => _verifiedDriverDetails = null);
-                      if (_inviteCodeError != null)
-                        setState(() => _inviteCodeError = null);
-                    },
-                  ),
+                DriverSection(
+                  hasDriver: _hasDriver,
+                  onHasDriverChanged: (val) => setState(() => _hasDriver = val),
+                  inviteCodeController: _inviteCodeController,
+                  inviteCodeError: _inviteCodeError,
+                  isValidatingCode: _isValidatingCode,
+                  verifiedDriverDetails: _verifiedDriverDetails,
+                  onVerifyCode: () => _verifyCode(l10n),
+                  onScanQRCode: () => _scanQRCode(l10n),
+                  onCodeChanged: () {
+                    if (_verifiedDriverDetails != null)
+                      setState(() => _verifiedDriverDetails = null);
+                    if (_inviteCodeError != null)
+                      setState(() => _inviteCodeError = null);
+                  },
                 ),
 
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _descriptionController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                   maxLines: 3,
                   textCapitalization: TextCapitalization.sentences,
                   decoration:
-                      _buildDarkInputDecoration(
+                      _buildInputDecoration(
                         l10n.smallDescriptionLabel,
                         l10n.smallDescriptionHint,
                         Icons.notes,
+                        isDark,
                       ).copyWith(
                         alignLabelWithHint: true,
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.only(bottom: 40),
-                          child: Icon(Icons.notes, color: Colors.white54),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(bottom: 40),
+                          child: Icon(
+                            Icons.notes,
+                            color: isDark
+                                ? Colors.white54
+                                : AppColors.textSecondary,
+                          ),
                         ),
                       ),
                 ),

@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
@@ -34,21 +33,27 @@ class RouteSection extends StatelessWidget {
     required this.isCalculatingRoute,
   });
 
-  InputDecoration _buildDarkInputDecoration(
+  InputDecoration _buildInputDecoration(
     String label,
     String hint,
-    IconData icon, {
+    IconData icon,
+    bool isDark, {
     Widget? suffix,
   }) {
     return InputDecoration(
       filled: true,
-      fillColor: const Color(0xFF1E1E1E),
+      fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade100,
       labelText: label,
       hintText: hint,
-      prefixIcon: Icon(icon, color: Colors.white54),
+      prefixIcon: Icon(
+        icon,
+        color: isDark ? Colors.white54 : AppColors.textSecondary,
+      ),
       suffixIcon: suffix,
-      labelStyle: const TextStyle(color: Colors.white54),
-      hintStyle: const TextStyle(color: Colors.white30),
+      labelStyle: TextStyle(
+        color: isDark ? Colors.white54 : AppColors.textSecondary,
+      ),
+      hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black26),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
@@ -64,6 +69,7 @@ class RouteSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,7 +78,7 @@ class RouteSection extends StatelessWidget {
           l10n.schoolRouteDetailsSection,
           style: AppTypography.title.copyWith(
             fontSize: 16,
-            color: Colors.white,
+            color: isDark ? Colors.white : AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
@@ -94,12 +100,15 @@ class RouteSection extends StatelessWidget {
                 return TextFormField(
                   controller: controller,
                   focusNode: focusNode,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                   autovalidateMode: AutovalidateMode.onUserInteraction,
-                  decoration: _buildDarkInputDecoration(
+                  decoration: _buildInputDecoration(
                     l10n.schoolNameLabel,
                     l10n.schoolNameHint,
                     Icons.school_outlined,
+                    isDark,
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) {
@@ -113,7 +122,7 @@ class RouteSection extends StatelessWidget {
             return Align(
               alignment: Alignment.topLeft,
               child: Material(
-                color: const Color(0xFF1E1E1E),
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                 elevation: 8.0,
                 borderRadius: BorderRadius.circular(16),
                 child: ConstrainedBox(
@@ -132,7 +141,9 @@ class RouteSection extends StatelessWidget {
                       ),
                       title: Text(
                         options.elementAt(index),
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(
+                          color: isDark ? Colors.white : AppColors.textPrimary,
+                        ),
                       ),
                       onTap: () => onSelected(options.elementAt(index)),
                     ),
@@ -146,14 +157,17 @@ class RouteSection extends StatelessWidget {
         const SizedBox(height: 12),
         TextFormField(
           controller: pickupLocationController,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: isDark ? Colors.white : AppColors.textPrimary,
+          ),
           readOnly: true,
           autovalidateMode: AutovalidateMode.onUserInteraction,
           onTap: onPickupTap,
-          decoration: _buildDarkInputDecoration(
+          decoration: _buildInputDecoration(
             l10n.pickupLocationLabel,
             l10n.tapToSetOnMap,
             Icons.home_outlined,
+            isDark,
             suffix: const Icon(Icons.map_outlined, color: AppColors.accent),
           ),
           validator: (v) {
@@ -167,14 +181,17 @@ class RouteSection extends StatelessWidget {
 
         TextFormField(
           controller: dropLocationController,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: isDark ? Colors.white : AppColors.textPrimary,
+          ),
           readOnly: true,
           autovalidateMode: AutovalidateMode.onUserInteraction,
           onTap: onDropTap,
-          decoration: _buildDarkInputDecoration(
+          decoration: _buildInputDecoration(
             l10n.dropLocationLabel,
             l10n.tapToSetOnMap,
             Icons.pin_drop_outlined,
+            isDark,
             suffix: const Icon(Icons.map_outlined, color: AppColors.accent),
           ),
           validator: (v) {
@@ -188,15 +205,21 @@ class RouteSection extends StatelessWidget {
 
         TextFormField(
           controller: etaSchoolController,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: isDark ? Colors.white : AppColors.textPrimary,
+          ),
           readOnly: true,
           autovalidateMode: AutovalidateMode.onUserInteraction,
           onTap: onEtaTap,
-          decoration: _buildDarkInputDecoration(
+          decoration: _buildInputDecoration(
             l10n.etaSchoolLabel,
             l10n.selectArrivalTime,
             Icons.access_time_filled,
-            suffix: const Icon(Icons.edit_calendar, color: Colors.white54),
+            isDark,
+            suffix: Icon(
+              Icons.edit_calendar,
+              color: isDark ? Colors.white54 : AppColors.textSecondary,
+            ),
           ),
           validator: (v) {
             if (v == null || v.isEmpty) {
@@ -218,49 +241,62 @@ class RouteSection extends StatelessWidget {
             margin: const EdgeInsets.only(top: 24),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(
+                color: isDark ? Colors.white10 : AppColors.stroke,
+              ),
             ),
             child: Column(
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.map_outlined,
-                      color: Colors.white54,
+                      color: isDark ? Colors.white54 : AppColors.textSecondary,
                       size: 20,
                     ),
                     const SizedBox(width: 12),
                     Text(
                       l10n.distanceLabel,
-                      style: const TextStyle(color: Colors.white54),
+                      style: TextStyle(
+                        color: isDark
+                            ? Colors.white54
+                            : AppColors.textSecondary,
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       routeDistance!,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : AppColors.textPrimary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(height: 1, color: Colors.white10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(
+                    height: 1,
+                    color: isDark ? Colors.white10 : AppColors.stroke,
+                  ),
                 ),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.hourglass_bottom_outlined,
-                      color: Colors.white54,
+                      color: isDark ? Colors.white54 : AppColors.textSecondary,
                       size: 20,
                     ),
                     const SizedBox(width: 12),
                     Text(
                       l10n.trafficDelayLabel,
-                      style: const TextStyle(color: Colors.white54),
+                      style: TextStyle(
+                        color: isDark
+                            ? Colors.white54
+                            : AppColors.textSecondary,
+                      ),
                     ),
                     const Spacer(),
                     Text(
@@ -280,12 +316,15 @@ class RouteSection extends StatelessWidget {
           const SizedBox(height: 16),
           TextFormField(
             controller: pickupTimeController,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(
+              color: isDark ? Colors.white : AppColors.textPrimary,
+            ),
             autovalidateMode: AutovalidateMode.onUserInteraction,
-            decoration: _buildDarkInputDecoration(
+            decoration: _buildInputDecoration(
               l10n.confirmPickupTimeLabel,
               'e.g. 06:45 AM',
               Icons.alarm_on,
+              isDark,
             ).copyWith(prefixIconColor: Colors.green),
             validator: (v) {
               if (v == null || v.isEmpty) {
