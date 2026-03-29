@@ -19,7 +19,6 @@ class ParentDataService {
   final BackendClient _backend = BackendClient.instance;
   static const String _defaultPickupTime = '06:45 AM';
 
-  // --- 6️⃣ 5-MINUTE CACHE SYSTEM ---
   final Map<String, Map<String, dynamic>> _attendanceCache = {};
   final Map<String, DateTime> _cacheTimestamps = {};
 
@@ -28,12 +27,10 @@ class ParentDataService {
     _cacheTimestamps.remove(childId);
   }
 
-  // --- 4️⃣ OFFLINE ATTENDANCE QUEUE ---
   Future<void> _queueOfflineAction(Map<String, dynamic> action) async {
     final prefs = await SharedPreferences.getInstance();
     List<String> queue = prefs.getStringList('offline_attendance_queue') ?? [];
     queue.add(jsonEncode(action));
-    // FIXED: Changed setString to setStringList
     await prefs.setStringList('offline_attendance_queue', queue);
   }
 
@@ -59,18 +56,15 @@ class ParentDataService {
           );
         }
       } catch (e) {
-        // Keep in queue if it's a network error. Drop it if it's a hard rejection (like a deadline error).
         if (e.toString().toLowerCase().contains('internet') ||
             e.toString().toLowerCase().contains('timed out')) {
           failed.add(item);
         }
       }
     }
-    // FIXED: Changed setString to setStringList
     await prefs.setStringList('offline_attendance_queue', failed);
   }
 
-  // --- ATTENDANCE METHODS ---
   Future<void> updateAttendance(String childId, AttendanceState state) async {
     try {
       await _backend.patch('/api/parents/children/$childId/attendance', {
@@ -117,7 +111,6 @@ class ParentDataService {
   }
 
   Future<Map<String, dynamic>> fetchFutureAttendance(String childId) async {
-    // Sync any pending offline actions before fetching
     await syncOfflineQueue();
 
     final now = DateTime.now();
@@ -148,7 +141,6 @@ class ParentDataService {
     return plans;
   }
 
-  // --- HELPER FOR URGENT CALLS ---
   Future<String?> getDriverPhoneForChild(String childId) async {
     try {
       final response = await _backend.get('/api/parents/link-status');
@@ -164,14 +156,22 @@ class ParentDataService {
     return null;
   }
 
-  // --- REST OF EXISTING METHODS ---
   Future<Map<String, dynamic>> fetchProfile() async {
     final response = await _backend.get('/api/parents/profile');
     return _expectMap(response);
   }
 
-  Future<List<ChildProfile>> fetchChildren() async {
-    final response = await _backend.get('/api/parents/children');
+  // ✅ 1. Applied Real Pagination to the Data Service API Call
+  Future<List<ChildProfile>> fetchChildren({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    final query = {'page': page.toString(), 'limit': limit.toString()};
+
+    final response = await _backend.get(
+      '/api/parents/children',
+      queryParameters: query,
+    );
 
     final List<dynamic> data = response is List
         ? response

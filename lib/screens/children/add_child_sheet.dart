@@ -256,22 +256,13 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     setState(() => _isSendingOtp = true);
 
     try {
-      final success = await ref
+      // ✅ Now cleanly awaiting throwing methods rather than checking return flags
+      await ref
           .read(childrenRepositoryProvider)
           .sendEmergencyContactOtp(formattedPhone);
 
       if (!mounted) return;
       setState(() => _isSendingOtp = false);
-
-      if (!success) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(l10n.failedToSendOtp),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-        return;
-      }
 
       final bool? isVerified = await showModalBottomSheet<bool>(
         context: context,
@@ -283,12 +274,13 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         builder: (ctx) => OtpBottomSheet(
           phone: formattedPhone,
           onResend: () async {
-            return await ref
+            // Exceptions thrown here are naturally caught inside the BottomSheet
+            await ref
                 .read(childrenRepositoryProvider)
                 .sendEmergencyContactOtp(formattedPhone);
           },
           onVerify: (otp) async {
-            return await ref
+            await ref
                 .read(childrenRepositoryProvider)
                 .verifyEmergencyContactOtp(formattedPhone, otp);
           },
@@ -298,13 +290,14 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       if (isVerified == true) {
         HapticFeedback.mediumImpact();
         setState(() => _isCustomContactVerified = true);
-        if (mounted)
+        if (mounted) {
           scaffoldMessenger.showSnackBar(
             SnackBar(
               content: Text(l10n.otpVerificationSuccess),
               backgroundColor: Colors.green,
             ),
           );
+        }
       }
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(

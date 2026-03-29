@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/models/driver_profile.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
+import 'package:vango_parent_app/utils/app_auth_exception.dart'; // ✅ Added Exception Import
 
 class ChildrenRepository {
   final ParentDataService _dataService = ParentDataService.instance;
@@ -12,8 +13,8 @@ class ChildrenRepository {
     int page = 1,
     int limit = 10,
   }) async {
-    // Pass pagination parameters if supported by your backend
-    return await _dataService.fetchChildren();
+    // ✅ Passes pagination params natively to the data service
+    return await _dataService.fetchChildren(page: page, limit: limit);
   }
 
   Future<void> deleteChild(String id) async {
@@ -28,32 +29,42 @@ class ChildrenRepository {
     return null;
   }
 
-  // ✅ Secure Backend OTP
-  Future<bool> sendEmergencyContactOtp(String phone) async {
+  // ✅ Consistent Error Handling: Throws AppAuthException
+  Future<void> sendEmergencyContactOtp(String phone) async {
     try {
       final response = await _supabase.functions.invoke(
         'auth-otp',
         body: {'action': 'send', 'phone': phone},
       );
-      return response.status == 200;
-    } catch (_) {
-      return false;
+      if (response.status != 200) {
+        throw AppAuthException(
+          code: 'OTP_SEND_FAILED',
+          message: 'Backend failed to send OTP.',
+        );
+      }
+    } catch (e) {
+      throw AppAuthException(code: 'OTP_SEND_FAILED', message: e.toString());
     }
   }
 
-  Future<bool> verifyEmergencyContactOtp(String phone, String code) async {
+  // ✅ Consistent Error Handling: Throws AppAuthException
+  Future<void> verifyEmergencyContactOtp(String phone, String code) async {
     try {
       final response = await _supabase.functions.invoke(
         'auth-otp',
         body: {'action': 'verify', 'phone': phone, 'code': code},
       );
-      return response.status == 200 && response.data['verified'] == true;
-    } catch (_) {
-      return false;
+      if (response.status != 200 || response.data['verified'] != true) {
+        throw AppAuthException(
+          code: 'OTP_VERIFY_FAILED',
+          message: 'Invalid or expired OTP.',
+        );
+      }
+    } catch (e) {
+      throw AppAuthException(code: 'OTP_VERIFY_FAILED', message: e.toString());
     }
   }
 
-  // ✅ Secure API Key & Proxies (Hides Google Maps Key from Client)
   Future<String?> getSecureMapsKey() async {
     try {
       final response = await _supabase.functions.invoke('get-client-config');
