@@ -16,7 +16,7 @@ class ChildrenRepository {
 
   static const platform = MethodChannel('com.vango.app/apikey');
   String? _cachedApiKey;
-  String? _currentOtp; // Stores OTP in memory for secure client-side validation
+  String? _currentOtp;
 
   Future<List<ChildProfile>> fetchChildren({
     int page = 1,
@@ -30,14 +30,19 @@ class ChildrenRepository {
   }
 
   Future<DriverProfile?> verifyInviteCode(String code) async {
-    final data = await _dataService.verifyInviteCode(code);
-    if (data['valid'] == true) {
-      return DriverProfile.fromJson(data);
+    try {
+      final data = await _dataService.verifyInviteCode(code);
+      if (data['valid'] == true) {
+        return DriverProfile.fromJson(data);
+      }
+      return null;
+    } catch (e) {
+      // ✅ Fix: Catch 400/404 HTTP errors gracefully.
+      // An invalid invite code is expected user behavior, not an app crash.
+      return null;
     }
-    return null;
   }
 
-  // ✅ Fixed: Uses your existing 'send-sms' edge function
   Future<void> sendEmergencyContactOtp(String phone) async {
     try {
       _currentOtp = (100000 + Random().nextInt(900000)).toString();
@@ -57,7 +62,6 @@ class ChildrenRepository {
     }
   }
 
-  // ✅ Fixed: Validates securely in the repository layer
   Future<void> verifyEmergencyContactOtp(String phone, String code) async {
     if (_currentOtp == null || code != _currentOtp) {
       throw AppAuthException(
@@ -65,10 +69,9 @@ class ChildrenRepository {
         message: 'Invalid or expired OTP.',
       );
     }
-    _currentOtp = null; // Clear from memory after successful validation
+    _currentOtp = null;
   }
 
-  // ✅ Fixed: Restored Native API Key extraction to avoid 404 map proxy errors
   Future<String?> getSecureMapsKey() async {
     if (_cachedApiKey != null) return _cachedApiKey;
     try {
@@ -79,7 +82,6 @@ class ChildrenRepository {
     }
   }
 
-  // ✅ Fixed: Restored direct HTTP call (Abstracted cleanly from the UI)
   Future<List<String>> searchSchoolsProxied(String query) async {
     if (query.isEmpty) {
       return [];
@@ -121,7 +123,6 @@ class ChildrenRepository {
     return [];
   }
 
-  // ✅ Fixed: Restored direct HTTP call (Abstracted cleanly from the UI)
   Future<Map<String, dynamic>> calculateRouteProxied(
     double pLat,
     double pLng,

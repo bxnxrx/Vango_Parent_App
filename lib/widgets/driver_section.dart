@@ -162,7 +162,8 @@ class DriverSection extends StatelessWidget {
                       onPressed: onScanQRCode,
                       tooltip: l10n.scanQRCodeTooltip,
                     ),
-                    errorText: inviteCodeError,
+                    // We let the validator handle the error message display instead of errorText
+                    // to prevent visual clashes.
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
@@ -187,6 +188,12 @@ class DriverSection extends StatelessWidget {
                     if (v.trim().length != 8) {
                       return l10n.codeLengthError;
                     }
+
+                    // ✅ FIX: Explicitly return the backend error if one exists!
+                    if (inviteCodeError != null) {
+                      return inviteCodeError;
+                    }
+
                     if (verifiedDriverDetails == null) {
                       return l10n.verifyCodeFirst;
                     }
