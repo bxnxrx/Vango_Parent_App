@@ -172,10 +172,13 @@ class AuthService {
     required bool isEmail,
     required String identifier,
     required String token,
+    bool isSignup = true,
   }) async {
     try {
       await Supabase.instance.client.auth.verifyOTP(
-        type: isEmail ? OtpType.email : OtpType.sms,
+        type: isEmail
+            ? (isSignup ? OtpType.signup : OtpType.email)
+            : OtpType.sms,
         token: token,
         email: isEmail ? identifier : null,
         phone: !isEmail ? identifier : null,
@@ -188,10 +191,14 @@ class AuthService {
   Future<void> resendAuthOtp({
     required bool isEmail,
     required String identifier,
+    bool isSignup = true,
   }) async {
     try {
       if (isEmail) {
-        await Supabase.instance.client.auth.signInWithOtp(email: identifier);
+        await Supabase.instance.client.auth.resend(
+          type: OtpType.signup,
+          email: identifier,
+        );
       } else {
         await Supabase.instance.client.auth.signInWithOtp(phone: identifier);
       }

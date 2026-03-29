@@ -1,10 +1,6 @@
-import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
-import 'package:google_api_headers/google_api_headers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/models/driver_profile.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
@@ -12,11 +8,8 @@ import 'package:vango_parent_app/utils/app_auth_exception.dart';
 
 class ChildrenRepository {
   final ParentDataService _dataService = ParentDataService.instance;
-  final _supabase = Supabase.instance.client;
-
   static const platform = MethodChannel('com.vango.app/apikey');
   String? _cachedApiKey;
-  String? _currentOtp;
 
   Future<List<ChildProfile>> fetchChildren({
     int page = 1,
@@ -37,119 +30,87 @@ class ChildrenRepository {
       }
       return null;
     } catch (e) {
-      // ✅ Catch invalid code (400) errors gracefully to prevent crashes
+      // Expected behavior for invalid codes (HTTP 400). Do not log as crash.
       return null;
     }
   }
 
-  // ✅ Securely uses your EXISTING 'send-sms' function
+  // ✅ FIRM SECURITY: Backend handles OTP completely.
   Future<void> sendEmergencyContactOtp(String phone) async {
     try {
-      _currentOtp = (100000 + Random().nextInt(900000)).toString();
-      final response = await _supabase.functions.invoke(
-        'send-sms',
-        body: {'phone': phone, 'otp': _currentOtp},
-      );
-
-      if (response.status != 200) {
-        throw AppAuthException(
-          code: 'OTP_SEND_FAILED',
-          message: 'Backend failed to send OTP.',
-        );
-      }
+      await _dataService.sendEmergencyContactOtp(phone);
     } catch (e) {
-      throw AppAuthException(code: 'OTP_SEND_FAILED', message: e.toString());
+      // It's a standard API failure, pass it gracefully to UI instead of treating as an App Crash.
+      throw AppAuthException(
+        code: 'OTP_SEND_FAILED',
+        message: 'Failed to send verification code. Please try again.',
+      );
     }
   }
 
-  // ✅ Securely validates the OTP against the local memory state
+  // ✅ FIRM SECURITY: Backend validates OTP.
   Future<void> verifyEmergencyContactOtp(String phone, String code) async {
-    if (_currentOtp == null || code != _currentOtp) {
+    try {
+      await _dataService.verifyEmergencyContactOtp(phone, code);
+    } catch (e) {
+      // It's a validation error (user entered wrong OTP). Never log these to Crashlytics.
       throw AppAuthException(
         code: 'OTP_VERIFY_FAILED',
-        message: 'Invalid or expired OTP.',
+        message: 'Invalid or expired verification code.',
       );
     }
-    _currentOtp = null; // Clear from memory after successful validation
   }
 
-  // ✅ Fetches the API key from your native Android/iOS codebase securely
+  // Retained purely to feed the GoogleMaps PlacePicker widget UI natively.
   Future<String?> getSecureMapsKey() async {
     if (_cachedApiKey != null) return _cachedApiKey;
     try {
       _cachedApiKey = await platform.invokeMethod('getApiKey');
       return _cachedApiKey;
-    } catch (_) {
+    } catch (e, stackTrace) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Native MethodChannel maps key fetch failed',
+      );
       return null;
     }
   }
 
-  // ✅ Direct HTTP Call instead of missing maps-proxy
+  // ✅ PROXY FIXED & NO SILENT CATCHES
   Future<List<String>> searchSchoolsProxied(String query) async {
-    if (query.isEmpty) {
-      return [];
-    }
-
-    final apiKey = await getSecureMapsKey();
-    if (apiKey == null) return [];
+    if (query.isEmpty) return [];
 
     try {
-      final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$query&components=country:lk&types=establishment&key=$apiKey',
+      return await _dataService.proxyMapsAutocomplete(query);
+    } catch (e, stackTrace) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Maps Autocomplete Proxy failed',
       );
-      final headers = await const GoogleApiHeaders().getHeaders();
-      final response = await http.get(url, headers: headers);
-      final data = jsonDecode(response.body);
-
-      if (data['status'] == 'OK') {
-        final keywords = [
-          "school",
-          "college",
-          "university",
-          "campus",
-          "institute",
-          "academy",
-          "international",
-          "vidyalaya",
-          "balika",
-          "montessori",
-        ];
-        return (data['predictions'] as List)
-            .map<String>((p) => p['description'] as String)
-            .where(
-              (description) =>
-                  keywords.any((k) => description.toLowerCase().contains(k)),
-            )
-            .toList();
-      }
-    } catch (_) {}
-    return [];
+      return []; // Return empty list rather than crashing the dropdown UI
+    }
   }
 
-  // ✅ Direct HTTP Call instead of missing maps-proxy
+  // ✅ PROXY FIXED & NO SILENT CATCHES
   Future<Map<String, dynamic>> calculateRouteProxied(
     double pLat,
     double pLng,
     double dLat,
     double dLng,
   ) async {
-    final apiKey = await getSecureMapsKey();
-    if (apiKey == null) {
-      throw AppAuthException(code: 'MAPS_ERROR', message: "Missing API Key");
-    }
-
     try {
-      final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/directions/json?origin=$pLat,$pLng&destination=$dLat,$dLng&departure_time=now&key=$apiKey',
+      return await _dataService.proxyMapsDirections(pLat, pLng, dLat, dLng);
+    } catch (e, stackTrace) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        stackTrace,
+        reason: 'Maps Directions Proxy failed',
       );
-      final headers = await const GoogleApiHeaders().getHeaders();
-      final response = await http.get(url, headers: headers);
-
-      return jsonDecode(response.body);
-    } catch (e) {
       throw AppAuthException(
         code: 'MAPS_ERROR',
-        message: 'Error calculating route: $e',
+        message: 'Error calculating route via proxy.',
       );
     }
   }
