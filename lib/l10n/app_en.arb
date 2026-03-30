@@ -216,5 +216,16 @@
   "moveMapToAdjust": "Move map to adjust location",
   "confirmLocation": "Confirm Location",
   "pickupTimeExample": "e.g. 06:45 AM",
-  "defaultPickupTime": "06:45 AM"
+  "defaultPickupTime": "06:45 AM",
+
+  "searchHint": "Search by name or school...",
+  "filterAll": "All",
+  "filterPaid": "Paid",
+  "filterUnpaid": "Not Paid",
+  "noResults": "No results found",
+  "tryAdjustFilters": "Try adjusting your search or filters.",
+  "pickupLabel": "PICKUP",
+  "timeLabel": "TIME",
+  "statusPaid": "Paid",
+  "statusDue": "Due"
 }

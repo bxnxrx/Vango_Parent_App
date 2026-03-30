@@ -1203,6 +1203,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'06:45 AM'**
   String get defaultPickupTime;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name or school...'**
+  String get searchHint;
+
+  /// No description provided for @filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get filterAll;
+
+  /// No description provided for @filterPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get filterPaid;
+
+  /// No description provided for @filterUnpaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Paid'**
+  String get filterUnpaid;
+
+  /// No description provided for @noResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get noResults;
+
+  /// No description provided for @tryAdjustFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Try adjusting your search or filters.'**
+  String get tryAdjustFilters;
+
+  /// No description provided for @pickupLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PICKUP'**
+  String get pickupLabel;
+
+  /// No description provided for @timeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TIME'**
+  String get timeLabel;
+
+  /// No description provided for @statusPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get statusPaid;
+
+  /// No description provided for @statusDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Due'**
+  String get statusDue;
 }
 
 class _AppLocalizationsDelegate

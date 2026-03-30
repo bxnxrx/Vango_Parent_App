@@ -213,5 +213,16 @@
   "moveMapToAdjust": "ස්ථානය වෙනස් කිරීමට සිතියම ගෙන යන්න",
   "confirmLocation": "ස්ථානය තහවුරු කරන්න",
   "pickupTimeExample": "උදා. 06:45 AM",
-  "defaultPickupTime": "06:45 AM"
+  "defaultPickupTime": "06:45 AM",
+
+  "searchHint": "නම හෝ පාසල මගින් සොයන්න...",
+  "filterAll": "සියල්ල",
+  "filterPaid": "ගෙවා ඇත",
+  "filterUnpaid": "ගෙවා නැත",
+  "noResults": "ප්‍රතිඵල හමු නොවීය",
+  "tryAdjustFilters": "ඔබගේ සෙවුම හෝ පෙරහන් වෙනස් කර බලන්න.",
+  "pickupLabel": "නැංවීම",
+  "timeLabel": "වේලාව",
+  "statusPaid": "ගෙවා ඇත",
+  "statusDue": "ගෙවිය යුතුයි"
 }

@@ -602,4 +602,34 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get defaultPickupTime => '06:45 AM';
+
+  @override
+  String get searchHint => 'பெயர் அல்லது பள்ளியை தேடுக...';
+
+  @override
+  String get filterAll => 'அனைத்தும்';
+
+  @override
+  String get filterPaid => 'செலுத்தப்பட்டது';
+
+  @override
+  String get filterUnpaid => 'செலுத்தப்படவில்லை';
+
+  @override
+  String get noResults => 'முடிவுகள் கிடைக்கவில்லை';
+
+  @override
+  String get tryAdjustFilters => 'உங்கள் தேடலை அல்லது வடிகட்டிகளை மாற்றவும்.';
+
+  @override
+  String get pickupLabel => 'ஏற்றம்';
+
+  @override
+  String get timeLabel => 'நேரம்';
+
+  @override
+  String get statusPaid => 'செலுத்தப்பட்டது';
+
+  @override
+  String get statusDue => 'நிலுவை';
 }

@@ -213,5 +213,16 @@
   "moveMapToAdjust": "இடத்தை மாற்ற வரைபடத்தை நகர்த்தவும்",
   "confirmLocation": "இடத்தை உறுதிப்படுத்தவும்",
   "pickupTimeExample": "உ.ம். 06:45 AM",
-  "defaultPickupTime": "06:45 AM"
+  "defaultPickupTime": "06:45 AM",
+
+  "searchHint": "பெயர் அல்லது பள்ளியை தேடுக...",
+  "filterAll": "அனைத்தும்",
+  "filterPaid": "செலுத்தப்பட்டது",
+  "filterUnpaid": "செலுத்தப்படவில்லை",
+  "noResults": "முடிவுகள் கிடைக்கவில்லை",
+  "tryAdjustFilters": "உங்கள் தேடலை அல்லது வடிகட்டிகளை மாற்றவும்.",
+  "pickupLabel": "ஏற்றம்",
+  "timeLabel": "நேரம்",
+  "statusPaid": "செலுத்தப்பட்டது",
+  "statusDue": "நிலுவை"
 }

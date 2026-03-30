@@ -597,4 +597,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get defaultPickupTime => '06:45 AM';
+
+  @override
+  String get searchHint => 'Search by name or school...';
+
+  @override
+  String get filterAll => 'All';
+
+  @override
+  String get filterPaid => 'Paid';
+
+  @override
+  String get filterUnpaid => 'Not Paid';
+
+  @override
+  String get noResults => 'No results found';
+
+  @override
+  String get tryAdjustFilters => 'Try adjusting your search or filters.';
+
+  @override
+  String get pickupLabel => 'PICKUP';
+
+  @override
+  String get timeLabel => 'TIME';
+
+  @override
+  String get statusPaid => 'Paid';
+
+  @override
+  String get statusDue => 'Due';
 }

@@ -593,4 +593,34 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get defaultPickupTime => '06:45 AM';
+
+  @override
+  String get searchHint => 'නම හෝ පාසල මගින් සොයන්න...';
+
+  @override
+  String get filterAll => 'සියල්ල';
+
+  @override
+  String get filterPaid => 'ගෙවා ඇත';
+
+  @override
+  String get filterUnpaid => 'ගෙවා නැත';
+
+  @override
+  String get noResults => 'ප්‍රතිඵල හමු නොවීය';
+
+  @override
+  String get tryAdjustFilters => 'ඔබගේ සෙවුම හෝ පෙරහන් වෙනස් කර බලන්න.';
+
+  @override
+  String get pickupLabel => 'නැංවීම';
+
+  @override
+  String get timeLabel => 'වේලාව';
+
+  @override
+  String get statusPaid => 'ගෙවා ඇත';
+
+  @override
+  String get statusDue => 'ගෙවිය යුතුයි';
 }
