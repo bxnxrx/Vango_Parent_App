@@ -172,7 +172,6 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
     final state = ref.watch(manageChildrenProvider);
 
     return GestureDetector(
-      // Dismiss keyboard when tapping anywhere outside
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -190,7 +189,6 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
               ),
         body: Stack(
           children: [
-            // Proper Pull-to-Refresh
             RefreshIndicator(
               color: AppColors.accent,
               onRefresh: () async {
@@ -204,7 +202,7 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
                 slivers: [
                   _buildModernAppBar(l10n),
                   if (!state.isLoading && state.children.isNotEmpty)
-                    _buildSearchAndFilter(),
+                    _buildSearchAndFilter(l10n),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
@@ -262,7 +260,7 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
     );
   }
 
-  Widget _buildSearchAndFilter() {
+  Widget _buildSearchAndFilter(AppLocalizations l10n) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final surfaceColor = isDark
         ? Colors.white.withValues(alpha: 0.05)
@@ -282,7 +280,7 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
                 });
               },
               decoration: InputDecoration(
-                hintText: 'Search by name or school...',
+                hintText: l10n.searchHint,
                 hintStyle: const TextStyle(color: AppColors.textSecondary),
                 prefixIcon: const Icon(
                   Icons.search_rounded,
@@ -307,11 +305,11 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
               physics: const BouncingScrollPhysics(),
               child: Row(
                 children: [
-                  _buildFilterChip('All', null),
+                  _buildFilterChip(l10n.filterAll, null),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Paid', true),
+                  _buildFilterChip(l10n.filterPaid, true),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Not Paid', false),
+                  _buildFilterChip(l10n.filterUnpaid, false),
                 ],
               ),
             ),
@@ -328,7 +326,6 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
       selected: isSelected,
       onSelected: (bool selected) {
         setState(() {
-          // If selected again or 'All' is selected, set to null. Otherwise set to the specific boolean value
           _filterPaid = selected ? isPaidFilterValue : null;
         });
       },
@@ -465,7 +462,7 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
       );
     }
 
-    // Apply Search and Filter logic for Paid / Not Paid
+    // Apply Search and Filter logic
     final filteredChildren = state.children.where((child) {
       final matchesSearch =
           child.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -491,7 +488,7 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                "No results found",
+                l10n.noResults,
                 style: AppTypography.headline.copyWith(
                   color: Theme.of(context).textTheme.bodyLarge?.color,
                   fontSize: 20,
@@ -499,7 +496,7 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                "Try adjusting your search or filters.",
+                l10n.tryAdjustFilters,
                 style: AppTypography.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -643,8 +640,8 @@ class _ModernChildCard extends StatelessWidget {
                         children: [
                           _buildBadge(
                             text: child.paymentStatus == PaymentStatus.paid
-                                ? 'Paid'
-                                : 'Due',
+                                ? l10n.statusPaid
+                                : l10n.statusDue,
                             color: child.paymentStatus == PaymentStatus.paid
                                 ? Colors.green
                                 : Colors.redAccent,
@@ -725,9 +722,9 @@ class _ModernChildCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "PICKUP",
-                        style: TextStyle(
+                      Text(
+                        l10n.pickupLabel.toUpperCase(),
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: AppColors.textSecondary,
@@ -770,9 +767,9 @@ class _ModernChildCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "TIME",
-                        style: TextStyle(
+                      Text(
+                        l10n.timeLabel.toUpperCase(),
+                        style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: AppColors.textSecondary,
