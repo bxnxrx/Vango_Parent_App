@@ -136,6 +136,9 @@ class _VanGoAppState extends State<VanGoApp> {
 
   // ✨ FIX: CORRECT CALLKIT SYNTAX WITH ALL WARNINGS REMOVED ✨
   void _setupCallKitListeners() {
+    // ✅ Ensure incoming calls show on lock screen
+    ConnectycubeFlutterCallKit.setOnLockScreenVisibility(isVisible: true);
+
     ConnectycubeFlutterCallKit.instance.init(
       onCallAccepted: (CallEvent event) async {
         debugPrint('✅ Parent tapped ANSWER on the native screen!');
@@ -164,7 +167,13 @@ class _VanGoAppState extends State<VanGoApp> {
         }
       },
       onCallRejected: (CallEvent event) async {
-        debugPrint('❌ Parent tapped DECLINE.');
+        debugPrint('❌ Parent tapped DECLINE. Cleaning up CallKit state...');
+        // ✅ FIX: MUST report call ended so CallKit clears its internal state
+        // Without this, CallKit thinks the old call is still active and
+        // blocks ALL subsequent incoming call notifications!
+        ConnectycubeFlutterCallKit.reportCallEnded(sessionId: event.sessionId);
+        ConnectycubeFlutterCallKit.clearCallData(sessionId: event.sessionId);
+        debugPrint('✅ CallKit state cleaned up for session: ${event.sessionId}');
       },
     );
   }

@@ -2,8 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:connectycube_flutter_call_kit/connectycube_flutter_call_kit.dart';
+import 'package:uuid/uuid.dart';
 
-// 🚨 Make sure this imports your correct app's theme!
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 
@@ -134,6 +135,13 @@ class _CallScreenState extends State<CallScreen> {
   Future<void> _leaveCall() async {
     _timer?.cancel();
     await _engine.leaveChannel();
+
+    // ✅ FIX: Clean up CallKit state so the next incoming call works
+    final sessionId = const Uuid().v5(Uuid.NAMESPACE_URL, widget.channelName);
+    ConnectycubeFlutterCallKit.reportCallEnded(sessionId: sessionId);
+    ConnectycubeFlutterCallKit.clearCallData(sessionId: sessionId);
+    debugPrint('✅ CallKit state cleaned up after call ended (session: $sessionId)');
+
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -142,6 +150,12 @@ class _CallScreenState extends State<CallScreen> {
     _timer?.cancel();
     _engine.leaveChannel();
     _engine.release();
+
+    // ✅ FIX: Ensure CallKit is cleaned up even if dispose is called directly
+    final sessionId = const Uuid().v5(Uuid.NAMESPACE_URL, widget.channelName);
+    ConnectycubeFlutterCallKit.reportCallEnded(sessionId: sessionId);
+    ConnectycubeFlutterCallKit.clearCallData(sessionId: sessionId);
+
     super.dispose();
   }
 

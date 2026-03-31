@@ -14,14 +14,22 @@ import 'package:vango_parent_app/screens/call/call_screen.dart'; // 🚨 Adjust 
 // ---------------------------------------------------------
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('📩 Background Message Received: ${message.messageId}');
+  debugPrint('📩 [BG HANDLER] Message Received: ${message.messageId}');
+  debugPrint('📩 [BG HANDLER] Data keys: ${message.data.keys.toList()}');
+  debugPrint('📩 [BG HANDLER] Full data: ${message.data}');
+  
   final type = message.data['type'];
+  debugPrint('📩 [BG HANDLER] Message type: $type');
 
   if (type == 'incoming_call') {
     final callerName  = message.data['callerName']  ?? 'VanGo Driver';
     final channelName = message.data['channelName'] ?? '';
     final callerId    = message.data['callerId']    ?? '';
     final agoraToken  = message.data['agoraToken']  ?? '';
+
+    debugPrint('📞 [BG HANDLER] Incoming call from: $callerName');
+    debugPrint('📞 [BG HANDLER] Channel: $channelName');
+    debugPrint('📞 [BG HANDLER] Token present: ${agoraToken.isNotEmpty}');
 
     // Convert channelName to a valid UUID for CallKit's sessionId
     final validSessionId = const Uuid().v5(Uuid.NAMESPACE_URL, channelName);
@@ -39,7 +47,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       },
     );
 
+    debugPrint('📞 [BG HANDLER] Showing CallKit notification with sessionId: $validSessionId');
     ConnectycubeFlutterCallKit.showCallNotification(callEvent);
+    debugPrint('📞 [BG HANDLER] ✅ CallKit notification dispatched!');
     
   } else if (type == 'cancel_call') {
     final channelName = message.data['channelName'] ?? '';
@@ -47,7 +57,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     // ✨ FIX: Generate the exact same UUID to successfully cancel the call
     final validSessionId = const Uuid().v5(Uuid.NAMESPACE_URL, channelName);
 
+    debugPrint('🛑 [BG HANDLER] Cancelling call for channel: $channelName (sessionId: $validSessionId)');
     ConnectycubeFlutterCallKit.reportCallEnded(sessionId: validSessionId);
+  } else {
+    debugPrint('⚠️ [BG HANDLER] Unknown message type: $type — ignoring');
   }
 }
 
@@ -114,17 +127,25 @@ class NotificationService {
       enableVibration: true,
     );
 
-    await _localNotifications
+    // ✅ NEW: Dedicated call notification channel for maximum delivery reliability
+    const AndroidNotificationChannel callChannel = AndroidNotificationChannel(
+      'vango_call_channel',
+      'Incoming Calls',
+      description: 'Incoming voice call notifications',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.createNotificationChannel(channel);
+        >();
+    await androidPlugin?.createNotificationChannel(channel);
+    await androidPlugin?.createNotificationChannel(callChannel);
 
-    // ✨ NEW: Initialize CallKit Action Listeners
-    ConnectycubeFlutterCallKit.instance.init(
-      onCallAccepted: _onCallAccepted,
-      onCallRejected: _onCallRejected,
-    );
+    // ✅ CallKit listeners are initialized in main.dart's _setupCallKitListeners()
+    // Do NOT init them here — duplicate init() calls override each other!
 
     // ---------------------------------------------------------
     // FIREBASE LISTENERS
@@ -133,16 +154,21 @@ class NotificationService {
     // A. LISTEN FOR FOREGROUND MESSAGES
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('📩 Foreground Message Received: ${message.messageId}');
+      debugPrint('📩 Data payload: ${message.data}');
+      debugPrint('📩 Notification payload: ${message.notification?.title ?? "none"}');
 
       final data = message.data;
       final type = data['type']?.toString();
 
-      // ✨ NEW: Intercept call signals and route to CallKit
+      // ✨ CRITICAL: Intercept call signals FIRST and route to CallKit
+      // This must happen before any notification display logic
       if (type == 'incoming_call' || type == 'cancel_call') {
+        debugPrint('📞 [CALL] Intercepted call signal in foreground: $type');
         firebaseMessagingBackgroundHandler(message);
         return; // Stop here so it doesn't show a basic notification banner
       }
 
+      // Only show manual notification for non-call messages
       final title = message.notification?.title;
       final body = message.notification?.body;
 
