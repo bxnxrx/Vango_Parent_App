@@ -19,12 +19,13 @@ import 'package:vango_parent_app/repositories/children_repository.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
+import 'package:vango_parent_app/utils/auth_ui_helper.dart'; // ✅ Added import
 import 'package:vango_parent_app/widgets/gradient_button.dart';
 import 'package:vango_parent_app/widgets/otp_bottom_sheet.dart';
 import 'package:vango_parent_app/widgets/driver_section.dart';
 
-import 'widgets/contact_section.dart';
-import 'widgets/route_section.dart';
+import 'package:vango_parent_app/screens/children/widgets/contact_section.dart';
+import 'package:vango_parent_app/screens/children/widgets/route_section.dart';
 
 class AddChildSheet extends ConsumerStatefulWidget {
   final ChildProfile? existingChild;
@@ -121,7 +122,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
     _etaSchoolController = TextEditingController(
       text: widget.existingChild?.etaSchool ?? '',
-    ); // Initialized locally later via l10n
+    );
     _hasDriver = false;
 
     _previouslyUsedNumbers = widget.existingChildren
@@ -141,7 +142,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Safely assign l10n values only available after init
     if (_etaSchoolController.text.isEmpty) {
       _etaSchoolController.text = AppLocalizations.of(
         context,
@@ -244,16 +244,14 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
   Future<void> _verifyNewEmergencyContact(AppLocalizations l10n) async {
     final phoneInput = _emergencyContactController.text.trim();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     if (!RegExp(r'^7\d{8}$').hasMatch(phoneInput)) {
       HapticFeedback.heavyImpact();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(l10n.invalidSlNumber),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      AuthUiHelper.showMessage(
+        context,
+        l10n.invalidSlNumber,
+        isError: true,
+      ); // ✅ Replaced
       return;
     }
 
@@ -261,12 +259,11 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     if (formattedPhone == _parentPhone ||
         _previouslyUsedNumbers.contains(formattedPhone)) {
       HapticFeedback.heavyImpact();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(l10n.previouslyUsedNumber),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      AuthUiHelper.showMessage(
+        context,
+        l10n.previouslyUsedNumber,
+        isError: true,
+      ); // ✅ Replaced
       return;
     }
 
@@ -307,13 +304,13 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       if (isVerified == true) {
         HapticFeedback.mediumImpact();
         setState(() => _isCustomContactVerified = true);
-        if (mounted)
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-              content: Text(l10n.otpVerificationSuccess),
-              backgroundColor: Colors.green,
-            ),
-          );
+        if (mounted) {
+          AuthUiHelper.showMessage(
+            context,
+            l10n.otpVerificationSuccess,
+            isError: false,
+          ); // ✅ Replaced
+        }
       }
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
@@ -323,12 +320,11 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       );
       if (mounted) {
         setState(() => _isSendingOtp = false);
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(l10n.genericError),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        AuthUiHelper.showMessage(
+          context,
+          l10n.genericError,
+          isError: true,
+        ); // ✅ Replaced
       }
     }
   }
@@ -436,7 +432,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
   Future<void> _scanQRCode(AppLocalizations l10n) async {
     HapticFeedback.selectionClick();
     FocusManager.instance.primaryFocus?.unfocus();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     bool hasScanned = false;
 
@@ -487,13 +482,13 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         stack,
         reason: 'QR Scan failure',
       );
-      if (mounted)
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(l10n.cameraDeniedError),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+      if (mounted) {
+        AuthUiHelper.showMessage(
+          context,
+          l10n.cameraDeniedError,
+          isError: true,
+        ); // ✅ Replaced
+      }
     }
   }
 
@@ -739,7 +734,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                                     Text(
                                       isPickup
                                           ? l10n.pickupLocation
-                                          : l10n.dropLocation, // ✅ HARDCODED TEXT REMOVED
+                                          : l10n.dropLocation,
                                       style: TextStyle(
                                         color: isDark
                                             ? Colors.white54
@@ -751,7 +746,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                                     const SizedBox(height: 4),
                                     Text(
                                       selectedPlace?.formattedAddress ??
-                                          l10n.moveMapToAdjust, // ✅ HARDCODED TEXT REMOVED
+                                          l10n.moveMapToAdjust,
                                       style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
@@ -803,7 +798,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
                                       ),
-                                    ), // ✅ HARDCODED TEXT REMOVED
+                                    ),
                             ),
                           ),
                         ],
@@ -849,7 +844,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
   Future<void> _submit(AppLocalizations l10n) async {
     HapticFeedback.lightImpact();
     FocusManager.instance.primaryFocus?.unfocus();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
     if (!_formKey.currentState!.validate()) {
@@ -866,12 +860,11 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       );
       if (isDuplicate) {
         HapticFeedback.heavyImpact();
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(l10n.duplicateStudentError),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        AuthUiHelper.showMessage(
+          context,
+          l10n.duplicateStudentError,
+          isError: true,
+        ); // ✅ Replaced
         return;
       }
     }
@@ -882,12 +875,11 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
     } else if (_selectedEmergencyOption == 'new') {
       if (!_isCustomContactVerified) {
         HapticFeedback.heavyImpact();
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(l10n.verifyContactError),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        AuthUiHelper.showMessage(
+          context,
+          l10n.verifyContactError,
+          isError: true,
+        ); // ✅ Replaced
         return;
       }
       finalEmergencyContact = '+94${_emergencyContactController.text.trim()}';
@@ -897,12 +889,11 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
     if (_hasDriver && _verifiedDriverDetails == null) {
       HapticFeedback.heavyImpact();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(l10n.verifyDriverError),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      AuthUiHelper.showMessage(
+        context,
+        l10n.verifyDriverError,
+        isError: true,
+      ); // ✅ Replaced
       return;
     }
 
@@ -930,7 +921,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           dropLocation: _dropLocationController.text.trim(),
           dropLat: _dropLat,
           dropLng: _dropLng,
-          // ✅ SECURE DEFAULT VALUE VIA L10N
           pickupTime: _pickupTimeController.text.trim().isEmpty
               ? l10n.defaultPickupTime
               : _pickupTimeController.text.trim(),
@@ -970,14 +960,11 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
       if (mounted) {
         HapticFeedback.lightImpact();
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              l10n.studentSavedSuccess(_nameController.text.trim()),
-            ),
-            backgroundColor: Colors.green.shade800,
-          ),
-        );
+        AuthUiHelper.showMessage(
+          context,
+          l10n.studentSavedSuccess(_nameController.text.trim()),
+          isError: false,
+        ); // ✅ Replaced
         navigator.pop(true);
       }
     } catch (e, stack) {
@@ -988,12 +975,11 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       );
       if (mounted) {
         HapticFeedback.heavyImpact();
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(l10n.genericError),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        AuthUiHelper.showMessage(
+          context,
+          l10n.genericError,
+          isError: true,
+        ); // ✅ Replaced
       }
     } finally {
       if (mounted) {
@@ -1200,7 +1186,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
                 const SizedBox(height: 24),
 
-                // ✅ Passing Localizations cleanly to route section
                 RouteSection(
                   schoolController: _schoolController,
                   pickupLocationController: _pickupLocationController,
