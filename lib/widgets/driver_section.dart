@@ -17,6 +17,10 @@ class DriverSection extends StatelessWidget {
   final VoidCallback onScanQRCode;
   final VoidCallback onCodeChanged;
 
+  // New parameters for editing state
+  final bool isEditing;
+  final String? linkedDriverId;
+
   const DriverSection({
     super.key,
     required this.hasDriver,
@@ -28,6 +32,8 @@ class DriverSection extends StatelessWidget {
     required this.onVerifyCode,
     required this.onScanQRCode,
     required this.onCodeChanged,
+    this.isEditing = false,
+    this.linkedDriverId,
   });
 
   Widget _buildDriverDetailRow(
@@ -76,6 +82,70 @@ class DriverSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // If editing and already linked to a driver, show a non-editable state
+    if (isEditing && linkedDriverId != null && linkedDriverId!.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Driver Details", // You may want to localize this
+            style: AppTypography.title.copyWith(
+              fontSize: 16,
+              color: isDark ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.accent.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle,
+                      color: AppColors.accent,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Driver Already Linked", // You may want to localize this
+                      style: AppTypography.title.copyWith(
+                        color: AppColors.accent,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(
+                    height: 1,
+                    color: isDark ? Colors.white10 : AppColors.stroke,
+                  ),
+                ),
+                // Since we don't fetch full driver profile on load for this view yet,
+                // we show a simplified message.
+                Text(
+                  "This child is already assigned to a driver. To change drivers, please contact support or delete and recreate the profile.", // You may want to localize this
+                  style: AppTypography.body.copyWith(
+                    color: isDark ? Colors.white54 : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,6 +232,8 @@ class DriverSection extends StatelessWidget {
                       onPressed: onScanQRCode,
                       tooltip: l10n.scanQRCodeTooltip,
                     ),
+                    // We let the validator handle the error message display instead of errorText
+                    // to prevent visual clashes.
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
@@ -186,9 +258,12 @@ class DriverSection extends StatelessWidget {
                     if (v.trim().length != 8) {
                       return l10n.codeLengthError;
                     }
+
+                    // ✅ FIX: Explicitly return the backend error if one exists!
                     if (inviteCodeError != null) {
                       return inviteCodeError;
                     }
+
                     if (verifiedDriverDetails == null) {
                       return l10n.verifyCodeFirst;
                     }
@@ -281,7 +356,6 @@ class DriverSection extends StatelessWidget {
                     verifiedDriverDetails!.route,
                     isDark,
                   ),
-                  // 👇 ADDED: Conditional rendering of Monthly Fee
                   if (verifiedDriverDetails!.price > 0)
                     _buildDriverDetailRow(
                       Icons.payments_outlined,
