@@ -7,8 +7,9 @@ import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
+import 'package:vango_parent_app/utils/auth_ui_helper.dart'; // ✅ Added import
 import 'package:vango_parent_app/viewmodels/manage_children_viewmodel.dart';
-import 'add_child_sheet.dart';
+import 'package:vango_parent_app/screens/children/add_child_sheet.dart';
 
 class ManageChildrenScreen extends ConsumerStatefulWidget {
   const ManageChildrenScreen({super.key});
@@ -101,30 +102,20 @@ class _ManageChildrenScreenState extends ConsumerState<ManageChildrenScreen> {
         return;
       }
 
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      // ✅ Updated error handling to use AuthUiHelper
       if (success) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(l10n.studentRemovedSuccess(child.name)),
-            backgroundColor: Colors.green.shade800,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+        AuthUiHelper.showMessage(
+          context,
+          l10n.studentRemovedSuccess(child.name),
+          isError: false,
         );
       } else {
         final currentError = ref.read(manageChildrenProvider).errorMessageKey;
         if (currentError != null) {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-              content: Text(_getLocalizedError(currentError, l10n)),
-              backgroundColor: Colors.redAccent,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
+          AuthUiHelper.showMessage(
+            context,
+            _getLocalizedError(currentError, l10n),
+            isError: true,
           );
         }
       }

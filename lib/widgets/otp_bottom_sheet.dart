@@ -6,6 +6,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:vango_parent_app/l10n/app_localizations.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
+import 'package:vango_parent_app/utils/auth_ui_helper.dart'; // ✅ Added import
 
 class OtpBottomSheet extends StatefulWidget {
   final String phone;
@@ -83,13 +84,8 @@ class _OtpBottomSheetState extends State<OtpBottomSheet> {
 
       if (!mounted) return;
       _startTimer();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.codeResentSuccess),
-          backgroundColor: Colors.green.shade800,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      // ✅ Replaced ScaffoldMessenger with AuthUiHelper
+      AuthUiHelper.showMessage(context, l10n.codeResentSuccess, isError: false);
     } catch (e, stack) {
       FirebaseCrashlytics.instance.recordError(
         e,
