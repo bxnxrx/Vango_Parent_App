@@ -33,7 +33,7 @@ class DriverProfile {
         (json['driverName'] as String? ?? json['name'] as String? ?? 'Driver')
             .trim();
 
-    // ✅ CRITICAL FIX: Safely parse ID even if the backend returns null or uses 'driverId'
+    // Safely parse ID even if the backend returns null or uses 'driverId'
     final idStr = (json['id'] ?? json['driverId'] ?? '').toString();
 
     // Map invite-code specific payload to your standard model properties
@@ -60,7 +60,8 @@ class DriverProfile {
       phone: json['driverPhone'] as String? ?? json['phone'] as String? ?? '',
       vehicleType: vehicleTypeStr,
       route: routeStr,
-      price: _toDouble(json['price']),
+      // 👇 ADDED: Parse 'monthlyFee' if returned during code validation
+      price: _toDouble(json['price'] ?? json['monthlyFee']),
       distance: _toDouble(json['distance']),
       rating: _toDouble(json['rating'], fallback: 5),
       seats: (json['seats'] as num?)?.toInt() ?? 0,

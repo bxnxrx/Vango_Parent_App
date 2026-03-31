@@ -864,7 +864,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           context,
           l10n.duplicateStudentError,
           isError: true,
-        ); // ✅ Replaced
+        );
         return;
       }
     }
@@ -879,7 +879,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           context,
           l10n.verifyContactError,
           isError: true,
-        ); // ✅ Replaced
+        );
         return;
       }
       finalEmergencyContact = '+94${_emergencyContactController.text.trim()}';
@@ -889,11 +889,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
     if (_hasDriver && _verifiedDriverDetails == null) {
       HapticFeedback.heavyImpact();
-      AuthUiHelper.showMessage(
-        context,
-        l10n.verifyDriverError,
-        isError: true,
-      ); // ✅ Replaced
+      AuthUiHelper.showMessage(context, l10n.verifyDriverError, isError: true);
       return;
     }
 
@@ -908,6 +904,14 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         if (uploadedPath != null) {
           finalImageUrl = uploadedPath;
         }
+      }
+
+      // 👇 ADDED: Retrieve the Monthly Fee to pass to Database
+      double? feeToSave;
+      if (_hasDriver &&
+          _verifiedDriverDetails != null &&
+          _verifiedDriverDetails!.price > 0) {
+        feeToSave = _verifiedDriverDetails!.price;
       }
 
       if (!_isEditing) {
@@ -929,6 +933,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           description: _descriptionController.text.trim(),
           inviteCode: _hasDriver ? _inviteCodeController.text.trim() : '',
           imageUrl: finalImageUrl,
+          customMonthlyFee: feeToSave, // 👇 Saved
         );
       } else {
         await _dataService.updateChild(
@@ -950,6 +955,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           description: _descriptionController.text.trim(),
           inviteCode: _hasDriver ? _inviteCodeController.text.trim() : '',
           imageUrl: finalImageUrl,
+          customMonthlyFee: feeToSave, // 👇 Saved
         );
       }
 
@@ -964,7 +970,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           context,
           l10n.studentSavedSuccess(_nameController.text.trim()),
           isError: false,
-        ); // ✅ Replaced
+        );
         navigator.pop(true);
       }
     } catch (e, stack) {
@@ -975,11 +981,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       );
       if (mounted) {
         HapticFeedback.heavyImpact();
-        AuthUiHelper.showMessage(
-          context,
-          l10n.genericError,
-          isError: true,
-        ); // ✅ Replaced
+        AuthUiHelper.showMessage(context, l10n.genericError, isError: true);
       }
     } finally {
       if (mounted) {

@@ -161,7 +161,6 @@ class ParentDataService {
     return _expectMap(response);
   }
 
-  // ✅ 1. Applied Real Pagination to the Data Service API Call
   Future<List<ChildProfile>> fetchChildren({
     int page = 1,
     int limit = 10,
@@ -251,6 +250,7 @@ class ParentDataService {
     required String emergencyContact,
     String? description,
     String? imageUrl,
+    double? customMonthlyFee, // 👇 ADDED THIS
   }) async {
     final payload = _buildChildPayload(
       childName: childName,
@@ -268,6 +268,7 @@ class ParentDataService {
       description: description,
       inviteCode: inviteCode,
       imageUrl: imageUrl,
+      customMonthlyFee: customMonthlyFee, // 👇 Passed
     );
     final response = _expectMap(
       await _backend.post('/api/parents/children', payload),
@@ -292,6 +293,7 @@ class ParentDataService {
     required String emergencyContact,
     String? description,
     String? imageUrl,
+    double? customMonthlyFee, // 👇 ADDED THIS
   }) async {
     final payload = _buildChildPayload(
       childName: childName,
@@ -309,6 +311,7 @@ class ParentDataService {
       description: description,
       inviteCode: inviteCode,
       imageUrl: imageUrl,
+      customMonthlyFee: customMonthlyFee, // 👇 Passed
     );
     final response = _expectMap(
       await _backend.put('/api/parents/children/$childId', payload),
@@ -441,6 +444,7 @@ class ParentDataService {
     required String emergencyContact,
     String? description,
     String? imageUrl,
+    double? customMonthlyFee, // 👇 ADDED THIS
   }) {
     final normalizedTime = (pickupTime ?? '').trim().isEmpty
         ? _defaultPickupTime
@@ -461,6 +465,8 @@ class ParentDataService {
       if (description != null) 'description': description.trim(),
       'inviteCode': inviteCode.trim(),
       if (imageUrl != null) 'image_url': imageUrl,
+      if (customMonthlyFee != null)
+        'customMonthlyFee': customMonthlyFee, // 👇 Added to JSON Payload
     };
   }
 
@@ -510,7 +516,6 @@ class ParentDataService {
     await _backend.patch('/api/parents/cards/$cardId/default', {});
   }
 
-  // ✅ 1. Secure OTP Calls
   Future<void> sendEmergencyContactOtp(String phone) async {
     await _backend.post('/api/parents/emergency-contact/otp/send', {
       'phone': phone,
@@ -528,7 +533,6 @@ class ParentDataService {
     }
   }
 
-  // ✅ 2. Secure Maps Proxy Calls
   Future<List<String>> proxyMapsAutocomplete(String query) async {
     final response = await _backend.get(
       '/api/maps/autocomplete',
