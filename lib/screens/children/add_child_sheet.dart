@@ -81,6 +81,10 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
   String? _routeDistance;
   String? _routeDuration;
 
+  bool _isLoadingLinkedDriver = false;
+  String? _linkedDriverName;
+  String? _linkedDriverPhone;
+
   bool get _isEditing => widget.existingChild != null;
 
   @override
@@ -136,6 +140,9 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
 
     if (_pickupLat != null && _dropLat != null) {
       _calculateRoute();
+    }
+    if (_isEditing && widget.existingChild?.linkedDriverId != null) {
+      _fetchLinkedDriverInfo();
     }
   }
 
@@ -198,6 +205,25 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         stack,
         reason: 'Image Picker Failed',
       );
+    }
+  }
+
+  Future<void> _fetchLinkedDriverInfo() async {
+    setState(() => _isLoadingLinkedDriver = true);
+    try {
+      final driverInfo = await _dataService.getLinkedDriverBasicInfo(
+        widget.existingChild!.id,
+      );
+      if (mounted && driverInfo != null) {
+        setState(() {
+          _linkedDriverName = driverInfo['name'];
+          _linkedDriverPhone = driverInfo['phone'];
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingLinkedDriver = false);
+      }
     }
   }
 
@@ -864,7 +890,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           context,
           l10n.duplicateStudentError,
           isError: true,
-        );
+        ); // ✅ Replaced
         return;
       }
     }
@@ -879,7 +905,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           context,
           l10n.verifyContactError,
           isError: true,
-        );
+        ); // ✅ Replaced
         return;
       }
       finalEmergencyContact = '+94${_emergencyContactController.text.trim()}';
@@ -887,9 +913,16 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       finalEmergencyContact = _selectedEmergencyOption;
     }
 
-    if (_hasDriver && _verifiedDriverDetails == null) {
+    // Only validate driver details if it is a new child or the user has toggled the option to add a new driver
+    if (_hasDriver &&
+        _verifiedDriverDetails == null &&
+        (!_isEditing || widget.existingChild?.linkedDriverId == null)) {
       HapticFeedback.heavyImpact();
-      AuthUiHelper.showMessage(context, l10n.verifyDriverError, isError: true);
+      AuthUiHelper.showMessage(
+        context,
+        l10n.verifyDriverError,
+        isError: true,
+      ); // ✅ Replaced
       return;
     }
 
@@ -906,7 +939,6 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
         }
       }
 
-      // 👇 ADDED: Retrieve the Monthly Fee to pass to Database
       double? feeToSave;
       if (_hasDriver &&
           _verifiedDriverDetails != null &&
@@ -933,7 +965,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           description: _descriptionController.text.trim(),
           inviteCode: _hasDriver ? _inviteCodeController.text.trim() : '',
           imageUrl: finalImageUrl,
-          customMonthlyFee: feeToSave, // 👇 Saved
+          customMonthlyFee: feeToSave,
         );
       } else {
         await _dataService.updateChild(
@@ -955,7 +987,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           description: _descriptionController.text.trim(),
           inviteCode: _hasDriver ? _inviteCodeController.text.trim() : '',
           imageUrl: finalImageUrl,
-          customMonthlyFee: feeToSave, // 👇 Saved
+          customMonthlyFee: feeToSave,
         );
       }
 
@@ -970,7 +1002,7 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
           context,
           l10n.studentSavedSuccess(_nameController.text.trim()),
           isError: false,
-        );
+        ); // ✅ Replaced
         navigator.pop(true);
       }
     } catch (e, stack) {
@@ -981,7 +1013,11 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
       );
       if (mounted) {
         HapticFeedback.heavyImpact();
-        AuthUiHelper.showMessage(context, l10n.genericError, isError: true);
+        AuthUiHelper.showMessage(
+          context,
+          l10n.genericError,
+          isError: true,
+        ); // ✅ Replaced
       }
     } finally {
       if (mounted) {
@@ -1240,6 +1276,12 @@ class _AddChildSheetState extends ConsumerState<AddChildSheet> {
                         setState(() => _inviteCodeError = null);
                       }
                     },
+                    // Pass the child state to DriverSection
+                    isEditing: _isEditing,
+                    linkedDriverId: widget.existingChild?.linkedDriverId,
+                    linkedDriverName: _linkedDriverName,
+                    linkedDriverPhone: _linkedDriverPhone,
+                    isLoadingLinkedDriver: _isLoadingLinkedDriver,
                   ),
                 ),
 

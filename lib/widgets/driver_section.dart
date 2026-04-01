@@ -17,9 +17,12 @@ class DriverSection extends StatelessWidget {
   final VoidCallback onScanQRCode;
   final VoidCallback onCodeChanged;
 
-  // New parameters for editing state
   final bool isEditing;
   final String? linkedDriverId;
+  // 👇 ADDED: New Parameters
+  final String? linkedDriverName;
+  final String? linkedDriverPhone;
+  final bool isLoadingLinkedDriver;
 
   const DriverSection({
     super.key,
@@ -34,6 +37,10 @@ class DriverSection extends StatelessWidget {
     required this.onCodeChanged,
     this.isEditing = false,
     this.linkedDriverId,
+    // 👇 ADDED: Initialize parameters
+    this.linkedDriverName,
+    this.linkedDriverPhone,
+    this.isLoadingLinkedDriver = false,
   });
 
   Widget _buildDriverDetailRow(
@@ -83,13 +90,13 @@ class DriverSection extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // If editing and already linked to a driver, show a non-editable state
+    // 👇 UPDATED: Display beautiful linked details here!
     if (isEditing && linkedDriverId != null && linkedDriverId!.isNotEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Driver Details", // You may want to localize this
+            "Driver Details",
             style: AppTypography.title.copyWith(
               fontSize: 16,
               color: isDark ? Colors.white : AppColors.textPrimary,
@@ -99,49 +106,62 @@ class DriverSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.1),
+              color: AppColors.accent.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: AppColors.accent.withValues(alpha: 0.3),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: AppColors.accent,
-                      size: 20,
+            child: isLoadingLinkedDriver
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: CircularProgressIndicator(color: AppColors.accent),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Driver Already Linked", // You may want to localize this
-                      style: AppTypography.title.copyWith(
-                        color: AppColors.accent,
-                        fontSize: 15,
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle,
+                            color: AppColors.accent,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Driver Linked",
+                            style: AppTypography.title.copyWith(
+                              color: AppColors.accent,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(
-                    height: 1,
-                    color: isDark ? Colors.white10 : AppColors.stroke,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Divider(
+                          height: 1,
+                          color: isDark ? Colors.white10 : AppColors.stroke,
+                        ),
+                      ),
+                      if (linkedDriverName != null)
+                        _buildDriverDetailRow(
+                          Icons.person_outline,
+                          l10n.driverNameLabel,
+                          linkedDriverName,
+                          isDark,
+                        ),
+                      if (linkedDriverPhone != null)
+                        _buildDriverDetailRow(
+                          Icons.phone_outlined,
+                          "Phone",
+                          linkedDriverPhone,
+                          isDark,
+                        ),
+                    ],
                   ),
-                ),
-                // Since we don't fetch full driver profile on load for this view yet,
-                // we show a simplified message.
-                Text(
-                  "This child is already assigned to a driver. To change drivers, please contact support or delete and recreate the profile.", // You may want to localize this
-                  style: AppTypography.body.copyWith(
-                    color: isDark ? Colors.white54 : AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       );
@@ -232,8 +252,6 @@ class DriverSection extends StatelessWidget {
                       onPressed: onScanQRCode,
                       tooltip: l10n.scanQRCodeTooltip,
                     ),
-                    // We let the validator handle the error message display instead of errorText
-                    // to prevent visual clashes.
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
@@ -258,12 +276,9 @@ class DriverSection extends StatelessWidget {
                     if (v.trim().length != 8) {
                       return l10n.codeLengthError;
                     }
-
-                    // ✅ FIX: Explicitly return the backend error if one exists!
                     if (inviteCodeError != null) {
                       return inviteCodeError;
                     }
-
                     if (verifiedDriverDetails == null) {
                       return l10n.verifyCodeFirst;
                     }
