@@ -3,23 +3,30 @@ import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:connectycube_flutter_call_kit/connectycube_flutter_call_kit.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
+import 'package:vango_parent_app/services/call_service.dart';
 
 const String appId = '8470fb315c3f4fdfb549d4f2811e0d5a';
+
+// ✅ Ringing timeout — auto-cancel if driver doesn't answer within this time
+const int _kRingTimeoutSeconds = 30;
 
 class CallScreen extends StatefulWidget {
   final String channelName;
   final String callerName;
-  final String agoraToken; // ✅ Real token from backend
+  final String agoraToken;
+  final String receiverId; // ✅ Needed to send cancel notification
 
   const CallScreen({
     super.key,
     required this.channelName,
     required this.callerName,
     required this.agoraToken,
+    this.receiverId = '', // Default to empty for incoming call scenario
   });
 
   @override
@@ -32,14 +39,43 @@ class _CallScreenState extends State<CallScreen> {
   int? _remoteUid;
   bool _isMuted = false;
   bool _isSpeakerOn = false;
+  bool _isLeaving = false; // ✅ Prevent double-leave crashes
 
   int _callDuration = 0;
   Timer? _timer;
+  Timer? _ringTimeout; // ✅ Timeout timer for unanswered calls
+
+  // ✅ Supabase Realtime channel to listen for driver decline
+  RealtimeChannel? _declineChannel;
 
   @override
   void initState() {
     super.initState();
+    // Only listen for decline if parent is the CALLER (has a receiverId)
+    if (widget.receiverId.isNotEmpty) {
+      _listenForDecline();
+    }
     _initAgora();
+  }
+
+  // ✅ Listen for driver decline via Supabase Realtime broadcast
+  void _listenForDecline() {
+    final channelId = 'call:${widget.channelName}';
+    debugPrint('📡 [PARENT CALL] Subscribing to decline channel: $channelId');
+
+    _declineChannel = Supabase.instance.client.channel(channelId);
+
+    _declineChannel!
+        .onBroadcast(
+          event: 'declined',
+          callback: (payload) {
+            debugPrint('🛑 [PARENT CALL] Driver DECLINED the call! Closing call screen...');
+            if (mounted && !_isLeaving) {
+              _leaveCall();
+            }
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _initAgora() async {
@@ -55,27 +91,36 @@ class _CallScreenState extends State<CallScreen> {
 
     _engine.registerEventHandler(
       RtcEngineEventHandler(
-        // ✨ ADDED ASYNC HERE
-        onJoinChannelSuccess: (RtcConnection connection, int elapsed) async { 
-          debugPrint("✅ Joined local channel: ${connection.channelId}");
+        onJoinChannelSuccess: (RtcConnection connection, int elapsed) async {
+          debugPrint("✅ [PARENT CALL] Joined channel: ${connection.channelId}");
+          if (!mounted) return;
           setState(() => _isJoined = true);
 
+          // ✅ Start ring timeout if parent is the caller
+          if (widget.receiverId.isNotEmpty) {
+            _startRingTimeout();
+          }
+
           try {
-            // ✨ ADDED AWAIT HERE to prevent the -3 crash!
-            await _engine.setEnableSpeakerphone(_isSpeakerOn); 
+            await _engine.setEnableSpeakerphone(_isSpeakerOn);
           } catch (e) {
             debugPrint('⚠️ Could not set speakerphone: $e');
           }
         },
         onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
-          debugPrint("👋 Remote user joined: $remoteUid");
+          debugPrint("👋 [PARENT CALL] Remote user joined: $remoteUid");
+          // Driver answered! Cancel the ring timeout
+          _ringTimeout?.cancel();
+          _ringTimeout = null;
+          if (!mounted) return;
           setState(() {
             _remoteUid = remoteUid;
-            _startTimer();
+            _startCallTimer();
           });
         },
         onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
-          debugPrint("🏃 Remote user left: $remoteUid");
+          debugPrint("🏃 [PARENT CALL] Remote user left: $remoteUid");
+          if (!mounted) return;
           setState(() => _remoteUid = null);
           _leaveCall();
         },
@@ -91,7 +136,7 @@ class _CallScreenState extends State<CallScreen> {
     }
 
     await _engine.joinChannel(
-      token: widget.agoraToken, // ✅ Use the real Agora token
+      token: widget.agoraToken,
       channelId: safeChannelName,
       uid: 0,
       options: const ChannelMediaOptions(
@@ -100,8 +145,24 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  void _startTimer() {
+  // ✅ Ring timeout — if driver doesn't answer in 30s, auto-cancel
+  void _startRingTimeout() {
+    _ringTimeout?.cancel();
+    _ringTimeout = Timer(const Duration(seconds: _kRingTimeoutSeconds), () {
+      debugPrint('⏰ [PARENT CALL] Ring timeout! Driver did not answer in ${_kRingTimeoutSeconds}s.');
+      if (mounted && _remoteUid == null) {
+        _leaveCall();
+      }
+    });
+  }
+
+  void _startCallTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() => _callDuration++);
     });
   }
@@ -119,28 +180,52 @@ class _CallScreenState extends State<CallScreen> {
     });
   }
 
-  // ✨ ADDED ASYNC HERE
-  void _toggleSpeaker() async { 
+  void _toggleSpeaker() async {
     setState(() {
       _isSpeakerOn = !_isSpeakerOn;
     });
     try {
-      // ✨ ADDED AWAIT HERE
-      await _engine.setEnableSpeakerphone(_isSpeakerOn); 
+      await _engine.setEnableSpeakerphone(_isSpeakerOn);
     } catch (e) {
       debugPrint('⚠️ Speaker toggle error: $e');
     }
   }
 
+  // ✅ Leave call + send cancel if driver never answered
   Future<void> _leaveCall() async {
-    _timer?.cancel();
-    await _engine.leaveChannel();
+    if (_isLeaving) return; // Prevent double calls
+    _isLeaving = true;
 
-    // ✅ FIX: Clean up CallKit state so the next incoming call works
+    _timer?.cancel();
+    _ringTimeout?.cancel();
+
+    // ✅ Unsubscribe from decline channel
+    if (_declineChannel != null) {
+      Supabase.instance.client.removeChannel(_declineChannel!);
+    }
+
+    try {
+      await _engine.leaveChannel();
+    } catch (e) {
+      debugPrint('⚠️ Error leaving channel: $e');
+    }
+
+    // ✅ Clean up CallKit state
     final sessionId = const Uuid().v5(Uuid.NAMESPACE_URL, widget.channelName);
     ConnectycubeFlutterCallKit.reportCallEnded(sessionId: sessionId);
     ConnectycubeFlutterCallKit.clearCallData(sessionId: sessionId);
     debugPrint('✅ CallKit state cleaned up after call ended (session: $sessionId)');
+
+    // ✅ If driver never joined (unanswered call) and parent is the caller,
+    // send cancel notification so the driver's CallKit ringing is dismissed
+    if (_remoteUid == null && widget.receiverId.isNotEmpty) {
+      debugPrint('🛑 [PARENT CALL] Driver never answered. Sending cancel notification...');
+      await CallService.instance.cancelCall(
+        receiverId: widget.receiverId,
+        channelName: widget.channelName,
+      );
+      debugPrint('✅ [PARENT CALL] Cancel notification sent.');
+    }
 
     if (mounted) Navigator.of(context).pop();
   }
@@ -148,10 +233,14 @@ class _CallScreenState extends State<CallScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _ringTimeout?.cancel();
+    if (_declineChannel != null) {
+      Supabase.instance.client.removeChannel(_declineChannel!);
+    }
     _engine.leaveChannel();
     _engine.release();
 
-    // ✅ FIX: Ensure CallKit is cleaned up even if dispose is called directly
+    // ✅ Ensure CallKit is cleaned up even if dispose is called directly
     final sessionId = const Uuid().v5(Uuid.NAMESPACE_URL, widget.channelName);
     ConnectycubeFlutterCallKit.reportCallEnded(sessionId: sessionId);
     ConnectycubeFlutterCallKit.clearCallData(sessionId: sessionId);

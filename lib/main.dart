@@ -97,6 +97,35 @@ Future<void> main() async {
 
     await deviceService.syncDeviceData();
 
+    // ✅ FIX: Check if the app was launched by tapping a call notification
+    // (happens when app was completely killed/offline)
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null && initialMessage.data['type'] == 'incoming_call') {
+      debugPrint('📞 App launched from call notification! Will open call screen...');
+      final channelName = initialMessage.data['channelName'] ?? '';
+      final callerName  = initialMessage.data['callerName']  ?? 'VanGo Driver';
+      final agoraToken  = initialMessage.data['agoraToken']  ?? '';
+
+      if (channelName.isNotEmpty) {
+        // Delay navigation until after the app is fully built
+        Future.delayed(const Duration(seconds: 2), () {
+          String safeChannelName = channelName;
+          if (safeChannelName.length > 64) {
+            safeChannelName = safeChannelName.substring(0, 64);
+          }
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (context) => CallScreen(
+                channelName: safeChannelName,
+                callerName:  callerName,
+                agoraToken:  agoraToken,
+              ),
+            ),
+          );
+        });
+      }
+    }
+
     // ✅ WRAPPED THE APP IN ProviderScope
     runApp(const ProviderScope(child: VanGoApp()));
   } catch (error, stackTrace) {
@@ -143,6 +172,14 @@ class _VanGoAppState extends State<VanGoApp> {
       onCallAccepted: (CallEvent event) async {
         debugPrint('✅ Parent tapped ANSWER on the native screen!');
 
+        // ✅ FIX: IMMEDIATELY clean up CallKit state so next calls work
+        // CallKit's job is done once the user accepts — the actual call
+        // is handled by Agora, NOT CallKit. If we don't clean up here,
+        // CallKit thinks the session is still "active" and blocks future calls.
+        ConnectycubeFlutterCallKit.reportCallEnded(sessionId: event.sessionId);
+        ConnectycubeFlutterCallKit.clearCallData(sessionId: event.sessionId);
+        debugPrint('✅ CallKit state cleaned up for accepted call: ${event.sessionId}');
+
         final rawChannelName = event.userInfo?['channelName'];
         final agoraToken     = event.userInfo?['agoraToken'] as String? ?? '';
         final callerName     = event.callerName;
@@ -159,7 +196,7 @@ class _VanGoAppState extends State<VanGoApp> {
                 builder: (context) => CallScreen(
                   channelName: safeChannelName,
                   callerName:  callerName,
-                  agoraToken:  agoraToken, // ✅ real token
+                  agoraToken:  agoraToken,
                 ),
               ),
             );
@@ -168,12 +205,29 @@ class _VanGoAppState extends State<VanGoApp> {
       },
       onCallRejected: (CallEvent event) async {
         debugPrint('❌ Parent tapped DECLINE. Cleaning up CallKit state...');
-        // ✅ FIX: MUST report call ended so CallKit clears its internal state
-        // Without this, CallKit thinks the old call is still active and
-        // blocks ALL subsequent incoming call notifications!
         ConnectycubeFlutterCallKit.reportCallEnded(sessionId: event.sessionId);
         ConnectycubeFlutterCallKit.clearCallData(sessionId: event.sessionId);
         debugPrint('✅ CallKit state cleaned up for session: ${event.sessionId}');
+
+        // ✅ NEW: Notify the driver instantly via Supabase Realtime broadcast
+        final channelName = event.userInfo?['channelName'] as String? ?? '';
+        if (channelName.isNotEmpty) {
+          debugPrint('📡 Sending decline broadcast to driver for channel: $channelName');
+          try {
+            final channel = Supabase.instance.client.channel('call:$channelName');
+            await channel.subscribe();
+            await channel.sendBroadcastMessage(
+              event: 'declined',
+              payload: {'reason': 'parent_declined'},
+            );
+            // Small delay to ensure message is sent before unsubscribing
+            await Future.delayed(const Duration(milliseconds: 500));
+            await Supabase.instance.client.removeChannel(channel);
+            debugPrint('✅ Decline broadcast sent to driver!');
+          } catch (e) {
+            debugPrint('⚠️ Failed to send decline broadcast: $e');
+          }
+        }
       },
     );
   }

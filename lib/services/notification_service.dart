@@ -59,6 +59,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
     debugPrint('🛑 [BG HANDLER] Cancelling call for channel: $channelName (sessionId: $validSessionId)');
     ConnectycubeFlutterCallKit.reportCallEnded(sessionId: validSessionId);
+    ConnectycubeFlutterCallKit.clearCallData(sessionId: validSessionId);
   } else {
     debugPrint('⚠️ [BG HANDLER] Unknown message type: $type — ignoring');
   }
@@ -185,9 +186,38 @@ class NotificationService {
       }
     });
 
-    // B. HANDLE NOTIFICATION TAPS (When app is in background)
+    // B. HANDLE NOTIFICATION TAPS (When app is killed/background and user taps)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint('🚀 App opened via notification tap');
+      debugPrint('🚀 Data: ${message.data}');
+
+      final type = message.data['type']?.toString();
+
+      // ✅ FIX: If user taps an incoming call notification from the tray
+      // (happens when app was killed/offline), open the call screen directly
+      if (type == 'incoming_call') {
+        final channelName = message.data['channelName'] ?? '';
+        final callerName  = message.data['callerName']  ?? 'VanGo Driver';
+        final agoraToken  = message.data['agoraToken']  ?? '';
+
+        if (channelName.isNotEmpty) {
+          String safeChannelName = channelName;
+          if (safeChannelName.length > 64) {
+            safeChannelName = safeChannelName.substring(0, 64);
+          }
+
+          debugPrint('📞 Opening call screen from notification tap...');
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (context) => CallScreen(
+                channelName: safeChannelName,
+                callerName:  callerName,
+                agoraToken:  agoraToken,
+              ),
+            ),
+          );
+        }
+      }
     });
 
     // C. AUTO-SYNC TOKEN ON REFRESH

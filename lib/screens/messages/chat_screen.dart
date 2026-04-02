@@ -8,6 +8,10 @@ import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:intl/intl.dart';
 
+// ✅ Call imports
+import 'package:vango_parent_app/services/call_service.dart';
+import 'package:vango_parent_app/screens/call/call_screen.dart';
+
 class ChatScreen extends StatefulWidget {
   final String chatId;
   final String driverName;
@@ -212,6 +216,14 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
+        actions: [
+          // ✅ Call button — tapping opens a confirmation dialog
+          IconButton(
+            icon: Icon(Icons.call_rounded, color: accentColor),
+            onPressed: () => _showCallConfirmation(context),
+          ),
+          const SizedBox(width: 8),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Divider(
@@ -432,6 +444,94 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // ✅ Call confirmation dialog — matches the driver app's pattern
+  void _showCallConfirmation(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? AppColors.darkSurfaceStrong : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Voice Call',
+            style: AppTypography.headline.copyWith(
+              color: isDark ? Colors.white : Colors.black,
+              fontSize: 20,
+            ),
+          ),
+          content: Text(
+            'Start a voice call with ${widget.driverName}?',
+            style: AppTypography.body.copyWith(
+              color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+              fontSize: 15,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext); // Close the popup
+
+                debugPrint('📞 Initiating call to ${widget.driverName}...');
+
+                // Build a unique Agora channel name (≤ 64 chars)
+                final timestamp = DateTime.now().millisecondsSinceEpoch.toString().substring(8);
+                final rawChannelName = '${widget.chatId}_$timestamp';
+                final safeChannelName = rawChannelName.length > 64
+                    ? rawChannelName.substring(0, 64)
+                    : rawChannelName;
+
+                // 1. Notify the driver and get the Agora token
+                final agoraToken = await CallService.instance.notifyDriverOfCall(
+                  receiverId: widget.receiverId,
+                  channelName: safeChannelName,
+                );
+
+                if (agoraToken == null) {
+                  debugPrint('⚠️ Call notification may not have reached driver.');
+                }
+
+                // 2. Navigate to the CallScreen
+                if (context.mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CallScreen(
+                        channelName: safeChannelName,
+                        callerName: widget.driverName,
+                        agoraToken: agoraToken ?? '',
+                        receiverId: widget.receiverId, // ✅ For cancel notification
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: Text(
+                'Call',
+                style: TextStyle(
+                  color: isDark ? Colors.white : AppColors.accent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
