@@ -9,8 +9,9 @@ class CallService {
 
   final String _baseUrl = 'https://api.vango.lk/api';
 
-  /// Tells the backend to send a "Wake Up & Ring" push notification to the driver
-  Future<bool> notifyDriverOfCall({
+  /// Tells the backend to send a "Wake Up & Ring" push notification to the driver.
+  /// Returns the Agora token on success, or null on failure.
+  Future<String?> notifyDriverOfCall({
     required String receiverId,
     required String channelName,
   }) async {
@@ -18,14 +19,14 @@ class CallService {
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser == null) {
         debugPrint('[CALL SERVICE] ❌ No authenticated user found.');
-        return false;
+        return null;
       }
 
-      // 1. Fetch the Parent's real name (Adjust 'parents' table if yours is named differently)
+      // 1. Fetch the Parent's real name
       String callerName = 'VanGo Parent';
       try {
         final parentData = await Supabase.instance.client
-            .from('parents') // Change to 'users' if your parents are stored there
+            .from('parents')
             .select('first_name, last_name')
             .eq('id', currentUser.id)
             .maybeSingle();
@@ -56,15 +57,17 @@ class CallService {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        debugPrint('[CALL SERVICE] ✅ Successfully notified backend to ring driver.');
-        return true;
+        final body = jsonDecode(response.body);
+        final token = body['agoraToken'] as String?;
+        debugPrint('[CALL SERVICE] ✅ Driver notified! Token received: ${token != null && token.isNotEmpty ? "yes" : "no"}');
+        return token ?? '';
       } else {
         debugPrint('[CALL SERVICE] ❌ Backend error: ${response.statusCode} - ${response.body}');
-        return false;
+        return null;
       }
     } catch (e) {
       debugPrint('[CALL SERVICE] ❌ Error notifying driver: $e');
-      return false;
+      return null;
     }
   }
 
