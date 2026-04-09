@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 
-enum AttendanceState { coming, notComing, pending }
+enum AttendanceState { both, morning, afternoon, none, pending }
 
 enum PaymentStatus { paid, due, overdue }
 
 extension AttendanceStateApi on AttendanceState {
   String get apiValue {
     switch (this) {
-      case AttendanceState.coming:
-        return 'coming';
-      case AttendanceState.notComing:
-        return 'not_coming';
+      case AttendanceState.both:
+        return 'both';
+      case AttendanceState.morning:
+        return 'morning';
+      case AttendanceState.afternoon:
+        return 'afternoon';
+      case AttendanceState.none:
+        return 'none';
       case AttendanceState.pending:
         return 'pending';
     }
@@ -18,12 +22,19 @@ extension AttendanceStateApi on AttendanceState {
 
   static AttendanceState fromString(String value) {
     switch (value) {
+      case 'morning':
+        return AttendanceState.morning;
+      case 'afternoon':
+        return AttendanceState.afternoon;
       case 'not_coming':
-        return AttendanceState.notComing;
+      case 'none':
+        return AttendanceState.none;
       case 'pending':
         return AttendanceState.pending;
+      case 'coming':
+      case 'both':
       default:
-        return AttendanceState.coming;
+        return AttendanceState.both;
     }
   }
 }
@@ -106,7 +117,7 @@ class ChildProfile {
       attendance: AttendanceStateApi.fromString(
         json['attendance_state'] as String? ??
             json['attendance'] as String? ??
-            'coming',
+            'both',
       ),
       paymentStatus: PaymentStatusApi.fromString(
         json['payment_status'] as String? ??
@@ -116,7 +127,6 @@ class ChildProfile {
       avatarColor: _colorFromName(name),
       linkedDriverId: json['linked_driver_id'],
 
-      // NEW PARSING LOGIC
       age: json['age'] != null ? int.tryParse(json['age'].toString()) : null,
       dropLocation:
           json['drop_location'] as String? ?? json['dropLocation'] as String?,
@@ -166,8 +176,6 @@ class ChildProfile {
       paymentStatus: paymentStatus ?? this.paymentStatus,
       avatarColor: avatarColor,
       linkedDriverId: linkedDriverId ?? this.linkedDriverId,
-
-      // NEW COPY LOGIC
       age: age ?? this.age,
       dropLocation: dropLocation ?? this.dropLocation,
       pickupLat: pickupLat ?? this.pickupLat,

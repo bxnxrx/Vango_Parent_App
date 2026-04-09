@@ -1,17 +1,17 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
 import 'package:table_calendar/table_calendar.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:vango_parent_app/widgets/gradient_button.dart';
+
+// Import our new ViewModel and Components
+import 'package:vango_parent_app/viewmodels/attendance_viewmodel.dart';
+import 'package:vango_parent_app/screens/Attendance/widgets/attendance_components.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final ChildProfile? child;
@@ -22,185 +22,83 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  final ParentDataService _dataService = ParentDataService.instance;
-
-  List<ChildProfile> _linkedChildren = [];
-  ChildProfile? _selectedChild;
-
-  bool _isLoading = true;
-  bool _isTogglingToday = false;
-
-  final Map<String, dynamic> _allPlans = {};
+  late final AttendanceViewModel _viewModel;
 
   DateTime _focusedDay = DateTime.now();
   final Set<DateTime> _selectedDays = {};
 
-  final Set<String> _slHolidays = {};
-  final Map<String, String> _holidayNames = {};
-
-  final Map<String, String> _backupHolidays = {
-    '2025-01-13': 'Duruthu Full Moon Poya',
-    '2025-01-14': 'Tamil Thai Pongal Day',
-    '2025-02-04': 'Independence Day',
-    '2025-02-12': 'Navam Full Moon Poya',
-    '2025-02-26': 'Mahashivratri',
-    '2025-03-13': 'Medin Full Moon Poya',
-    '2025-03-31': 'Eid al-Fitr',
-    '2025-04-12': 'Bak Full Moon Poya',
-    '2025-04-13': 'Sinhala & Tamil New Year Eve',
-    '2025-04-14': 'Sinhala & Tamil New Year',
-    '2025-04-18': 'Good Friday',
-    '2025-05-01': 'May Day',
-    '2025-05-11': 'Vesak Full Moon Poya',
-    '2025-05-12': 'Day following Vesak',
-    '2025-06-07': 'Eid al-Adha',
-    '2025-06-10': 'Poson Full Moon Poya',
-    '2025-07-09': 'Esala Full Moon Poya',
-    '2025-08-08': 'Nikini Full Moon Poya',
-    '2025-09-06': 'Binara Full Moon Poya',
-    '2025-10-06': 'Vap Full Moon Poya',
-    '2025-11-04': 'Ill Full Moon Poya',
-    '2025-12-04': 'Unduvap Full Moon Poya',
-    '2025-12-25': 'Christmas Day',
-  };
-
   @override
   void initState() {
     super.initState();
-    _fetchLinkedChildren();
-    _fetchSriLankanHolidays();
+    _viewModel = AttendanceViewModel();
+    _viewModel.init(widget.child);
   }
 
-  Future<void> _fetchSriLankanHolidays() async {
-    try {
-      final url = Uri.parse(
-        'https://calendar.google.com/calendar/ical/en.lk%23holiday%40group.v.calendar.google.com/public/basic.ics',
-      );
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final lines = response.body.split('\n');
-        String? currentDate;
-        String? currentSummary;
-
-        for (var line in lines) {
-          if (line.startsWith('BEGIN:VEVENT')) {
-            currentDate = null;
-            currentSummary = null;
-          } else if (line.startsWith('DTSTART')) {
-            final parts = line.split(':');
-            if (parts.length > 1) {
-              final dateRaw = parts[1].trim();
-              if (dateRaw.length == 8) {
-                currentDate =
-                    '${dateRaw.substring(0, 4)}-${dateRaw.substring(4, 6)}-${dateRaw.substring(6, 8)}';
-              }
-            }
-          } else if (line.startsWith('SUMMARY:')) {
-            currentSummary = line.substring(8).trim();
-          } else if (line.startsWith('END:VEVENT')) {
-            if (currentDate != null && currentSummary != null) {
-              _slHolidays.add(currentDate);
-              _holidayNames[currentDate] = currentSummary;
-            }
-          }
-        }
-        if (mounted) setState(() {});
-      }
-    } catch (e) {
-      debugPrint(
-        'Failed to fetch live SL holidays, falling back to local database.',
-      );
-    }
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
   }
 
-  Future<void> _fetchLinkedChildren() async {
-    setState(() => _isLoading = true);
-    try {
-      final childrenList = await _dataService.fetchChildren();
-      _linkedChildren = childrenList
-          .where(
-            (c) => c.linkedDriverId != null && c.linkedDriverId!.isNotEmpty,
-          )
-          .toList();
-
-      if (_linkedChildren.isNotEmpty) {
-        if (widget.child != null &&
-            _linkedChildren.any((c) => c.id == widget.child!.id)) {
-          _selectedChild = _linkedChildren.firstWhere(
-            (c) => c.id == widget.child!.id,
-          );
-        } else {
-          _selectedChild = _linkedChildren.first;
-        }
-        await _fetchAttendanceData();
-      } else {
-        if (mounted) setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _fetchAttendanceData() async {
-    if (_selectedChild == null) return;
-    setState(() => _isLoading = true);
-    try {
-      final plans = await _dataService.fetchFutureAttendance(
-        _selectedChild!.id,
-      );
-      if (mounted) {
-        setState(() {
-          _allPlans.clear();
-          _allPlans.addAll(plans);
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _handleRefresh() async {
-    HapticFeedback.lightImpact();
-    if (_selectedChild != null) {
-      _dataService.clearAttendanceCache(_selectedChild!.id);
-      await _fetchAttendanceData();
-    }
-  }
-
-  void _switchChild(ChildProfile child) {
-    if (_selectedChild?.id == child.id) return;
-    HapticFeedback.selectionClick();
-    setState(() {
-      _selectedChild = child;
-      _allPlans.clear();
+  void _handleUpdateResult(
+    AttendanceUpdateResult result, [
+    String? successMessage,
+  ]) {
+    if (result.success) {
+      _showSuccessAnimation(successMessage ?? result.message);
       _selectedDays.clear();
-    });
-    _fetchAttendanceData();
+    } else if (result.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Saved offline. Will sync when internet is restored.'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      _selectedDays.clear();
+    } else if (result.isDeadlinePassed) {
+      _showCallDriverDialog();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
   }
 
-  void _showCallDriverDialog(bool isToday) {
+  void _showCallDriverDialog() {
     showDialog(
       context: context,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         final textColor = Theme.of(ctx).textTheme.bodyLarge?.color;
-        final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+        final secondaryTextColor = isDark
+            ? AppColors.darkTextSecondary
+            : AppColors.textSecondary;
 
         return AlertDialog(
-          backgroundColor: Theme.of(ctx).colorScheme.surface, // 👇 Dynamic Dialog Background
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Theme.of(ctx).dividerColor)), // 👇 Dynamic Border
+          backgroundColor: Theme.of(ctx).colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: Theme.of(ctx).dividerColor),
+          ),
           title: Row(
             children: [
               const Icon(Icons.lock_clock, color: AppColors.warning),
               const SizedBox(width: 8),
-              Text("Deadline Passed", style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text Color
+              Text(
+                "Deadline Passed",
+                style: AppTypography.title.copyWith(color: textColor),
+              ),
             ],
           ),
           content: Text(
             "Attendance changes are allowed until 9 PM the previous day to ensure driver routing stability.\n\nFor urgent last-minute changes, please contact the driver directly.",
-            style: AppTypography.body.copyWith(height: 1.5, color: secondaryTextColor), // 👇 Dynamic Secondary Text Color
+            style: AppTypography.body.copyWith(
+              height: 1.5,
+              color: secondaryTextColor,
+            ),
           ),
           actions: [
             TextButton(
@@ -219,23 +117,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ),
               onPressed: () async {
                 Navigator.pop(ctx);
-                final phone = await _dataService.getDriverPhoneForChild(
-                  _selectedChild!.id,
-                );
+                final phone = await ParentDataService.instance
+                    .getDriverPhoneForChild(_viewModel.selectedChild!.id);
                 if (phone != null && phone.isNotEmpty) {
                   final Uri launchUri = Uri(scheme: 'tel', path: phone);
                   await launchUrl(launchUri);
                 } else {
-                  if (mounted)
+                  if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Driver phone number not found.'),
                       ),
                     );
+                  }
                 }
               },
               icon: const Icon(Icons.call, color: Colors.white),
-              label: const Text("Call Driver", style: TextStyle(color: Colors.white)),
+              label: const Text(
+                "Call Driver",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -243,7 +144,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  // --- 3️⃣ ENTERPRISE CONFIRMATION ANIMATION ---
   void _showSuccessAnimation(String message) {
     showGeneralDialog(
       context: context,
@@ -254,10 +154,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         return ScaleTransition(
           scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
           child: AlertDialog(
-            backgroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Dialog BG
+            backgroundColor: Theme.of(context).colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
-              side: BorderSide(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
+              side: BorderSide(color: Theme.of(context).dividerColor),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -279,7 +179,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   message,
                   textAlign: TextAlign.center,
                   style: AppTypography.body.copyWith(
-                    color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary, // 👇 Dynamic Text
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -289,158 +191,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       },
     );
 
-    // Auto dismiss after 1.8 seconds
     Future.delayed(const Duration(milliseconds: 1800), () {
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
+      if (mounted && Navigator.canPop(context)) Navigator.pop(context);
     });
   }
 
-  Future<void> _toggleToday(bool isComing) async {
-    if (_selectedChild == null) return;
-    if (_isTogglingToday) return;
-
+  void _quickMarkNextWeek(AttendanceState state) async {
     HapticFeedback.selectionClick();
-    setState(() => _isTogglingToday = true);
-
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    try {
-      await _dataService.updateAttendance(
-        _selectedChild!.id,
-        isComing ? AttendanceState.coming : AttendanceState.notComing,
-      );
-      if (mounted) {
-        setState(() {
-          _selectedChild = _selectedChild!.copyWith(
-            attendance: isComing
-                ? AttendanceState.coming
-                : AttendanceState.notComing,
-          );
-          final index = _linkedChildren.indexWhere(
-            (c) => c.id == _selectedChild!.id,
-          );
-          if (index != -1) _linkedChildren[index] = _selectedChild!;
-          _isTogglingToday = false;
-        });
-        _showSuccessAnimation('Today\'s ride updated.');
-      }
-    } catch (e) {
-      final errorStr = e.toString();
-      if (mounted) {
-        setState(() => _isTogglingToday = false);
-
-        if (errorStr.contains('Saved offline')) {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Saved offline. Will sync when internet is restored.',
-              ),
-              backgroundColor: AppColors.warning,
-            ),
-          );
-          setState(() {
-            _selectedChild = _selectedChild!.copyWith(
-              attendance: isComing
-                  ? AttendanceState.coming
-                  : AttendanceState.notComing,
-            );
-          });
-        } else if (errorStr.contains('Deadline passed') ||
-            errorStr.contains('closed at 9 PM')) {
-          _showCallDriverDialog(true);
-        } else {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-              content: Text(errorStr.replaceAll('Exception: ', '')),
-              backgroundColor: AppColors.danger,
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _updateFutureDates(
-    List<DateTime> dates,
-    AttendanceState newState,
-  ) async {
-    if (_selectedChild == null) return;
-    HapticFeedback.lightImpact();
-    setState(() => _isLoading = true);
-
-    final formattedDates = dates
-        .map((d) => DateFormat('yyyy-MM-dd').format(d))
-        .toList();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-    try {
-      await _dataService.updateFutureAttendance(
-        _selectedChild!.id,
-        formattedDates,
-        newState,
-      );
-
-      setState(() {
-        for (var date in formattedDates) {
-          _allPlans[date] = {
-            'state': newState,
-            'updated_at': DateTime.now().toUtc().toIso8601String(),
-          };
-        }
-        _selectedDays.clear();
-        _isLoading = false;
-      });
-
-      if (mounted) {
-        String msg = newState == AttendanceState.coming
-            ? 'Going'
-            : (newState == AttendanceState.pending ? 'Pending' : 'Not Going');
-        _showSuccessAnimation('Marked $msg for ${dates.length} day(s).');
-      }
-    } catch (e) {
-      final errorStr = e.toString();
-      if (mounted) {
-        setState(() => _isLoading = false);
-
-        if (errorStr.contains('Saved offline')) {
-          setState(() {
-            for (var date in formattedDates) {
-              _allPlans[date] = {
-                'state': newState,
-                'updated_at': DateTime.now().toIso8601String(),
-              };
-            }
-            _selectedDays.clear();
-          });
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('Saved offline. Will sync when online.'),
-              backgroundColor: AppColors.warning,
-            ),
-          );
-        } else if (errorStr.contains('Deadline passed') ||
-            errorStr.contains('closed at 9 PM')) {
-          _showCallDriverDialog(false);
-        } else {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-              content: Text(errorStr.replaceAll('Exception: ', '')),
-              backgroundColor: AppColors.danger,
-              action: SnackBarAction(
-                label: 'Retry',
-                textColor: Colors.white,
-                onPressed: () => _updateFutureDates(dates, newState),
-              ),
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  void _quickMarkNextWeek(bool isComing) {
     DateTime nextMonday = DateTime.now();
     while (nextMonday.weekday != DateTime.monday) {
       nextMonday = nextMonday.add(const Duration(days: 1));
@@ -450,19 +207,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     for (int i = 0; i < 5; i++) {
       DateTime d = nextMonday.add(Duration(days: i));
       String ds = DateFormat('yyyy-MM-dd').format(d);
-
       bool isHoliday =
-          _slHolidays.contains(ds) || _backupHolidays.containsKey(ds);
-
-      if (!isHoliday) {
-        nextWeekDays.add(d);
-      }
+          _viewModel.slHolidays.contains(ds) ||
+          _viewModel.backupHolidays.containsKey(ds);
+      if (!isHoliday) nextWeekDays.add(d);
     }
 
     if (nextWeekDays.isNotEmpty) {
-      _updateFutureDates(
-        nextWeekDays,
-        isComing ? AttendanceState.coming : AttendanceState.notComing,
+      final result = await _viewModel.updateFutureDates(nextWeekDays, state);
+      _handleUpdateResult(
+        result,
+        'Status updated for ${nextWeekDays.length} day(s).',
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -474,11 +229,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  // --- 4️⃣ NEW: WEEKLY RECURRING LOGIC ---
   void _showRecurringSetup() {
     int selectedWeekday = DateTime.monday;
-    AttendanceState selectedState = AttendanceState.notComing;
-
+    AttendanceState selectedState = AttendanceState.none;
     final List<String> weekdays = [
       'Monday',
       'Tuesday',
@@ -490,14 +243,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface, // 👇 Dynamic Modal Background
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         final textColor = Theme.of(ctx).textTheme.bodyLarge?.color;
-        final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+        final secondaryTextColor = isDark
+            ? AppColors.darkTextSecondary
+            : AppColors.textSecondary;
 
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
@@ -512,34 +267,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Set Weekly Recurring", style: AppTypography.headline.copyWith(color: textColor)), // 👇 Dynamic Text Color
+                  Text(
+                    "Set Weekly Recurring",
+                    style: AppTypography.headline.copyWith(color: textColor),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     "Applies to the next 4 weeks (max 30 days limit). Automatically skips holidays.",
                     style: AppTypography.body.copyWith(
-                      color: secondaryTextColor, // 👇 Dynamic Secondary Text
+                      color: secondaryTextColor,
                     ),
                   ),
                   const SizedBox(height: 24),
 
-                  Text("Select Day", style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
+                  Text(
+                    "Select Day",
+                    style: AppTypography.title.copyWith(color: textColor),
+                  ),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: List.generate(5, (index) {
-                      int dayInt = index + 1; // 1 = Monday, 5 = Friday
+                      int dayInt = index + 1;
                       bool isSelected = selectedWeekday == dayInt;
                       return ChoiceChip(
                         label: Text(weekdays[index]),
                         selected: isSelected,
                         selectedColor: AppColors.accent.withValues(alpha: 0.2),
-                        backgroundColor: isDark ? AppColors.darkSurfaceStrong : AppColors.surfaceStrong, // 👇 Dynamic Chip BG
-                        side: BorderSide(color: isSelected ? AppColors.accent : Colors.transparent),
-                        labelStyle: TextStyle(
+                        backgroundColor: isDark
+                            ? AppColors.darkSurfaceStrong
+                            : AppColors.surfaceStrong,
+                        side: BorderSide(
                           color: isSelected
                               ? AppColors.accent
-                              : textColor, // 👇 Dynamic Unselected Text
+                              : Colors.transparent,
+                        ),
+                        labelStyle: TextStyle(
+                          color: isSelected ? AppColors.accent : textColor,
                           fontWeight: isSelected
                               ? FontWeight.bold
                               : FontWeight.normal,
@@ -551,31 +316,48 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
 
                   const SizedBox(height: 24),
-                  Text("Set Status", style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
+                  Text(
+                    "Set Status",
+                    style: AppTypography.title.copyWith(color: textColor),
+                  ),
                   const SizedBox(height: 12),
-                  Row(
+                  Column(
                     children: [
-                      Expanded(
-                        child: RadioListTile<AttendanceState>(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text('Not Going', style: TextStyle(color: textColor)), // 👇 Dynamic Text
-                          value: AttendanceState.notComing,
-                          groupValue: selectedState,
-                          activeColor: AppColors.danger,
-                          onChanged: (val) =>
-                              setModalState(() => selectedState = val!),
+                      RadioListTile<AttendanceState>(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Morning Only',
+                          style: TextStyle(color: textColor),
                         ),
+                        value: AttendanceState.morning,
+                        groupValue: selectedState,
+                        activeColor: AppColors.accent,
+                        onChanged: (val) =>
+                            setModalState(() => selectedState = val!),
                       ),
-                      Expanded(
-                        child: RadioListTile<AttendanceState>(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text('Going', style: TextStyle(color: textColor)), // 👇 Dynamic Text
-                          value: AttendanceState.coming,
-                          groupValue: selectedState,
-                          activeColor: AppColors.success,
-                          onChanged: (val) =>
-                              setModalState(() => selectedState = val!),
+                      RadioListTile<AttendanceState>(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Afternoon Only',
+                          style: TextStyle(color: textColor),
                         ),
+                        value: AttendanceState.afternoon,
+                        groupValue: selectedState,
+                        activeColor: AppColors.accent,
+                        onChanged: (val) =>
+                            setModalState(() => selectedState = val!),
+                      ),
+                      RadioListTile<AttendanceState>(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Not Going',
+                          style: TextStyle(color: textColor),
+                        ),
+                        value: AttendanceState.none,
+                        groupValue: selectedState,
+                        activeColor: AppColors.accent,
+                        onChanged: (val) =>
+                            setModalState(() => selectedState = val!),
                       ),
                     ],
                   ),
@@ -584,30 +366,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   GradientButton(
                     label: 'Apply to Next 4 Weeks',
                     expanded: true,
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(ctx);
-
-                      // Calculate the next 4 occurrences of that weekday
                       List<DateTime> generatedDates = [];
                       DateTime current = DateTime.now().add(
                         const Duration(days: 1),
-                      ); // Start from tomorrow
+                      );
 
                       while (generatedDates.length < 4) {
                         if (current.weekday == selectedWeekday) {
                           String ds = DateFormat('yyyy-MM-dd').format(current);
                           bool isHoliday =
-                              _slHolidays.contains(ds) ||
-                              _backupHolidays.containsKey(ds);
-
-                          if (!isHoliday) {
-                            generatedDates.add(current);
-                          }
+                              _viewModel.slHolidays.contains(ds) ||
+                              _viewModel.backupHolidays.containsKey(ds);
+                          if (!isHoliday) generatedDates.add(current);
                         }
                         current = current.add(const Duration(days: 1));
                       }
 
-                      _updateFutureDates(generatedDates, selectedState);
+                      final result = await _viewModel.updateFutureDates(
+                        generatedDates,
+                        selectedState,
+                      );
+                      _handleUpdateResult(
+                        result,
+                        'Status updated for ${generatedDates.length} day(s).',
+                      );
                     },
                   ),
                   const SizedBox(height: 32),
@@ -620,100 +404,161 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-  void _showBulkMarkingDialog(BuildContext context, List<DateTime> dates) {
+  void _showBulkMarkingDialog() {
+    if (_selectedDays.isEmpty) return;
+    HapticFeedback.selectionClick();
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    bool canMarkPending = dates.every((d) => d.difference(today).inDays >= 7);
+    bool canMarkPending = _selectedDays.every(
+      (d) => d.difference(today).inDays >= 7,
+    );
+
+    AttendanceState selectedOption = AttendanceState.none;
 
     showDialog(
       context: context,
       builder: (ctx) {
         final isDark = Theme.of(ctx).brightness == Brightness.dark;
         final textColor = Theme.of(ctx).textTheme.bodyLarge?.color;
-        
-        return AlertDialog(
-          backgroundColor: Theme.of(ctx).colorScheme.surface, // 👇 Dynamic Dialog Background
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Theme.of(ctx).dividerColor)),
-          title: Text("Set Attendance", style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
-          content: Text("Mark ${dates.length} selected day(s) as:", style: TextStyle(color: textColor)), // 👇 Dynamic Text
-          actionsAlignment: MainAxisAlignment.spaceEvenly,
-          actions: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: Theme.of(ctx).colorScheme.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: Theme.of(ctx).dividerColor),
+              ),
+              title: Text(
+                "Set Attendance",
+                style: AppTypography.title.copyWith(color: textColor),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Select status for the ${_selectedDays.length} selected day(s):",
+                      style: TextStyle(color: textColor),
                     ),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _updateFutureDates(dates, AttendanceState.coming);
-                  },
-                  icon: const Icon(Icons.check_circle, size: 18, color: Colors.white),
-                  label: const Text(
-                    "Coming (Green)",
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                    const SizedBox(height: 16),
+                    _buildRadioTile(
+                      "Morning Ride Only",
+                      AttendanceState.morning,
+                      selectedOption,
+                      (val) => setModalState(() => selectedOption = val!),
+                      isDark,
+                    ),
+                    _buildRadioTile(
+                      "Afternoon Ride Only",
+                      AttendanceState.afternoon,
+                      selectedOption,
+                      (val) => setModalState(() => selectedOption = val!),
+                      isDark,
+                    ),
+                    _buildRadioTile(
+                      "Not Going",
+                      AttendanceState.none,
+                      selectedOption,
+                      (val) => setModalState(() => selectedOption = val!),
+                      isDark,
+                    ),
+                    if (canMarkPending)
+                      _buildRadioTile(
+                        "Pending",
+                        AttendanceState.pending,
+                        selectedOption,
+                        (val) => setModalState(() => selectedOption = val!),
+                        isDark,
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(color: Colors.grey),
                   ),
                 ),
-                const SizedBox(height: 8),
-                FilledButton.icon(
+                FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.danger,
+                    backgroundColor: AppColors.accent,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.pop(ctx);
-                    _updateFutureDates(dates, AttendanceState.notComing);
+                    final dates = _selectedDays.toList();
+                    final result = await _viewModel.updateFutureDates(
+                      dates,
+                      selectedOption,
+                    );
+                    _handleUpdateResult(
+                      result,
+                      'Status updated for ${dates.length} day(s).',
+                    );
                   },
-                  icon: const Icon(Icons.cancel, size: 18, color: Colors.white),
-                  label: const Text(
-                    "Not Coming (Red)",
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: canMarkPending
-                        ? AppColors.warning
-                        : Theme.of(ctx).dividerColor,
-                    foregroundColor: canMarkPending
-                        ? Colors.white
-                        : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                  child: const Text(
+                    "Confirm",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                  ),
-                  onPressed: canMarkPending
-                      ? () {
-                          Navigator.pop(ctx);
-                          _updateFutureDates(dates, AttendanceState.pending);
-                        }
-                      : null,
-                  icon: const Icon(Icons.help_outline, size: 18),
-                  label: Text(
-                    canMarkPending
-                        ? "Pending (Yellow)"
-                        : "Pending (Disabled < 7 days)",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
-            ),
-          ],
+            );
+          },
         );
-      }
+      },
     );
   }
 
-  // 👇 ADDED BuildContext parameter so we can dynamically fetch theme colors
+  Widget _buildRadioTile(
+    String title,
+    AttendanceState value,
+    AttendanceState groupValue,
+    ValueChanged<AttendanceState?> onChanged,
+    bool isDark,
+  ) {
+    final isSelected = value == groupValue;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? AppColors.accent.withValues(alpha: 0.1)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected
+              ? AppColors.accent
+              : (isDark ? Colors.white10 : Colors.black12),
+        ),
+      ),
+      child: RadioListTile<AttendanceState>(
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? AppColors.accent : null,
+            fontSize: 14,
+          ),
+        ),
+        value: value,
+        groupValue: groupValue,
+        activeColor: AppColors.accent,
+        onChanged: onChanged,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      ),
+    );
+  }
+
   Widget _buildCalendarCell(
-    BuildContext context,
     DateTime day, {
     bool isToday = false,
     bool isSelected = false,
@@ -721,52 +566,39 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     String dateStr = DateFormat('yyyy-MM-dd').format(day);
     bool isWeekend =
         day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
-
     bool isHoliday =
-        _slHolidays.contains(dateStr) || _backupHolidays.containsKey(dateStr);
-    String holidayName =
-        (_holidayNames[dateStr] ?? _backupHolidays[dateStr] ?? '')
-            .toLowerCase();
-    bool isPoya = isHoliday && holidayName.contains('poya');
+        _viewModel.slHolidays.contains(dateStr) ||
+        _viewModel.backupHolidays.containsKey(dateStr);
 
-    AttendanceState? state = _allPlans[dateStr]?['state'];
-
-    if (state == null && !isWeekend && !isHoliday) {
-      state = AttendanceState.coming;
-    }
+    AttendanceState? state = _viewModel.allPlans[dateStr]?['state'];
+    if (state == null && !isWeekend && !isHoliday) state = AttendanceState.both;
 
     Color bgColor = Colors.transparent;
-    // 👇 Dynamic Base Text Color
-    Color textColor = Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textPrimary; 
-    Widget? icon;
+    Color textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textPrimary;
 
-    if (state == AttendanceState.coming) {
+    if (state == AttendanceState.both) {
       bgColor = AppColors.success.withValues(alpha: 0.15);
       textColor = AppColors.success;
-    } else if (state == AttendanceState.notComing) {
+    } else if (state == AttendanceState.none) {
       bgColor = AppColors.danger.withValues(alpha: 0.15);
       textColor = AppColors.danger;
+    } else if (state == AttendanceState.morning) {
+      bgColor = Colors.teal.withValues(alpha: 0.15);
+      textColor = Colors.teal;
+    } else if (state == AttendanceState.afternoon) {
+      bgColor = Colors.deepPurple.withValues(alpha: 0.15);
+      textColor = Colors.deepPurple;
     } else if (state == AttendanceState.pending) {
       bgColor = AppColors.warning.withValues(alpha: 0.2);
       textColor = AppColors.warning;
     }
 
     if (isWeekend || isHoliday) {
-      bgColor = Theme.of(context).dividerColor.withValues(alpha: 0.2); // 👇 Dynamic Empty Background
-      textColor = Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextSecondary : AppColors.textSecondary; // 👇 Dynamic Empty Text
-      if (isPoya) {
-        icon = const Icon(
-          Icons.brightness_3,
-          size: 10,
-          color: AppColors.warning,
-        );
-      } else if (isHoliday) {
-        icon = const Icon(
-          Icons.celebration,
-          size: 10,
-          color: AppColors.warning,
-        );
-      }
+      bgColor = Theme.of(context).dividerColor.withValues(alpha: 0.2);
+      textColor = Theme.of(context).brightness == Brightness.dark
+          ? AppColors.darkTextSecondary
+          : AppColors.textSecondary;
     }
 
     return Container(
@@ -781,29 +613,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   : null),
       ),
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '${day.day}',
-              style: TextStyle(
-                color: textColor,
-                fontWeight: isToday || isSelected
-                    ? FontWeight.bold
-                    : FontWeight.normal,
-              ),
-            ),
-            if (icon != null)
-              Padding(padding: const EdgeInsets.only(top: 2), child: icon),
-          ],
+        child: Text(
+          '${day.day}',
+          style: TextStyle(
+            color: textColor,
+            fontWeight: isToday || isSelected
+                ? FontWeight.bold
+                : FontWeight.normal,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildLegendItem(BuildContext context, Color color, String label, {IconData? icon}) {
+  Widget _buildLegendItem(Color color, String label) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 14,
@@ -813,14 +639,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: color),
           ),
-          child: icon != null ? Icon(icon, size: 10, color: color) : null,
         ),
         const SizedBox(width: 4),
         Text(
           label,
           style: AppTypography.body.copyWith(
             fontSize: 11,
-            color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary, // 👇 Dynamic Legend Text
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
           ),
         ),
       ],
@@ -831,708 +658,382 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-
-    if (_isLoading && _selectedChild == null) {
-      return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic Scaffold
-        body: const _AttendanceSkeleton(),
-      );
-    }
-
-    if (_linkedChildren.isEmpty) {
-      return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic Scaffold
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: Text('Attendance', style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
-          centerTitle: true,
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceStrong : AppColors.accentLow, // 👇 Dynamic Icon BG
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.directions_bus_filled_outlined,
-                    size: 64,
-                    color: AppColors.accent,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text('No Driver Linked', style: AppTypography.headline.copyWith(color: textColor)), // 👇 Dynamic Text
-                const SizedBox(height: 12),
-                Text(
-                  'To manage daily and future attendance, you must first assign a driver to your child.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(
-                    color: secondaryTextColor, // 👇 Dynamic Secondary Text
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
+    final secondaryTextColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👇 Dynamic Scaffold
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Attendance', style: AppTypography.title.copyWith(color: textColor)), // 👇 Dynamic Text
+        title: Text(
+          'Attendance',
+          style: AppTypography.title.copyWith(color: textColor),
+        ),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          _buildChildSelector(),
-          Expanded(
-            child: _isLoading && _allPlans.isEmpty
-                ? const _AttendanceSkeleton()
-                : RefreshIndicator(
-                    onRefresh: _handleRefresh,
-                    color: AppColors.accent,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Today's Ride",
-                            style: AppTypography.title.copyWith(fontSize: 18, color: textColor), // 👇 Dynamic Text
-                          ),
-                          const SizedBox(height: 12),
-                          _buildTodayCard(),
-
-                          const SizedBox(height: 32),
-                          Text(
-                            'Plan Calendar',
-                            style: AppTypography.title.copyWith(fontSize: 18, color: textColor), // 👇 Dynamic Text
-                          ),
-                          const SizedBox(height: 12),
-
-                          Container(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
-                              boxShadow: [
-                                if (!isDark) // 👇 Shadows only in light mode
-                                  BoxShadow(
-                                    color: AppColors.textPrimary.withValues(alpha: 0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                TableCalendar(
-                                  firstDay: DateTime.now().subtract(
-                                    const Duration(days: 365),
-                                  ),
-                                  lastDay: DateTime.now().add(
-                                    const Duration(days: 365),
-                                  ),
-                                  focusedDay: _focusedDay,
-                                  calendarFormat: CalendarFormat.month,
-                                  startingDayOfWeek: StartingDayOfWeek.monday,
-                                  headerStyle: HeaderStyle(
-                                    formatButtonVisible: false,
-                                    titleCentered: true,
-                                    titleTextStyle: AppTypography.title.copyWith(fontSize: 16, color: textColor), // 👇 Dynamic Header Text
-                                    leftChevronIcon: Icon(Icons.chevron_left, color: textColor),
-                                    rightChevronIcon: Icon(Icons.chevron_right, color: textColor),
-                                  ),
-                                  selectedDayPredicate: (day) => _selectedDays
-                                      .any((d) => isSameDay(d, day)),
-                                  onDaySelected: (selectedDay, focusedDay) {
-                                    setState(() {
-                                      _focusedDay = focusedDay;
-
-                                      final today = DateTime(
-                                        DateTime.now().year,
-                                        DateTime.now().month,
-                                        DateTime.now().day,
-                                      );
-                                      final normalizedSelected = DateTime(
-                                        selectedDay.year,
-                                        selectedDay.month,
-                                        selectedDay.day,
-                                      );
-
-                                      if (normalizedSelected.isBefore(today) ||
-                                          isSameDay(
-                                            normalizedSelected,
-                                            today,
-                                          )) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Past days and today cannot be selected here.',
-                                            ),
-                                          ),
-                                        );
-                                        return;
-                                      }
-
-                                      if (_selectedDays.length >= 30 &&
-                                          !_selectedDays.any(
-                                            (d) => isSameDay(d, selectedDay),
-                                          )) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Maximum 30 days allowed per update.',
-                                            ),
-                                            backgroundColor: AppColors.warning,
-                                          ),
-                                        );
-                                        return;
-                                      }
-
-                                      if (_selectedDays.any(
-                                        (d) => isSameDay(d, selectedDay),
-                                      )) {
-                                        _selectedDays.removeWhere(
-                                          (d) => isSameDay(d, selectedDay),
-                                        );
-                                      } else {
-                                        _selectedDays.add(selectedDay);
-                                      }
-                                    });
-                                  },
-                                  calendarBuilders: CalendarBuilders(
-                                    defaultBuilder:
-                                        (context, day, focusedDay) =>
-                                            _buildCalendarCell(context, day), // 👇 Passes Context
-                                    todayBuilder: (context, day, focusedDay) =>
-                                        _buildCalendarCell(context, day, isToday: true), // 👇 Passes Context
-                                    selectedBuilder:
-                                        (context, day, focusedDay) =>
-                                            _buildCalendarCell(
-                                              context, // 👇 Passes Context
-                                              day,
-                                              isSelected: true,
-                                            ),
-                                    outsideBuilder:
-                                        (context, day, focusedDay) =>
-                                            const SizedBox.shrink(),
-                                  ),
-                                ),
-
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
-                                  child: Divider(
-                                    height: 1,
-                                    color: Theme.of(context).dividerColor, // 👇 Dynamic Divider
-                                  ),
-                                ),
-
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    _buildLegendItem(
-                                      context, // 👇 Pass Context
-                                      AppColors.success,
-                                      'Coming',
-                                    ),
-                                    _buildLegendItem(
-                                      context, // 👇 Pass Context
-                                      AppColors.danger,
-                                      'Not Coming',
-                                    ),
-                                    _buildLegendItem(
-                                      context, // 👇 Pass Context
-                                      AppColors.warning,
-                                      'Pending',
-                                    ),
-                                    _buildLegendItem(
-                                      context, // 👇 Pass Context
-                                      secondaryTextColor,
-                                      'Holiday',
-                                      icon: Icons.brightness_3,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          if (_selectedDays.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 16.0),
-                              child: GradientButton(
-                                label:
-                                    'Set Status for ${_selectedDays.length} Day(s)',
-                                onPressed: () => _showBulkMarkingDialog(
-                                  context,
-                                  _selectedDays.toList(),
-                                ),
-                                expanded: true,
-                              ),
-                            ),
-
-                          // 🔮 WEEKLY RECURRING & QUICK ACTIONS
-                          if (_selectedDays.isEmpty) ...[
-                            const SizedBox(height: 24),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () => _quickMarkNextWeek(true),
-                                    icon: const Icon(
-                                      Icons.event_available,
-                                      size: 16,
-                                      color: AppColors.success,
-                                    ),
-                                    label: const Text(
-                                      'Next Week Going',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.success,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.success.withOpacity(0.5))),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: () => _quickMarkNextWeek(false),
-                                    icon: const Icon(
-                                      Icons.event_busy,
-                                      size: 16,
-                                      color: AppColors.danger,
-                                    ),
-                                    label: const Text(
-                                      'Next Week Absent',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.danger,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.danger.withOpacity(0.5))),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: _showRecurringSetup,
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(
-                                    color: isDark ? AppColors.darkAccent : AppColors.accent, // 👇 Dynamic Border
-                                  ),
-                                  foregroundColor: isDark ? AppColors.darkAccent : AppColors.accent, // 👇 Dynamic Text
-                                ),
-                                icon: const Icon(Icons.repeat),
-                                label: const Text(
-                                  'Set Weekly Recurring (e.g. Every Monday)',
-                                ),
-                              ),
-                            ),
-                          ],
-
-                          const SizedBox(height: 32),
-                          Text(
-                            'Audit History',
-                            style: AppTypography.title.copyWith(fontSize: 18, color: textColor), // 👇 Dynamic Text
-                          ),
-                          const SizedBox(height: 12),
-                          _buildHistoryList(),
-
-                          const SizedBox(height: 40),
-                        ],
-                      ),
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChildSelector() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-
-    if (_linkedChildren.length <= 1) return const SizedBox.shrink();
-
-    return Container(
-      height: 90,
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _linkedChildren.length,
-        itemBuilder: (context, index) {
-          final child = _linkedChildren[index];
-          final isSelected = child.id == _selectedChild?.id;
-
-          ImageProvider? avatarImage;
-          if (child.imageUrl != null && child.imageUrl!.isNotEmpty) {
-            avatarImage = CachedNetworkImageProvider(child.imageUrl!);
+      body: ListenableBuilder(
+        listenable: _viewModel,
+        builder: (context, _) {
+          if (_viewModel.isLoading && _viewModel.selectedChild == null) {
+            return const AttendanceSkeletonWidget();
           }
 
-          return GestureDetector(
-            onTap: () => _switchChild(child),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              child: Column(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected
-                            ? AppColors.accent
-                            : Colors.transparent,
-                        width: 3,
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(3),
-                    child: CircleAvatar(
-                      radius: 26,
-                      backgroundColor: child.avatarColor.withValues(alpha: 0.2),
-                      backgroundImage: avatarImage,
-                      child: avatarImage == null
-                          ? Text(
-                              child.name[0].toUpperCase(),
-                              style: TextStyle(
-                                color: child.avatarColor,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    child.name.split(' ')[0],
-                    style: AppTypography.body.copyWith(
-                      fontSize: 12,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: isSelected
-                          ? textColor // 👇 Dynamic Text
-                          : secondaryTextColor, // 👇 Dynamic Text
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTodayCard() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-
-    ImageProvider? currentAvatar;
-    if (_selectedChild!.imageUrl != null &&
-        _selectedChild!.imageUrl!.isNotEmpty) {
-      currentAvatar = CachedNetworkImageProvider(_selectedChild!.imageUrl!);
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
-        boxShadow: [
-          if (!isDark) // 👇 Shadows only in light mode
-            BoxShadow(
-              color: AppColors.textPrimary.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: _selectedChild!.avatarColor.withValues(
-                    alpha: 0.2,
-                  ),
-                  backgroundImage: currentAvatar,
-                  child: currentAvatar == null
-                      ? Text(
-                          _selectedChild!.name[0].toUpperCase(),
-                          style: TextStyle(
-                            color: _selectedChild!.avatarColor,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _selectedChild!.attendance == AttendanceState.coming
-                            ? 'Going to School'
-                            : 'Not Going Today',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color:
-                              _selectedChild!.attendance ==
-                                      AttendanceState.coming
-                                  ? AppColors.success
-                                  : AppColors.danger,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Attendance changes allowed until 9 PM previous day',
-                        style: AppTypography.body.copyWith(
-                          color: secondaryTextColor, // 👇 Dynamic Secondary Text
-                          fontSize: 11,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (_isTogglingToday)
-            const SizedBox(
-              width: 48,
-              height: 48,
+          if (_viewModel.linkedChildren.isEmpty) {
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(12.0),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.accent,
-                ),
-              ),
-            )
-          else
-            Switch(
-              value: _selectedChild!.attendance == AttendanceState.coming,
-              activeThumbColor: AppColors.success,
-              activeTrackColor: AppColors.success.withValues(alpha: 0.5),
-              inactiveThumbColor: AppColors.danger,
-              inactiveTrackColor: AppColors.danger.withValues(alpha: 0.2),
-              trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-              onChanged: _toggleToday,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHistoryList() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final secondaryTextColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
-
-    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    final pastKeys =
-        _allPlans.keys.where((k) => k.compareTo(todayStr) < 0).toList()
-          ..sort((a, b) => b.compareTo(a));
-
-    if (pastKeys.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface Color
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).dividerColor, style: BorderStyle.solid), // 👇 Dynamic Border
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.history, color: secondaryTextColor, size: 32), // 👇 Dynamic Icon
-            const SizedBox(height: 12),
-            Text(
-              'No history records found.',
-              style: AppTypography.body.copyWith(
-                color: secondaryTextColor, // 👇 Dynamic Text
-              ),
-            ),
-            Text(
-              'Default daily attendance is "Going".',
-              style: AppTypography.body.copyWith(
-                color: secondaryTextColor, // 👇 Dynamic Text
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: pastKeys.length,
-      itemBuilder: (context, index) {
-        String dateStr = pastKeys[index];
-        final record = _allPlans[dateStr];
-        AttendanceState state = record['state'];
-        DateTime dateObj = DateTime.parse(dateStr);
-
-        String timeAgo = '';
-        if (record['updated_at'] != null) {
-          DateTime updatedObj = DateTime.parse(record['updated_at']).toLocal();
-          timeAgo = ' • Updated at ${DateFormat('h:mm a').format(updatedObj)}';
-        }
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface, // 👇 Dynamic Surface Color
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).dividerColor), // 👇 Dynamic Border
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color:
-                      (state == AttendanceState.coming
-                              ? AppColors.success
-                              : (state == AttendanceState.notComing
-                                    ? AppColors.danger
-                                    : AppColors.warning))
-                          .withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  state == AttendanceState.coming
-                      ? Icons.check_circle
-                      : (state == AttendanceState.notComing
-                            ? Icons.cancel
-                            : Icons.help),
-                  color: state == AttendanceState.coming
-                      ? AppColors.success
-                      : (state == AttendanceState.notComing
-                            ? AppColors.danger
-                            : AppColors.warning),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      DateFormat('MMMM d, yyyy').format(dateObj),
-                      style: AppTypography.title.copyWith(fontSize: 15, color: textColor), // 👇 Dynamic Text
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.darkSurfaceStrong
+                            : AppColors.accentLow,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.directions_bus_filled_outlined,
+                        size: 64,
+                        color: AppColors.accent,
+                      ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 24),
                     Text(
-                      (state == AttendanceState.coming
-                              ? 'Marked Going'
-                              : (state == AttendanceState.notComing
-                                    ? 'Marked Not Going'
-                                    : 'Marked Pending')) +
-                          timeAgo,
+                      'No Driver Linked',
+                      style: AppTypography.headline.copyWith(color: textColor),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'To manage daily and future attendance, you must first assign a driver to your child.',
+                      textAlign: TextAlign.center,
                       style: AppTypography.body.copyWith(
-                        fontSize: 12,
-                        color: secondaryTextColor, // 👇 Dynamic Secondary Text
+                        color: secondaryTextColor,
+                        height: 1.5,
                       ),
                     ),
                   ],
                 ),
               ),
+            );
+          }
+
+          return Column(
+            children: [
+              ChildSelectorWidget(
+                linkedChildren: _viewModel.linkedChildren,
+                selectedChild: _viewModel.selectedChild,
+                onChildSelected: _viewModel.switchChild,
+              ),
+              Expanded(
+                child: _viewModel.isLoading && _viewModel.allPlans.isEmpty
+                    ? const AttendanceSkeletonWidget()
+                    : RefreshIndicator(
+                        onRefresh: _viewModel.refresh,
+                        color: AppColors.accent,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Today's Ride",
+                                style: AppTypography.title.copyWith(
+                                  fontSize: 18,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              TodayRideWidget(
+                                selectedChild: _viewModel.selectedChild!,
+                                isTogglingToday: _viewModel.isTogglingToday,
+                                onUpdateRide: (isMorning, isAfternoon) async {
+                                  final result = await _viewModel
+                                      .updateTodayRide(
+                                        isMorning: isMorning,
+                                        isAfternoon: isAfternoon,
+                                      );
+                                  _handleUpdateResult(result);
+                                },
+                              ),
+
+                              const SizedBox(height: 32),
+                              Text(
+                                'Plan Calendar',
+                                style: AppTypography.title.copyWith(
+                                  fontSize: 18,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              Container(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: Theme.of(context).dividerColor,
+                                  ),
+                                  boxShadow: [
+                                    if (!isDark)
+                                      BoxShadow(
+                                        color: AppColors.textPrimary.withValues(
+                                          alpha: 0.05,
+                                        ),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    TableCalendar(
+                                      firstDay: DateTime.now().subtract(
+                                        const Duration(days: 365),
+                                      ),
+                                      lastDay: DateTime.now().add(
+                                        const Duration(days: 365),
+                                      ),
+                                      focusedDay: _focusedDay,
+                                      calendarFormat: CalendarFormat.month,
+                                      startingDayOfWeek:
+                                          StartingDayOfWeek.monday,
+                                      headerStyle: HeaderStyle(
+                                        formatButtonVisible: false,
+                                        titleCentered: true,
+                                        titleTextStyle: AppTypography.title
+                                            .copyWith(
+                                              fontSize: 16,
+                                              color: textColor,
+                                            ),
+                                        leftChevronIcon: Icon(
+                                          Icons.chevron_left,
+                                          color: textColor,
+                                        ),
+                                        rightChevronIcon: Icon(
+                                          Icons.chevron_right,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      selectedDayPredicate: (day) =>
+                                          _selectedDays.any(
+                                            (d) => isSameDay(d, day),
+                                          ),
+                                      onDaySelected: (selectedDay, focusedDay) {
+                                        setState(() {
+                                          _focusedDay = focusedDay;
+                                          final today = DateTime(
+                                            DateTime.now().year,
+                                            DateTime.now().month,
+                                            DateTime.now().day,
+                                          );
+                                          final normalizedSelected = DateTime(
+                                            selectedDay.year,
+                                            selectedDay.month,
+                                            selectedDay.day,
+                                          );
+
+                                          if (normalizedSelected.isBefore(
+                                                today,
+                                              ) ||
+                                              isSameDay(
+                                                normalizedSelected,
+                                                today,
+                                              )) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Past days and today cannot be selected here.',
+                                                ),
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                          if (_selectedDays.length >= 30 &&
+                                              !_selectedDays.any(
+                                                (d) =>
+                                                    isSameDay(d, selectedDay),
+                                              )) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Maximum 30 days allowed per update.',
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.warning,
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                          if (_selectedDays.any(
+                                            (d) => isSameDay(d, selectedDay),
+                                          )) {
+                                            _selectedDays.removeWhere(
+                                              (d) => isSameDay(d, selectedDay),
+                                            );
+                                          } else {
+                                            _selectedDays.add(selectedDay);
+                                          }
+                                        });
+                                      },
+                                      calendarBuilders: CalendarBuilders(
+                                        defaultBuilder:
+                                            (context, day, focusedDay) =>
+                                                _buildCalendarCell(day),
+                                        todayBuilder:
+                                            (context, day, focusedDay) =>
+                                                _buildCalendarCell(
+                                                  day,
+                                                  isToday: true,
+                                                ),
+                                        selectedBuilder:
+                                            (context, day, focusedDay) =>
+                                                _buildCalendarCell(
+                                                  day,
+                                                  isSelected: true,
+                                                ),
+                                        outsideBuilder:
+                                            (context, day, focusedDay) =>
+                                                const SizedBox.shrink(),
+                                      ),
+                                    ),
+
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      child: Divider(
+                                        height: 1,
+                                        color: Theme.of(context).dividerColor,
+                                      ),
+                                    ),
+
+                                    Wrap(
+                                      alignment: WrapAlignment.center,
+                                      spacing: 12,
+                                      runSpacing: 8,
+                                      children: [
+                                        _buildLegendItem(
+                                          AppColors.success,
+                                          'Going (Default)',
+                                        ),
+                                        _buildLegendItem(
+                                          Colors.teal,
+                                          'Morning',
+                                        ),
+                                        _buildLegendItem(
+                                          Colors.deepPurple,
+                                          'Afternoon',
+                                        ),
+                                        _buildLegendItem(
+                                          AppColors.danger,
+                                          'None',
+                                        ),
+                                        _buildLegendItem(
+                                          AppColors.warning,
+                                          'Pending',
+                                        ),
+                                        _buildLegendItem(
+                                          secondaryTextColor,
+                                          'Holiday',
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              if (_selectedDays.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 16.0),
+                                  child: GradientButton(
+                                    label:
+                                        'Set Status for ${_selectedDays.length} Day(s)',
+                                    onPressed: _showBulkMarkingDialog,
+                                    expanded: true,
+                                  ),
+                                ),
+
+                              if (_selectedDays.isEmpty) ...[
+                                const SizedBox(height: 24),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton(
+                                    onPressed: () => _quickMarkNextWeek(
+                                      AttendanceState.none,
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(
+                                        color: AppColors.danger.withOpacity(
+                                          0.5,
+                                        ),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Mark Next Week Absent',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.danger,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton(
+                                    onPressed: _showRecurringSetup,
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(
+                                        color: isDark
+                                            ? AppColors.darkAccent
+                                            : AppColors.accent,
+                                      ),
+                                      foregroundColor: isDark
+                                          ? AppColors.darkAccent
+                                          : AppColors.accent,
+                                    ),
+                                    child: const Text('Set Weekly Recurring'),
+                                  ),
+                                ),
+                              ],
+
+                              const SizedBox(height: 32),
+                              Text(
+                                'Audit History',
+                                style: AppTypography.title.copyWith(
+                                  fontSize: 18,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              AttendanceHistoryWidget(
+                                allPlans: _viewModel.allPlans,
+                              ),
+
+                              const SizedBox(height: 40),
+                            ],
+                          ),
+                        ),
+                      ),
+              ),
             ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _AttendanceSkeleton extends StatelessWidget {
-  const _AttendanceSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Shimmer.fromColors(
-      baseColor: isDark ? Colors.grey.shade800 : AppColors.stroke.withValues(alpha: 0.5), // 👇 Dynamic Shimmer Base
-      highlightColor: isDark ? Colors.grey.shade700 : AppColors.surfaceStrong, // 👇 Dynamic Shimmer Highlight
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(height: 20, width: 120, color: Colors.white),
-            const SizedBox(height: 12),
-            Container(
-              height: 100,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-            const SizedBox(height: 32),
-            Container(height: 20, width: 120, color: Colors.white),
-            const SizedBox(height: 12),
-            Container(
-              height: 350,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

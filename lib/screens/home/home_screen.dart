@@ -431,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildQuickStatusCard() {
     final comingCount = _children
-        .where((c) => c.attendance == AttendanceState.coming)
+        .where((c) => c.attendance == AttendanceState.both)
         .length;
     return GestureDetector(
       onTap: _openRideDetail,
