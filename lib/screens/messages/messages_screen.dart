@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:vango_parent_app/theme/app_colors.dart';
 import 'package:vango_parent_app/theme/app_typography.dart';
 import 'package:vango_parent_app/screens/messages/chat_screen.dart';
+import 'package:vango_parent_app/screens/messages/group_chat_screen.dart';
 import 'package:intl/intl.dart';
 
 class _ChatTileInfo {
@@ -27,6 +28,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       Supabase.instance.client.auth.currentUser?.id;
 
   final Map<String, Future<_ChatTileInfo>> _infoCache = {};
+  bool _showGroups = false;
 
   Future<_ChatTileInfo> _fetchChatTileInfo(String driverAuthId) {
     return _infoCache.putIfAbsent(driverAuthId, () async {
@@ -51,7 +53,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         final childRow = await Supabase.instance.client
             .from('children')
             .select('child_name')
-            .eq('parent_id', _currentUserId!)
+          .eq('parent_id', _currentUserId)
             .eq('linked_driver_id', driverDbId)
             .maybeSingle();
 
@@ -77,6 +79,232 @@ class _MessagesScreenState extends State<MessagesScreen> {
           receiverId: receiverId, 
         ),
       ),
+    );
+  }
+
+  void _openGroupChat(String groupId, String groupName) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GroupChatScreen(groupId: groupId, groupName: groupName),
+      ),
+    );
+  }
+
+  Widget _buildChatModeToggle() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = isDark ? AppColors.darkAccent : AppColors.accent;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _ModeButton(
+                label: 'Direct',
+                active: !_showGroups,
+                activeColor: activeColor,
+                onTap: () => setState(() => _showGroups = false),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _ModeButton(
+                label: 'Groups',
+                active: _showGroups,
+                activeColor: activeColor,
+                onTap: () => setState(() => _showGroups = true),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDirectChatsSliver() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('chats')
+          .where('users', arrayContains: _currentUserId)
+          .orderBy('lastMessageTime', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return SliverFillRemaining(
+            child: Center(
+              child: Text(
+                'Error loading chats.\nPlease try again later.',
+                textAlign: TextAlign.center,
+                style: AppTypography.body.copyWith(
+                  color: AppColors.danger,
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (_, __) => const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: _ShimmerTile(),
+                ),
+                childCount: 4,
+              ),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SliverFillRemaining(child: _EmptyState());
+        }
+
+        final chatDocs = snapshot.data!.docs;
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final doc = chatDocs[index];
+                final chatData = doc.data() as Map<String, dynamic>;
+                final chatId = doc.id;
+
+                final users = List<String>.from(
+                  (chatData['users'] as List<dynamic>?) ?? [],
+                );
+                final driverAuthId = users.firstWhere(
+                  (id) => id != _currentUserId,
+                  orElse: () => '',
+                );
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: FutureBuilder<_ChatTileInfo>(
+                    future: _fetchChatTileInfo(driverAuthId),
+                    builder: (context, infoSnap) {
+                      if (infoSnap.connectionState == ConnectionState.waiting) {
+                        return const _ShimmerTile();
+                      }
+
+                      final info = infoSnap.data ??
+                          const _ChatTileInfo(driverName: 'VanGo Driver');
+
+                      final displayName = info.childName != null
+                          ? '${info.driverName} (Driving ${info.childName})'
+                          : info.driverName;
+
+                      return _ChatTile(
+                        chatData: chatData,
+                        displayName: displayName,
+                        currentUserId: _currentUserId!,
+                        onTap: () =>
+                            _openChat(chatId, info.driverName, driverAuthId),
+                      );
+                    },
+                  ),
+                );
+              },
+              childCount: chatDocs.length,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGroupChatsSliver() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('groups')
+          .where('memberIds', arrayContains: _currentUserId)
+          .orderBy('updatedAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return SliverFillRemaining(
+            child: Center(
+              child: Text(
+                'Error loading groups.\nPlease try again later.',
+                textAlign: TextAlign.center,
+                style: AppTypography.body.copyWith(
+                  color: AppColors.danger,
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (_, __) => const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: _ShimmerTile(),
+                ),
+                childCount: 4,
+              ),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SliverFillRemaining(
+            child: _EmptyState(
+              title: 'No groups yet',
+              subtitle: 'When your driver adds you to a group, it appears here.',
+            ),
+          );
+        }
+
+        final groupDocs = snapshot.data!.docs;
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final doc = groupDocs[index];
+                final groupData = doc.data() as Map<String, dynamic>;
+                final groupId = doc.id;
+
+                final groupName = (groupData['name'] as String?)?.trim();
+                final displayName = (groupName != null && groupName.isNotEmpty)
+                    ? groupName
+                    : 'VanGo Group';
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _ChatTile(
+                    chatData: {
+                      ...groupData,
+                      'lastMessageTime': groupData['updatedAt'] ?? groupData['createdAt'],
+                      'unreadCount_$_currentUserId':
+                          groupData['unreadCount_$_currentUserId'] ?? 0,
+                    },
+                    displayName: displayName,
+                    currentUserId: _currentUserId!,
+                    onTap: () => _openGroupChat(groupId, displayName),
+                  ),
+                );
+              },
+              childCount: groupDocs.length,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -144,100 +372,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 ),
               ),
             ),
-
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('chats')
-                  .where('users', arrayContains: _currentUserId)
-                  .orderBy('lastMessageTime', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Text(
-                        'Error loading chats.\nPlease try again later.',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.body.copyWith(
-                          color: AppColors.danger,
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (_, __) => const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: _ShimmerTile(),
-                        ),
-                        childCount: 4,
-                      ),
-                    ),
-                  );
-                }
-
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const SliverFillRemaining(child: _EmptyState());
-                }
-
-                final chatDocs = snapshot.data!.docs;
-
-                return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final doc = chatDocs[index];
-                        final chatData = doc.data() as Map<String, dynamic>;
-                        final chatId = doc.id;
-
-                        final users = List<String>.from(
-                          (chatData['users'] as List<dynamic>?) ?? [],
-                        );
-                        final driverAuthId = users.firstWhere(
-                          (id) => id != _currentUserId,
-                          orElse: () => '',
-                        );
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: FutureBuilder<_ChatTileInfo>(
-                            future: _fetchChatTileInfo(driverAuthId),
-                            builder: (context, infoSnap) {
-                              if (infoSnap.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const _ShimmerTile();
-                              }
-
-                              final info = infoSnap.data ??
-                                  const _ChatTileInfo(driverName: 'VanGo Driver');
-
-                              final displayName = info.childName != null
-                                  ? '${info.driverName} (Driving ${info.childName})'
-                                  : info.driverName;
-
-                              return _ChatTile(
-                                chatData: chatData,
-                                displayName: displayName,
-                                currentUserId: _currentUserId!,
-                                onTap: () =>
-                                    _openChat(chatId, info.driverName, driverAuthId),
-                              );
-                            },
-                          ),
-                        );
-                      },
-                      childCount: chatDocs.length,
-                    ),
-                  ),
-                );
-              },
-            ),
+            SliverToBoxAdapter(child: _buildChatModeToggle()),
+            _showGroups ? _buildGroupChatsSliver() : _buildDirectChatsSliver(),
           ],
         ),
       ),
@@ -418,6 +554,45 @@ class _ChatTile extends StatelessWidget {
   }
 }
 
+class _ModeButton extends StatelessWidget {
+  const _ModeButton({
+    required this.label,
+    required this.active,
+    required this.activeColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final Color activeColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+
+    return Material(
+      color: active ? activeColor : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: AppTypography.label.copyWith(
+              color: active ? Colors.white : textColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ShimmerTile extends StatelessWidget {
   const _ShimmerTile();
 
@@ -474,7 +649,14 @@ class _ShimmerTile extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({
+    this.title = 'No conversations yet',
+    this.subtitle =
+        'Once your driver is linked, your chat will appear here automatically.',
+  });
+
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -503,7 +685,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              'No conversations yet',
+              title,
               style: AppTypography.title.copyWith(
                 fontSize: 18,
                 color: textColor,
@@ -511,7 +693,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Once your driver is linked, your chat will appear here automatically.',
+              subtitle,
               textAlign: TextAlign.center,
               style: AppTypography.body.copyWith(
                 fontSize: 14,
