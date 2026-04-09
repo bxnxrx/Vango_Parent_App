@@ -156,6 +156,24 @@ class ParentDataService {
     return null;
   }
 
+  // 👇 ADD THIS NEW METHOD
+  Future<Map<String, dynamic>?> getLinkedDriverBasicInfo(String childId) async {
+    try {
+      final response = await _backend.get('/api/parents/link-status');
+      if (response['linked'] == true) {
+        final links = response['childLinks'] as List;
+        for (var link in links) {
+          if (link['childId'] == childId) {
+            return link['driver'] as Map<String, dynamic>?;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting linked driver info: $e');
+    }
+    return null;
+  }
+
   Future<Map<String, dynamic>> fetchProfile() async {
     final response = await _backend.get('/api/parents/profile');
     return _expectMap(response);

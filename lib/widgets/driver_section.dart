@@ -17,6 +17,13 @@ class DriverSection extends StatelessWidget {
   final VoidCallback onScanQRCode;
   final VoidCallback onCodeChanged;
 
+  final bool isEditing;
+  final String? linkedDriverId;
+  // 👇 ADDED: New Parameters
+  final String? linkedDriverName;
+  final String? linkedDriverPhone;
+  final bool isLoadingLinkedDriver;
+
   const DriverSection({
     super.key,
     required this.hasDriver,
@@ -28,6 +35,12 @@ class DriverSection extends StatelessWidget {
     required this.onVerifyCode,
     required this.onScanQRCode,
     required this.onCodeChanged,
+    this.isEditing = false,
+    this.linkedDriverId,
+    // 👇 ADDED: Initialize parameters
+    this.linkedDriverName,
+    this.linkedDriverPhone,
+    this.isLoadingLinkedDriver = false,
   });
 
   Widget _buildDriverDetailRow(
@@ -76,6 +89,83 @@ class DriverSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // 👇 UPDATED: Display beautiful linked details here!
+    if (isEditing && linkedDriverId != null && linkedDriverId!.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Driver Details",
+            style: AppTypography.title.copyWith(
+              fontSize: 16,
+              color: isDark ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.accent.withValues(alpha: 0.3),
+              ),
+            ),
+            child: isLoadingLinkedDriver
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: CircularProgressIndicator(color: AppColors.accent),
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle,
+                            color: AppColors.accent,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Driver Linked",
+                            style: AppTypography.title.copyWith(
+                              color: AppColors.accent,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Divider(
+                          height: 1,
+                          color: isDark ? Colors.white10 : AppColors.stroke,
+                        ),
+                      ),
+                      if (linkedDriverName != null)
+                        _buildDriverDetailRow(
+                          Icons.person_outline,
+                          l10n.driverNameLabel,
+                          linkedDriverName,
+                          isDark,
+                        ),
+                      if (linkedDriverPhone != null)
+                        _buildDriverDetailRow(
+                          Icons.phone_outlined,
+                          "Phone",
+                          linkedDriverPhone,
+                          isDark,
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,7 +371,6 @@ class DriverSection extends StatelessWidget {
                     verifiedDriverDetails!.route,
                     isDark,
                   ),
-                  // 👇 ADDED: Conditional rendering of Monthly Fee
                   if (verifiedDriverDetails!.price > 0)
                     _buildDriverDetailRow(
                       Icons.payments_outlined,

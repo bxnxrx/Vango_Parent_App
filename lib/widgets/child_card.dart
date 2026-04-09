@@ -21,7 +21,7 @@ class ChildCard extends StatelessWidget {
     final isPaid = child.paymentStatus == PaymentStatus.paid;
     final isDue = child.paymentStatus == PaymentStatus.due;
     final isOverdue = child.paymentStatus == PaymentStatus.overdue;
-    final isComing = child.attendance == AttendanceState.coming;
+    final isComing = child.attendance == AttendanceState.both;
 
     Color statusColor;
     if (isPaid) {
