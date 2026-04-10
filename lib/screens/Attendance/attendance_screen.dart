@@ -807,6 +807,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                       calendarFormat: CalendarFormat.month,
                                       startingDayOfWeek:
                                           StartingDayOfWeek.monday,
+
+                                      // 👇 THE FIX: THIS PREVENTS THE CALENDAR FROM EATING SCROLL GESTURES!
+                                      availableGestures:
+                                          AvailableGestures.horizontalSwipe,
+
                                       headerStyle: HeaderStyle(
                                         formatButtonVisible: false,
                                         titleCentered: true,
