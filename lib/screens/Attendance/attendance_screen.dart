@@ -88,13 +88,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               const Icon(Icons.lock_clock, color: AppColors.warning),
               const SizedBox(width: 8),
               Text(
-                "Deadline Passed",
+                "Cannot Update",
                 style: AppTypography.title.copyWith(color: textColor),
               ),
             ],
           ),
           content: Text(
-            "Attendance changes are allowed until 9 PM the previous day to ensure driver routing stability.\n\nFor urgent last-minute changes, please contact the driver directly.",
+            "For urgent last-minute changes, please contact the driver directly.",
             style: AppTypography.body.copyWith(
               height: 1.5,
               color: secondaryTextColor,
@@ -206,11 +206,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     List<DateTime> nextWeekDays = [];
     for (int i = 0; i < 5; i++) {
       DateTime d = nextMonday.add(Duration(days: i));
-      String ds = DateFormat('yyyy-MM-dd').format(d);
-      bool isHoliday =
-          _viewModel.slHolidays.contains(ds) ||
-          _viewModel.backupHolidays.containsKey(ds);
-      if (!isHoliday) nextWeekDays.add(d);
+      // 👇 UPDATED: Removed the holiday check so users can mark next week even if it contains holidays
+      nextWeekDays.add(d);
     }
 
     if (nextWeekDays.isNotEmpty) {
@@ -218,13 +215,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _handleUpdateResult(
         result,
         'Status updated for ${nextWeekDays.length} day(s).',
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Next week is entirely school holidays!'),
-          backgroundColor: AppColors.warning,
-        ),
       );
     }
   }
@@ -238,6 +228,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       'Wednesday',
       'Thursday',
       'Friday',
+      'Saturday', // Added weekend options for extra classes
+      'Sunday',
     ];
 
     showModalBottomSheet(
@@ -273,7 +265,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Applies to the next 4 weeks (max 30 days limit). Automatically skips holidays.",
+                    "Applies to the next 4 weeks. Includes holidays and weekends.",
                     style: AppTypography.body.copyWith(
                       color: secondaryTextColor,
                     ),
@@ -288,7 +280,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: List.generate(5, (index) {
+                    children: List.generate(7, (index) {
                       int dayInt = index + 1;
                       bool isSelected = selectedWeekday == dayInt;
                       return ChoiceChip(
@@ -323,6 +315,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   const SizedBox(height: 12),
                   Column(
                     children: [
+                      RadioListTile<AttendanceState>(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Going Both (Default)',
+                          style: TextStyle(color: textColor),
+                        ),
+                        value: AttendanceState.both,
+                        groupValue: selectedState,
+                        activeColor: AppColors.accent,
+                        onChanged: (val) =>
+                            setModalState(() => selectedState = val!),
+                      ),
                       RadioListTile<AttendanceState>(
                         contentPadding: EdgeInsets.zero,
                         title: Text(
@@ -375,11 +379,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
                       while (generatedDates.length < 4) {
                         if (current.weekday == selectedWeekday) {
-                          String ds = DateFormat('yyyy-MM-dd').format(current);
-                          bool isHoliday =
-                              _viewModel.slHolidays.contains(ds) ||
-                              _viewModel.backupHolidays.containsKey(ds);
-                          if (!isHoliday) generatedDates.add(current);
+                          // 👇 UPDATED: Removed holiday skipping here too
+                          generatedDates.add(current);
                         }
                         current = current.add(const Duration(days: 1));
                       }
@@ -444,6 +445,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       style: TextStyle(color: textColor),
                     ),
                     const SizedBox(height: 16),
+                    _buildRadioTile(
+                      "Going Both (Default)",
+                      AttendanceState.both,
+                      selectedOption,
+                      (val) => setModalState(() => selectedOption = val!),
+                      isDark,
+                    ),
                     _buildRadioTile(
                       "Morning Ride Only",
                       AttendanceState.morning,
@@ -570,35 +578,42 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _viewModel.slHolidays.contains(dateStr) ||
         _viewModel.backupHolidays.containsKey(dateStr);
 
-    AttendanceState? state = _viewModel.allPlans[dateStr]?['state'];
-    if (state == null && !isWeekend && !isHoliday) state = AttendanceState.both;
+    AttendanceState? rawState = _viewModel.allPlans[dateStr]?['state'];
 
     Color bgColor = Colors.transparent;
     Color textColor =
         Theme.of(context).textTheme.bodyLarge?.color ?? AppColors.textPrimary;
 
-    if (state == AttendanceState.both) {
-      bgColor = AppColors.success.withValues(alpha: 0.15);
-      textColor = AppColors.success;
-    } else if (state == AttendanceState.none) {
-      bgColor = AppColors.danger.withValues(alpha: 0.15);
-      textColor = AppColors.danger;
-    } else if (state == AttendanceState.morning) {
-      bgColor = Colors.teal.withValues(alpha: 0.15);
-      textColor = Colors.teal;
-    } else if (state == AttendanceState.afternoon) {
-      bgColor = Colors.deepPurple.withValues(alpha: 0.15);
-      textColor = Colors.deepPurple;
-    } else if (state == AttendanceState.pending) {
-      bgColor = AppColors.warning.withValues(alpha: 0.2);
-      textColor = AppColors.warning;
-    }
-
-    if (isWeekend || isHoliday) {
-      bgColor = Theme.of(context).dividerColor.withValues(alpha: 0.2);
-      textColor = Theme.of(context).brightness == Brightness.dark
-          ? AppColors.darkTextSecondary
-          : AppColors.textSecondary;
+    // 👇 UPDATED: Explicit user schedules override holidays.
+    // If there is no explicit schedule, but it is a holiday/weekend, we style it grey.
+    // If it is just a normal day, we style it green (default Going Both).
+    if (rawState == null) {
+      if (isWeekend || isHoliday) {
+        bgColor = Theme.of(context).dividerColor.withValues(alpha: 0.2);
+        textColor = Theme.of(context).brightness == Brightness.dark
+            ? AppColors.darkTextSecondary
+            : AppColors.textSecondary;
+      } else {
+        bgColor = AppColors.success.withValues(alpha: 0.15);
+        textColor = AppColors.success;
+      }
+    } else {
+      if (rawState == AttendanceState.both) {
+        bgColor = AppColors.success.withValues(alpha: 0.15);
+        textColor = AppColors.success;
+      } else if (rawState == AttendanceState.none) {
+        bgColor = AppColors.danger.withValues(alpha: 0.15);
+        textColor = AppColors.danger;
+      } else if (rawState == AttendanceState.morning) {
+        bgColor = Colors.teal.withValues(alpha: 0.15);
+        textColor = Colors.teal;
+      } else if (rawState == AttendanceState.afternoon) {
+        bgColor = Colors.deepPurple.withValues(alpha: 0.15);
+        textColor = Colors.deepPurple;
+      } else if (rawState == AttendanceState.pending) {
+        bgColor = AppColors.warning.withValues(alpha: 0.2);
+        textColor = AppColors.warning;
+      }
     }
 
     return Container(
@@ -743,12 +758,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                "Today's Ride",
-                                style: AppTypography.title.copyWith(
-                                  fontSize: 18,
-                                  color: textColor,
-                                ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "Today's Ride",
+                                    style: AppTypography.title.copyWith(
+                                      fontSize: 18,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                  Text(
+                                    DateFormat(
+                                      'MMM d, yyyy',
+                                    ).format(DateTime.now()),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: secondaryTextColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 12),
 
@@ -808,7 +839,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                       startingDayOfWeek:
                                           StartingDayOfWeek.monday,
 
-                                      // 👇 THE FIX: THIS PREVENTS THE CALENDAR FROM EATING SCROLL GESTURES!
                                       availableGestures:
                                           AvailableGestures.horizontalSwipe,
 
@@ -954,7 +984,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                         ),
                                         _buildLegendItem(
                                           secondaryTextColor,
-                                          'Holiday',
+                                          'Holiday / Weekend',
                                         ),
                                       ],
                                     ),

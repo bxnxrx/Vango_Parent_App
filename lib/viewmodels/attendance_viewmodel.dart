@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:vango_parent_app/models/child_profile.dart';
 import 'package:vango_parent_app/services/parent_data_service.dart';
 
-// A helper class to cleanly pass results back to the UI without UI dependencies
 class AttendanceUpdateResult {
   final bool success;
   final String message;
@@ -201,10 +200,12 @@ class AttendanceViewModel extends ChangeNotifier {
         selectedChild = selectedChild!.copyWith(attendance: newState);
         notifyListeners();
         return AttendanceUpdateResult(success: false, isOffline: true);
-      } else if (errorStr.contains('Deadline passed') ||
-          errorStr.contains('closed at 9 PM')) {
+      } else if (errorStr.contains('already started')) {
         notifyListeners();
-        return AttendanceUpdateResult(success: false, isDeadlinePassed: true);
+        return AttendanceUpdateResult(
+          success: false,
+          message: errorStr.replaceAll('Exception: ', ''),
+        );
       } else {
         notifyListeners();
         return AttendanceUpdateResult(
@@ -235,12 +236,18 @@ class AttendanceViewModel extends ChangeNotifier {
         newState,
       );
 
+      // 👇 UPDATED: Automatically clears default plans so they don't clog up history!
       for (var date in formattedDates) {
-        allPlans[date] = {
-          'state': newState,
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        };
+        if (newState == AttendanceState.both) {
+          allPlans.remove(date);
+        } else {
+          allPlans[date] = {
+            'state': newState,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          };
+        }
       }
+
       isLoading = false;
       notifyListeners();
       return AttendanceUpdateResult(success: true);
@@ -250,17 +257,17 @@ class AttendanceViewModel extends ChangeNotifier {
 
       if (errorStr.contains('Saved offline')) {
         for (var date in formattedDates) {
-          allPlans[date] = {
-            'state': newState,
-            'updated_at': DateTime.now().toIso8601String(),
-          };
+          if (newState == AttendanceState.both) {
+            allPlans.remove(date);
+          } else {
+            allPlans[date] = {
+              'state': newState,
+              'updated_at': DateTime.now().toIso8601String(),
+            };
+          }
         }
         notifyListeners();
         return AttendanceUpdateResult(success: false, isOffline: true);
-      } else if (errorStr.contains('Deadline passed') ||
-          errorStr.contains('closed at 9 PM')) {
-        notifyListeners();
-        return AttendanceUpdateResult(success: false, isDeadlinePassed: true);
       } else {
         notifyListeners();
         return AttendanceUpdateResult(
